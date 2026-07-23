@@ -6,10 +6,13 @@ import { NotFoundError } from '../shared/errors.js';
 
 import { EventService } from './event.service.js';
 
+import { BoardService } from './board.service.js';
+
 export class ProjectService {
   constructor(
     private db: DatabaseAdapter,
-    private eventService?: EventService
+    private eventService?: EventService,
+    private boardService?: BoardService
   ) {}
 
   async create(data: CreateProject): Promise<Project> {
@@ -26,6 +29,10 @@ export class ProjectService {
       `INSERT INTO projects (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
       [project.id, project.name, project.description, project.created_at, project.updated_at]
     );
+
+    if (this.boardService) {
+      await this.boardService.create({ project_id: project.id, name: 'Development Board' });
+    }
 
     await this.eventService?.emit(project.id, 'project', project.id, 'created', 'system', { name: project.name });
 

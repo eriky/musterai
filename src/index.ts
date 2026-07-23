@@ -38,9 +38,10 @@ async function main() {
     sseManager.broadcast(evt.project_id, evt);
   });
 
+  const boardService = new BoardService(db, eventService);
   const services: Services = {
-    projectService: new ProjectService(db, eventService),
-    boardService: new BoardService(db, eventService),
+    projectService: new ProjectService(db, eventService, boardService),
+    boardService,
     columnService: new ColumnService(db, eventService),
     cardService: new CardService(db, eventService),
     commentService: new CommentService(db, eventService),
