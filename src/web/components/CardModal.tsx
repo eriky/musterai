@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Card, AgentRegistration } from '../types';
 import { X, Send, UserPlus, Tag, MessageSquare, AlertTriangle, Clock, UserCheck, Trash2 } from 'lucide-react';
-import { addComment, assignCard, unassignCard, updateCard } from '../api';
+import { addComment, assignCard, deleteCard, unassignCard, updateCard } from '../api';
 
 interface CardModalProps {
   card: Card;
@@ -63,6 +63,19 @@ export const CardModal: React.FC<CardModalProps> = ({ card, agents, onClose, onR
       console.error('Failed to save card:', err);
       setIsSaving(false);
       alert('Failed to save task card changes');
+    }
+  };
+
+  const handleDeleteCard = async () => {
+    if (window.confirm(`Are you sure you want to remove task card "${card.title}"?`)) {
+      try {
+        await deleteCard(card.id);
+        onRefresh();
+        onClose();
+      } catch (err) {
+        console.error('Failed to remove card:', err);
+        alert('Failed to remove task card');
+      }
     }
   };
 
@@ -268,14 +281,19 @@ export const CardModal: React.FC<CardModalProps> = ({ card, agents, onClose, onR
           padding: '12px 20px',
           borderTop: '1px solid rgba(255, 255, 255, 0.08)',
           display: 'flex',
-          justifyContent: 'flex-end',
-          gap: '10px',
+          justifyContent: 'space-between',
+          alignItems: 'center',
           background: 'rgba(0, 0, 0, 0.2)',
         }}>
-          <button onClick={onClose} className="btn btn-secondary btn-sm">Close</button>
-          <button onClick={handleSaveChanges} disabled={isSaving} className="btn btn-primary btn-sm">
-            {isSaving ? 'Saving...' : 'Save Changes'}
+          <button onClick={handleDeleteCard} className="btn btn-secondary btn-sm" style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}>
+            <Trash2 size={14} /> Remove Card
           </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={onClose} className="btn btn-secondary btn-sm">Close</button>
+            <button onClick={handleSaveChanges} disabled={isSaving} className="btn btn-primary btn-sm">
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

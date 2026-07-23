@@ -228,4 +228,18 @@ export class CardService {
 
     return this.getById(id);
   }
+
+  async delete(id: string): Promise<void> {
+    const card = await this.getById(id);
+    const projectId = await this.getProjectIdForColumn(card.column_id);
+
+    await this.db.execute(`DELETE FROM card_assignees WHERE card_id = ?`, [id]);
+    await this.db.execute(`DELETE FROM card_labels WHERE card_id = ?`, [id]);
+    await this.db.execute(`DELETE FROM comments WHERE card_id = ?`, [id]);
+    await this.db.execute(`DELETE FROM cards WHERE id = ?`, [id]);
+
+    if (projectId) {
+      await this.eventService?.emit(projectId, 'card', id, 'deleted', 'system', { title: card.title });
+    }
+  }
 }

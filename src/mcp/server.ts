@@ -289,6 +289,17 @@ export function createMcpServer(services: Services): McpServer {
     }
   );
 
+  server.tool(
+    'delete_card',
+    {
+      card_id: z.string()
+    },
+    async ({ card_id }) => {
+      await services.cardService.delete(card_id);
+      return { content: [{ type: 'text' as const, text: JSON.stringify({ success: true }) }] };
+    }
+  );
+
   // --- Label Management ---
   server.tool(
     'create_label',

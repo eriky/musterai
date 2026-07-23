@@ -103,6 +103,13 @@ export async function updateCard(cardId: string, data: Partial<Card>): Promise<C
   return res.json();
 }
 
+export async function deleteCard(cardId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/cards/${cardId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete card');
+}
+
 export async function addComment(cardId: string, authorId: string, content: string): Promise<Comment> {
   const res = await fetch(`${API_BASE}/cards/${cardId}/comments`, {
     method: 'POST',

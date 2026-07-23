@@ -75,6 +75,13 @@ export function createCardRoutes(cardService: CardService, commentService: Comme
     } catch (err) { next(err); }
   });
 
+  router.delete('/:id', async (req, res, next) => {
+    try {
+      await cardService.delete(req.params.id);
+      res.status(204).end();
+    } catch (err) { next(err); }
+  });
+
   router.post('/:id/comments', async (req, res, next) => {
     try {
       const result = await commentService.create({ card_id: req.params.id, ...req.body });
