@@ -97,7 +97,7 @@ export const CardModal: React.FC<CardModalProps> = ({ card, agents, onClose, onR
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span className={`badge badge-${priority}`}>{priority}</span>
-            <span style={{ fontSize: '0.8rem', color: '#64748b', fontFamily: 'var(--font-mono)' }}>{card.id}</span>
+            <span style={{ fontSize: '0.82rem', color: '#94a3b8', fontWeight: 600 }}>Task Details</span>
           </div>
           <button onClick={onClose} className="btn btn-secondary btn-sm" style={{ padding: '4px' }}>
             <X size={18} />
@@ -213,20 +213,25 @@ export const CardModal: React.FC<CardModalProps> = ({ card, agents, onClose, onR
               {(!card.comments || card.comments.length === 0) ? (
                 <p style={{ fontSize: '0.82rem', color: '#64748b', fontStyle: 'italic' }}>No comments yet.</p>
               ) : (
-                card.comments.map((c) => (
-                  <div key={c.id} style={{
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: '#94a3b8', marginBottom: '4px' }}>
-                      <span style={{ fontWeight: 600, color: '#a5b4fc' }}>Author: {c.author_id}</span>
-                      <span>{new Date(c.created_at).toLocaleString()}</span>
+                card.comments.map((c) => {
+                  const authorName = c.author_id === 'system' || !c.author_id
+                    ? 'System'
+                    : (agents.find((a) => a.id === c.author_id)?.name || c.author_id);
+                  return (
+                    <div key={c.id} style={{
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: '#94a3b8', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: 600, color: '#a5b4fc' }}>{authorName}</span>
+                        <span>{new Date(c.created_at).toLocaleString()}</span>
+                      </div>
+                      <p style={{ fontSize: '0.86rem', color: '#f8fafc' }}>{c.content}</p>
                     </div>
-                    <p style={{ fontSize: '0.86rem', color: '#f8fafc' }}>{c.content}</p>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 

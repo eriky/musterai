@@ -201,18 +201,26 @@ export const DocumentHub: React.FC<DocumentHubProps> = ({
                 {showHistory && (
                   <div style={{ width: '280px', borderLeft: '1px solid rgba(255, 255, 255, 0.08)', paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#a78bfa' }}>Version Timeline</h4>
-                    {history.map((ver) => (
-                      <div key={ver.id} style={{
-                        padding: '10px',
-                        borderRadius: '8px',
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        fontSize: '0.78rem',
-                      }}>
-                        <div style={{ fontWeight: 600, color: '#f8fafc' }}>Version {ver.version}</div>
-                        <div style={{ color: '#94a3b8', margin: '2px 0' }}>{ver.change_summary || 'No summary'}</div>
-                        <div style={{ color: '#64748b', fontSize: '0.72rem' }}>{new Date(ver.created_at).toLocaleString()}</div>
-                      </div>
-                    ))}
+                    {history.map((ver) => {
+                      const authorName = ver.author_id === 'system' || !ver.author_id
+                        ? 'System'
+                        : (agents.find((a) => a.id === ver.author_id)?.name || ver.author_id);
+                      return (
+                        <div key={ver.id} style={{
+                          padding: '10px',
+                          borderRadius: '8px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          fontSize: '0.78rem',
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 600, color: '#f8fafc' }}>Version {ver.version}</span>
+                            <span style={{ color: '#a78bfa', fontSize: '0.72rem' }}>By {authorName}</span>
+                          </div>
+                          <div style={{ color: '#94a3b8', margin: '4px 0 2px' }}>{ver.change_summary || 'No summary'}</div>
+                          <div style={{ color: '#64748b', fontSize: '0.72rem' }}>{new Date(ver.created_at).toLocaleString()}</div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

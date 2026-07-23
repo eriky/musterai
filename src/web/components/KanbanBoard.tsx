@@ -258,9 +258,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             <Clock size={12} /> {new Date(card.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                           </span>
 
-                          <span style={{ color: '#a5b4fc', fontFamily: 'var(--font-mono)' }}>
-                            ID: {card.id.substring(0, 8)}
-                          </span>
+                          {card.assignees && card.assignees.length > 0 ? (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#a5b4fc', fontSize: '0.74rem' }}>
+                              <UserCheck size={12} />
+                              {agents.find((a) => a.id === card.assignees![0].agent_id)?.name || 'Assigned'}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#64748b', fontStyle: 'italic', fontSize: '0.72rem' }}>Unassigned</span>
+                          )}
                         </div>
                       </div>
                     ))

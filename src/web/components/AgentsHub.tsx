@@ -145,7 +145,7 @@ export const AgentsHub: React.FC<AgentsHubProps> = ({ agents, onOpenRegisterAgen
                     paddingTop: '10px',
                     borderTop: '1px solid rgba(255, 255, 255, 0.06)',
                   }}>
-                    <span>ID: <span style={{ fontFamily: 'var(--font-mono)' }}>{agent.id.substring(0, 8)}</span></span>
+                    <span>Type: <span style={{ color: '#a5b4fc', textTransform: 'capitalize' }}>{agent.type === 'ai_agent' ? 'AI Agent' : 'Human'}</span></span>
                     <span>Last Seen: {new Date(agent.last_seen_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                 </div>
