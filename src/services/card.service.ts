@@ -5,11 +5,21 @@ import { Card, CreateCard, CAPEvent, Label, CardAssignee } from '../shared/types
 import { NotFoundError, ConflictError } from '../shared/errors.js';
 import { generateRank, rankAfter } from '../shared/lexorank.js';
 
+import { EventService } from './event.service.js';
+
 export class CardService {
   constructor(
     private db: DatabaseAdapter,
-    private onEvent?: (event: CAPEvent) => Promise<void>
+    private eventService?: EventService
   ) {}
+
+  private async getProjectIdForColumn(columnId: string): Promise<string> {
+    const rows = await this.db.query<{project_id: string}>(
+      `SELECT b.project_id FROM columns c JOIN boards b ON c.board_id = b.id WHERE c.id = ?`,
+      [columnId]
+    );
+    return rows.length > 0 ? rows[0].project_id : '';
+  }
 
   async create(data: CreateCard): Promise<Card> {
     const now = new Date().toISOString();
@@ -40,6 +50,11 @@ export class CardService {
       [card.id, card.column_id, card.title, card.description, card.position, card.priority, card.due_date, card.created_at, card.updated_at, card.archived]
     );
 
+    const projectId = await this.getProjectIdForColumn(card.column_id);
+    if (projectId) {
+      await this.eventService?.emit(projectId, 'card', card.id, 'created', 'system', { title: card.title, priority: card.priority });
+    }
+
     return card;
   }
 
@@ -58,7 +73,7 @@ export class CardService {
       params.push(filters.columnId);
     }
     if (filters?.boardId) {
-      sql += ` AND c.board_id = ?`;
+      sql += ` AND c.column_id IN (SELECT id FROM columns WHERE board_id = ?)`;
       params.push(filters.boardId);
     }
     if (filters?.assigneeId) {
@@ -114,6 +129,11 @@ export class CardService {
       [updatedTitle, updatedDesc, updatedPriority, updatedDue, updatedAt, id]
     );
 
+    const projectId = await this.getProjectIdForColumn(card.column_id);
+    if (projectId) {
+      await this.eventService?.emit(projectId, 'card', id, 'updated', 'system', data);
+    }
+
     return this.getById(id);
   }
 
@@ -146,15 +166,24 @@ export class CardService {
       [targetColumnId, finalPos, updatedAt, id]
     );
 
+    const projectId = await this.getProjectIdForColumn(targetColumnId);
+    if (projectId) {
+      await this.eventService?.emit(projectId, 'card', id, 'moved', 'system', { target_column_id: targetColumnId, position: finalPos });
+    }
+
     return this.getById(id);
   }
 
   async assign(cardId: string, agentId: string): Promise<void> {
-    const now = new Date().toISOString();
     await this.db.execute(
-      `INSERT INTO card_assignees (card_id, agent_id, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`,
-      [cardId, agentId, now]
+      `INSERT INTO card_assignees (card_id, agent_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
+      [cardId, agentId]
     );
+    const card = await this.getById(cardId);
+    const projectId = await this.getProjectIdForColumn(card.column_id);
+    if (projectId) {
+      await this.eventService?.emit(projectId, 'card', cardId, 'assigned', agentId, { agent_id: agentId });
+    }
   }
 
   async unassign(cardId: string, agentId: string): Promise<void> {
@@ -162,13 +191,17 @@ export class CardService {
       `DELETE FROM card_assignees WHERE card_id = ? AND agent_id = ?`,
       [cardId, agentId]
     );
+    const card = await this.getById(cardId);
+    const projectId = await this.getProjectIdForColumn(card.column_id);
+    if (projectId) {
+      await this.eventService?.emit(projectId, 'card', cardId, 'unassigned', agentId, { agent_id: agentId });
+    }
   }
 
   async addLabel(cardId: string, labelId: string): Promise<void> {
-    const now = new Date().toISOString();
     await this.db.execute(
-      `INSERT INTO card_labels (card_id, label_id, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`,
-      [cardId, labelId, now]
+      `INSERT INTO card_labels (card_id, label_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
+      [cardId, labelId]
     );
   }
 
@@ -187,6 +220,11 @@ export class CardService {
       `UPDATE cards SET archived = 1, updated_at = ? WHERE id = ?`,
       [now, id]
     );
+
+    const projectId = await this.getProjectIdForColumn(card.column_id);
+    if (projectId) {
+      await this.eventService?.emit(projectId, 'card', id, 'archived', 'system', {});
+    }
 
     return this.getById(id);
   }

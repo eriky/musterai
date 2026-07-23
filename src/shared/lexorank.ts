@@ -77,16 +77,12 @@ export function rankAfter(rank: string): string {
 }
 
 export function rankBefore(rank: string): string {
-  let newRank = '';
-  for (let i = 0; i < rank.length; i++) {
+  for (let i = rank.length - 1; i >= 0; i--) {
     const char = rank[i];
-    if (char === START_CHAR) {
-      newRank += char;
-    } else {
-      const charIndex = ALPHABET.indexOf(char);
-      newRank += ALPHABET[charIndex - 1];
-      return newRank;
+    const charIndex = ALPHABET.indexOf(char);
+    if (charIndex > 0) {
+      return rank.substring(0, i) + ALPHABET[charIndex - 1];
     }
   }
-  return newRank + 'm';
+  return '0' + rank;
 }

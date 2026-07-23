@@ -4,10 +4,12 @@ import { DatabaseAdapter } from '../db/adapter.js';
 import { Document, CreateDocument, UpdateDocument, DocumentVersion, CAPEvent, DocumentStatus } from '../shared/types.js';
 import { NotFoundError } from '../shared/errors.js';
 
+import { EventService } from './event.service.js';
+
 export class DocumentService {
   constructor(
     private db: DatabaseAdapter,
-    private onEvent?: (event: CAPEvent) => Promise<void>
+    private eventService?: EventService
   ) {}
 
   async create(data: CreateDocument): Promise<Document> {
@@ -36,11 +38,13 @@ export class DocumentService {
 
       const verId = ulid();
       await tx.execute(
-        `INSERT INTO document_versions (id, document_id, version, title, content, author_id, created_at)
+        `INSERT INTO document_versions (id, document_id, version, content, author_id, change_summary, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [verId, doc.id, doc.version, doc.title, doc.content, doc.author_id, now]
+        [verId, doc.id, doc.version, doc.content, doc.author_id, 'Initial creation', now]
       );
     });
+
+    await this.eventService?.emit(doc.project_id, 'document', doc.id, 'created', doc.author_id, { title: doc.title, version: doc.version });
 
     return doc;
   }
@@ -79,7 +83,6 @@ export class DocumentService {
         `SELECT * FROM document_versions WHERE document_id = ? AND version = ?`, [id, version]
       );
       if (verRows.length > 0) {
-        doc.title = verRows[0].title;
         doc.content = verRows[0].content;
         doc.version = verRows[0].version;
       } else {
@@ -97,6 +100,7 @@ export class DocumentService {
 
     const updatedTitle = data.title !== undefined ? data.title : doc.title;
     const updatedContent = data.content !== undefined ? data.content : doc.content;
+    const authorId = data.author_id || doc.author_id;
 
     await this.db.transaction(async (tx) => {
       await tx.execute(
@@ -106,19 +110,22 @@ export class DocumentService {
 
       const verId = ulid();
       await tx.execute(
-        `INSERT INTO document_versions (id, document_id, version, title, content, author_id, created_at)
+        `INSERT INTO document_versions (id, document_id, version, content, author_id, change_summary, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [verId, doc.id, newVersion, updatedTitle, updatedContent, data.author_id, now]
+        [verId, doc.id, newVersion, updatedContent, authorId, data.change_summary || null, now]
       );
     });
+
+    await this.eventService?.emit(doc.project_id, 'document', doc.id, 'updated', authorId, { title: updatedTitle, version: newVersion, change_summary: data.change_summary });
 
     return this.getById(id);
   }
 
   async setStatus(id: string, status: DocumentStatus): Promise<Document> {
-    await this.getById(id);
+    const doc = await this.getById(id);
     const now = new Date().toISOString();
     await this.db.execute(`UPDATE documents SET status = ?, updated_at = ? WHERE id = ?`, [status, now, id]);
+    await this.eventService?.emit(doc.project_id, 'document', id, 'status_changed', doc.author_id, { status });
     return this.getById(id);
   }
 

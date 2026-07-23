@@ -1,14 +1,15 @@
 // File: src/services/board.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Board, CreateBoard, Column, Label, CAPEvent } from '../shared/types.js';
+import { Board, CreateBoard, Column, Label, CAPEvent, Card } from '../shared/types.js';
 import { NotFoundError } from '../shared/errors.js';
-import { generateRank, rankAfter } from '../shared/lexorank.js';
+
+import { EventService } from './event.service.js';
 
 export class BoardService {
   constructor(
     private db: DatabaseAdapter,
-    private onEvent?: (event: CAPEvent) => Promise<void>
+    private eventService?: EventService
   ) {}
 
   async create(data: CreateBoard): Promise<Board> {
@@ -21,32 +22,12 @@ export class BoardService {
       updated_at: now
     };
 
-    await this.db.transaction(async (tx) => {
-      await tx.execute(
-        `INSERT INTO boards (id, project_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-        [board.id, board.project_id, board.name, board.created_at, board.updated_at]
-      );
+    await this.db.execute(
+      `INSERT INTO boards (id, project_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+      [board.id, board.project_id, board.name, board.created_at, board.updated_at]
+    );
 
-      // Default columns
-      const defaultCols = [
-        { name: 'Backlog', wipLimit: null },
-        { name: 'To Do', wipLimit: null },
-        { name: 'In Progress', wipLimit: 3 },
-        { name: 'In Review', wipLimit: 2 },
-        { name: 'Done', wipLimit: null }
-      ];
-
-      let currentRank = generateRank();
-      
-      for (const col of defaultCols) {
-        const colId = ulid();
-        await tx.execute(
-          `INSERT INTO columns (id, board_id, name, position, wip_limit, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [colId, board.id, col.name, currentRank, col.wipLimit, now, now]
-        );
-        currentRank = rankAfter(currentRank);
-      }
-    });
+    await this.eventService?.emit(board.project_id, 'board', board.id, 'created', 'system', { name: board.name });
 
     return board;
   }
@@ -75,6 +56,13 @@ export class BoardService {
        ORDER BY c.position ASC`,
       [id]
     );
+
+    for (const col of columns) {
+      col.cards = await this.db.query<Card>(
+        `SELECT * FROM cards WHERE column_id = ? AND archived = 0 ORDER BY position ASC`,
+        [col.id]
+      );
+    }
 
     return { ...board, columns };
   }

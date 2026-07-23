@@ -34,16 +34,18 @@ async function main() {
   await migrator.run();
 
   const sseManager = new SSEManager();
-  const eventService = new EventService(db);
+  const eventService = new EventService(db, async (evt) => {
+    sseManager.broadcast(evt.project_id, evt);
+  });
 
   const services: Services = {
-    projectService: new ProjectService(db),
-    boardService: new BoardService(db),
-    columnService: new ColumnService(db),
-    cardService: new CardService(db),
-    commentService: new CommentService(db),
-    documentService: new DocumentService(db),
-    agentService: new AgentService(db),
+    projectService: new ProjectService(db, eventService),
+    boardService: new BoardService(db, eventService),
+    columnService: new ColumnService(db, eventService),
+    cardService: new CardService(db, eventService),
+    commentService: new CommentService(db, eventService),
+    documentService: new DocumentService(db, eventService),
+    agentService: new AgentService(db, eventService),
     eventService
   };
 
@@ -66,13 +68,35 @@ async function main() {
   // Error handling
   app.use(errorHandler);
 
-  // MCP Streamable HTTP endpoint
+  // MCP Streamable HTTP endpoint (per-request transport, stateless)
   const mcpServer = createMcpServer(services);
-  const mcpTransport = new StreamableHTTPServerTransport();
-  await mcpServer.connect(mcpTransport);
-  app.post('/mcp', (req: Request, res: Response) => {
-    mcpTransport.handleRequest(req, res, req.body);
+  app.post('/mcp', async (req: Request, res: Response) => {
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+    });
+    try {
+      await mcpServer.connect(transport);
+      await transport.handleRequest(req, res, req.body);
+      res.on('close', () => {
+        transport.close();
+        mcpServer.close();
+      });
+    } catch (error) {
+      console.error('Error handling MCP request:', error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: '2.0',
+          error: {
+            code: -32603,
+            message: 'Internal server error',
+          },
+          id: null,
+        });
+      }
+    }
   });
+
+  const statusTimer = setInterval(() => services.agentService.updateStatus().catch(console.error), 60000);
 
   const port = config.port;
   const server = app.listen(port, () => {
@@ -84,6 +108,7 @@ async function main() {
 
   const shutdown = async () => {
     console.log('Shutting down...');
+    clearInterval(statusTimer);
     server.close();
     await db.close();
     process.exit(0);

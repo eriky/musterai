@@ -48,7 +48,7 @@ export interface Column {
 export interface CreateColumn {
   board_id: string;
   name: string;
-  position: string;
+  position?: string;
   wip_limit?: number | null;
 }
 

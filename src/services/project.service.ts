@@ -4,10 +4,12 @@ import { DatabaseAdapter } from '../db/adapter.js';
 import { Project, CreateProject, CAPEvent } from '../shared/types.js';
 import { NotFoundError } from '../shared/errors.js';
 
+import { EventService } from './event.service.js';
+
 export class ProjectService {
   constructor(
     private db: DatabaseAdapter,
-    private onEvent?: (event: CAPEvent) => Promise<void>
+    private eventService?: EventService
   ) {}
 
   async create(data: CreateProject): Promise<Project> {
@@ -24,6 +26,8 @@ export class ProjectService {
       `INSERT INTO projects (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
       [project.id, project.name, project.description, project.created_at, project.updated_at]
     );
+
+    await this.eventService?.emit(project.id, 'project', project.id, 'created', 'system', { name: project.name });
 
     return project;
   }
@@ -51,12 +55,15 @@ export class ProjectService {
       [updatedName, updatedDescription, updatedAt, id]
     );
 
+    await this.eventService?.emit(id, 'project', id, 'updated', 'system', data);
+
     return this.getById(id);
   }
 
   async delete(id: string): Promise<void> {
     const project = await this.getById(id);
     await this.db.execute(`DELETE FROM projects WHERE id = ?`, [id]);
+    await this.eventService?.emit(id, 'project', id, 'deleted', 'system', {});
   }
 
   async getSummary(id: string): Promise<any> {
@@ -68,7 +75,8 @@ export class ProjectService {
     
     const cards = await this.db.query<{ count: number }>(
       `SELECT COUNT(*) as count FROM cards c
-       JOIN boards b ON c.board_id = b.id
+       JOIN columns col ON c.column_id = col.id
+       JOIN boards b ON col.board_id = b.id
        WHERE b.project_id = ?`, [id]
     );
 

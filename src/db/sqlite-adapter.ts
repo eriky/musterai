@@ -8,7 +8,7 @@ export class SQLiteAdapter implements DatabaseAdapter {
   private db: any = null;
   private initialized = false;
   private dbPath: string;
-  private autoSave = true;
+  private transactionDepth = 0;
 
   constructor(filepath: string) {
     this.dbPath = filepath;
@@ -23,11 +23,12 @@ export class SQLiteAdapter implements DatabaseAdapter {
     } else {
       this.db = new SQL.Database();
     }
+    this.db.run('PRAGMA foreign_keys = ON;');
     this.initialized = true;
   }
 
   private save(): void {
-    if (!this.db || !this.autoSave) return;
+    if (!this.db || this.transactionDepth > 0) return;
     const data = this.db.export();
     const buffer = Buffer.from(data);
     const dir = path.dirname(this.dbPath);
@@ -56,19 +57,27 @@ export class SQLiteAdapter implements DatabaseAdapter {
 
   async transaction<T>(fn: (adapter: DatabaseAdapter) => Promise<T>): Promise<T> {
     await this.init();
-    this.autoSave = false;
-    this.db.run('BEGIN');
+    const isTopLevel = this.transactionDepth === 0;
+    if (isTopLevel) {
+      this.db.run('BEGIN');
+    }
+    this.transactionDepth++;
     try {
       const result = await fn(this);
-      this.db.run('COMMIT');
-      this.save();
+      if (isTopLevel) {
+        this.db.run('COMMIT');
+      }
       return result;
     } catch (error) {
-      try { this.db.run('ROLLBACK'); } catch (_) { /* ignore rollback errors */ }
-      this.save();
+      if (isTopLevel) {
+        try { this.db.run('ROLLBACK'); } catch (_) { /* ignore rollback errors */ }
+      }
       throw error;
     } finally {
-      this.autoSave = true;
+      this.transactionDepth--;
+      if (isTopLevel) {
+        this.save();
+      }
     }
   }
 

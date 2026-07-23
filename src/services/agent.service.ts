@@ -4,23 +4,38 @@ import { DatabaseAdapter } from '../db/adapter.js';
 import { AgentRegistration, CreateAgentRegistration, CAPEvent } from '../shared/types.js';
 import { NotFoundError } from '../shared/errors.js';
 
+import { EventService } from './event.service.js';
+
 export class AgentService {
   constructor(
     private db: DatabaseAdapter,
-    private onEvent?: (event: CAPEvent) => Promise<void>
+    private eventService?: EventService
   ) {}
+
+  private parseCapabilities(raw: any): any {
+    if (typeof raw !== 'string') return raw || [];
+    try {
+      return JSON.parse(raw);
+    } catch (_) {
+      return raw.split(',').filter(Boolean);
+    }
+  }
 
   async register(data: CreateAgentRegistration): Promise<AgentRegistration> {
     const now = new Date().toISOString();
     
     const existing = await this.db.query<AgentRegistration>(
-      `SELECT * FROM agent_registrations WHERE project_id = ? AND type = ? AND status != 'offline' LIMIT 1`,
-      [data.project_id, data.type]
+      `SELECT * FROM agent_registrations WHERE project_id = ? AND name = ? AND type = ? AND status != 'offline' LIMIT 1`,
+      [data.project_id, data.name, data.type]
     );
 
     if (existing.length > 0) {
       return this.heartbeat(existing[0].id);
     }
+
+    const capabilitiesStr = typeof data.capabilities === 'string'
+      ? (data.capabilities.startsWith('[') || data.capabilities.startsWith('{') ? data.capabilities : JSON.stringify(data.capabilities.split(',').filter(Boolean)))
+      : JSON.stringify(data.capabilities || []);
 
     const registration: AgentRegistration = {
       id: ulid(),
@@ -28,7 +43,7 @@ export class AgentService {
       name: data.name,
       type: data.type,
       role: data.role,
-      capabilities: data.capabilities,
+      capabilities: capabilitiesStr,
       status: 'active',
       last_seen_at: now,
       created_at: now
@@ -40,18 +55,22 @@ export class AgentService {
       [registration.id, registration.project_id, registration.name, registration.type, registration.role, registration.capabilities, registration.status, registration.last_seen_at, registration.created_at]
     );
 
-    return registration;
+    await this.eventService?.emit(registration.project_id, 'agent', registration.id, 'registered', registration.name, { type: registration.type, role: registration.role });
+
+    return this.getById(registration.id);
   }
 
   async list(projectId: string): Promise<AgentRegistration[]> {
+    await this.updateStatus();
     const rows = await this.db.query<any>(`SELECT * FROM agent_registrations WHERE project_id = ? ORDER BY last_seen_at DESC`, [projectId]);
     return rows.map(row => ({
       ...row,
-      capabilities: typeof row.capabilities === 'string' ? JSON.parse(row.capabilities) : row.capabilities
+      capabilities: this.parseCapabilities(row.capabilities)
     }));
   }
 
   async getById(id: string): Promise<AgentRegistration> {
+    await this.updateStatus();
     const rows = await this.db.query<any>(`SELECT * FROM agent_registrations WHERE id = ?`, [id]);
     if (rows.length === 0) {
       throw new NotFoundError(`Agent registration with ID ${id} not found`);
@@ -59,7 +78,7 @@ export class AgentService {
     const row = rows[0];
     return {
       ...row,
-      capabilities: typeof row.capabilities === 'string' ? JSON.parse(row.capabilities) : row.capabilities
+      capabilities: this.parseCapabilities(row.capabilities)
     };
   }
 

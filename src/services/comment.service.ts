@@ -3,10 +3,12 @@ import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
 import { Comment, CreateComment, CAPEvent } from '../shared/types.js';
 
+import { EventService } from './event.service.js';
+
 export class CommentService {
   constructor(
     private db: DatabaseAdapter,
-    private onEvent?: (event: CAPEvent) => Promise<void>
+    private eventService?: EventService
   ) {}
 
   async create(data: CreateComment): Promise<Comment> {
@@ -21,9 +23,17 @@ export class CommentService {
     };
 
     await this.db.execute(
-      `INSERT INTO comments (id, card_id, author_id, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
-      [comment.id, comment.card_id, comment.author_id, comment.content, comment.created_at, comment.updated_at]
+      `INSERT INTO comments (id, card_id, author_id, content, created_at) VALUES (?, ?, ?, ?, ?)`,
+      [comment.id, comment.card_id, comment.author_id, comment.content, comment.created_at]
     );
+
+    const rows = await this.db.query<{project_id: string}>(
+      `SELECT b.project_id FROM cards c JOIN columns col ON c.column_id = col.id JOIN boards b ON col.board_id = b.id WHERE c.id = ?`,
+      [comment.card_id]
+    );
+    if (rows.length > 0) {
+      await this.eventService?.emit(rows[0].project_id, 'comment', comment.id, 'created', comment.author_id, { content: comment.content, card_id: comment.card_id });
+    }
 
     return comment;
   }

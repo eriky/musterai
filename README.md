@@ -82,7 +82,7 @@ The CAP server exposes an MCP endpoint that AI agents (Claude Code, Hermes, Code
 ### MCP Server URL
 
 ```
-POST http://localhost:3000/mcp
+POST `http://localhost:3000/mcp`
 ```
 
 ### Configuring MCP in common agent frameworks

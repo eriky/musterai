@@ -89,7 +89,7 @@ export function createMcpServer(services: Services): McpServer {
       const result = await services.columnService.create({ 
         board_id, 
         name, 
-        position: position || 'm', 
+        position, 
         wip_limit 
       });
       return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
@@ -141,7 +141,13 @@ export function createMcpServer(services: Services): McpServer {
       archived: z.boolean().optional()
     },
     async (filters) => {
-      const result = await services.cardService.list(filters);
+      const result = await services.cardService.list({
+        columnId: filters.column_id,
+        boardId: filters.board_id,
+        assigneeId: filters.assignee_id,
+        labelId: filters.label_id,
+        archived: filters.archived,
+      });
       return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
     }
   );
@@ -398,7 +404,14 @@ export function createMcpServer(services: Services): McpServer {
       capabilities: z.array(z.string()).optional()
     },
     async ({ project_id, name, type, role, capabilities }) => {
-      const result = await services.agentService.register({ project_id, name, type: type as 'ai_agent' | 'human', role: role as 'owner' | 'contributor' | 'observer', capabilities: (capabilities || []).join(','), status: 'active' });
+      const result = await services.agentService.register({
+        project_id,
+        name,
+        type: type as 'ai_agent' | 'human',
+        role: role as 'owner' | 'contributor' | 'observer',
+        capabilities: JSON.stringify(capabilities || []),
+        status: 'active'
+      });
       return { content: [{ type: 'text' as const, text: JSON.stringify(result) }] };
     }
   );
@@ -491,6 +504,47 @@ export function createMcpServer(services: Services): McpServer {
     async (uri: URL) => {
       const document = await services.documentService.getById(uri.pathname.split('/').pop()!);
       return { contents: [{ uri: uri.href, text: JSON.stringify(document) }] };
+    }
+  );
+
+  server.prompt(
+    'task_workflow_instructions',
+    {
+      card_id: z.string().describe('The ID of the card to pick up'),
+      agent_id: z.string().describe('The ID of the agent performing the task'),
+    },
+    async ({ card_id, agent_id }) => {
+      return {
+        description: 'Standard operating instructions for picking up and progressing a task card in CAP',
+        messages: [
+          {
+            role: 'user' as const,
+            content: {
+              type: 'text' as const,
+              text: `Standard Operating Protocol for Task Card (${card_id}) by Agent (${agent_id}):\n` +
+                    `1. Assign yourself: call assign_card({ card_id: "${card_id}", agent_id: "${agent_id}" }).\n` +
+                    `2. Find the "In Progress" column ID for the board using get_board.\n` +
+                    `3. Move card to In Progress: call move_card({ card_id: "${card_id}", target_column_id: "<in_progress_column_id>" }).\n` +
+                    `4. Post progress comment: call add_comment({ card_id: "${card_id}", author_id: "${agent_id}", content: "Picked up task. Starting execution." }).\n` +
+                    `5. Complete work: post final summary comment and call move_card to move the card to "Done".`
+            }
+          }
+        ]
+      };
+    }
+  );
+
+  server.resource(
+    'workflow-guidelines',
+    'cap://instructions/workflow',
+    async (uri: URL) => {
+      const text = `# CAP Agent Operating Guidelines\n\n` +
+        `When picking up a task card on the CAP board:\n` +
+        `1. **Assign**: Assign yourself using \`assign_card({ card_id, agent_id })\`.\n` +
+        `2. **Progress**: Move the card from "To Do" to "In Progress" using \`move_card({ card_id, target_column_id })\`.\n` +
+        `3. **Comment**: Post status updates using \`add_comment({ card_id, author_id, content })\`.\n` +
+        `4. **Complete**: When done, post final output comment and move the card to "Done".\n`;
+      return { contents: [{ uri: uri.href, text }] };
     }
   );
 
