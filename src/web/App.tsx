@@ -60,18 +60,19 @@ export const App: React.FC = () => {
   // URL Hash Sync Helper
   const updateHash = (tab: string, boardId?: string | null, cardId?: string | null) => {
     if (cardId) {
-      window.location.hash = `#/cards/${cardId}`;
+      window.location.hash = `/cards/${cardId}`;
     } else if (tab === 'board' && boardId) {
-      window.location.hash = `#/boards/${boardId}`;
+      window.location.hash = `/boards/${boardId}`;
     } else {
-      window.location.hash = `/#/${tab}`;
+      window.location.hash = `/${tab}`;
     }
   };
 
   // Sync state from URL hash
   const parseAndApplyHash = async () => {
-    const hash = window.location.hash || '#/dashboard';
-    const parts = hash.replace(/^#\/?/, '').split('/');
+    const rawHash = window.location.hash || '#/dashboard';
+    const cleanHash = rawHash.replace(/^[#/]+/, '');
+    const parts = cleanHash.split('/');
     const route = parts[0] || 'dashboard';
     const routeId = parts[1];
 
@@ -101,11 +102,16 @@ export const App: React.FC = () => {
     }
   };
 
-  // Strip /index.html from URL pathname for clean URLs
+  // Strip /index.html and malformed hash signs from URL
   useEffect(() => {
+    let currentHash = window.location.hash;
+    if (currentHash.includes('#/#/')) {
+      currentHash = currentHash.replace('#/#/', '#/');
+      window.history.replaceState(null, '', window.location.pathname + currentHash);
+    }
     if (window.location.pathname.endsWith('/index.html')) {
       const cleanPath = window.location.pathname.replace(/\/index\.html$/, '') || '/';
-      window.history.replaceState(null, '', cleanPath + window.location.search + window.location.hash);
+      window.history.replaceState(null, '', cleanPath + window.location.search + currentHash);
     }
   }, []);
 
