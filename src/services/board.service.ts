@@ -12,6 +12,25 @@ export class BoardService {
     private eventService?: EventService
   ) {}
 
+  private async seedDefaultColumns(boardId: string): Promise<void> {
+    const now = new Date().toISOString();
+    const defaultCols = [
+      { name: 'Backlog', pos: 'm', wip: null },
+      { name: 'To Do', pos: 'n', wip: null },
+      { name: 'In Progress', pos: 'o', wip: 3 },
+      { name: 'In Review', pos: 'p', wip: 2 },
+      { name: 'Done', pos: 'q', wip: null }
+    ];
+
+    for (const col of defaultCols) {
+      const colId = ulid();
+      await this.db.execute(
+        `INSERT INTO columns (id, board_id, name, position, wip_limit, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [colId, boardId, col.name, col.pos, col.wip, now, now]
+      );
+    }
+  }
+
   async create(data: CreateBoard): Promise<Board> {
     const now = new Date().toISOString();
     const board: Board = {
@@ -26,6 +45,9 @@ export class BoardService {
       `INSERT INTO boards (id, project_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
       [board.id, board.project_id, board.name, board.created_at, board.updated_at]
     );
+
+    // Auto-seed default Kanban columns for new board
+    await this.seedDefaultColumns(board.id);
 
     await this.eventService?.emit(board.project_id, 'board', board.id, 'created', 'system', { name: board.name });
 
@@ -47,7 +69,7 @@ export class BoardService {
     }
     const board = rows[0];
 
-    const columns = await this.db.query<any>(
+    let columns = await this.db.query<any>(
       `SELECT c.*, COUNT(cards.id) as card_count 
        FROM columns c
        LEFT JOIN cards ON cards.column_id = c.id AND cards.archived = 0
@@ -56,6 +78,19 @@ export class BoardService {
        ORDER BY c.position ASC`,
       [id]
     );
+
+    if (columns.length === 0) {
+      await this.seedDefaultColumns(id);
+      columns = await this.db.query<any>(
+        `SELECT c.*, COUNT(cards.id) as card_count 
+         FROM columns c
+         LEFT JOIN cards ON cards.column_id = c.id AND cards.archived = 0
+         WHERE c.board_id = ?
+         GROUP BY c.id
+         ORDER BY c.position ASC`,
+        [id]
+      );
+    }
 
     for (const col of columns) {
       col.cards = await this.db.query<Card>(

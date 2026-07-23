@@ -228,7 +228,10 @@ export const App: React.FC = () => {
       <Header
         projects={projects}
         activeProject={activeProject}
-        onSelectProject={(p) => setActiveProject(p)}
+        onSelectProject={(p) => {
+          setActiveBoard(null);
+          setActiveProject(p);
+        }}
         onOpenNewProject={() => setShowProjectModal(true)}
         activeTab={activeTab}
         onTabChange={handleTabChange}
