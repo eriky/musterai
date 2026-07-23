@@ -57,26 +57,33 @@ export const App: React.FC = () => {
     loadProjects();
   }, []);
 
-  // URL Hash Sync Helper
-  const updateHash = (tab: string, boardId?: string | null, cardId?: string | null) => {
+  // URL Path Sync Helper (HTML5 History API)
+  const updateUrl = (tab: string, boardId?: string | null, cardId?: string | null) => {
+    let targetPath = `/${tab}`;
     if (cardId) {
-      window.location.hash = `/cards/${cardId}`;
+      targetPath = `/cards/${cardId}`;
     } else if (tab === 'board' && boardId) {
-      window.location.hash = `/boards/${boardId}`;
-    } else {
-      window.location.hash = `/${tab}`;
+      targetPath = `/boards/${boardId}`;
+    }
+    if (window.location.pathname !== targetPath || window.location.hash) {
+      window.history.pushState(null, '', targetPath);
     }
   };
 
-  // Sync state from URL hash
-  const parseAndApplyHash = async () => {
-    const rawHash = window.location.hash || '#/dashboard';
-    const cleanHash = rawHash.replace(/^[#/]+/, '');
-    const parts = cleanHash.split('/');
+  // Sync state from URL pathname
+  const parseAndApplyRoute = async () => {
+    let rawPath = window.location.pathname;
+    if (window.location.hash) {
+      const hashPath = window.location.hash.replace(/^[#/]+/, '');
+      if (hashPath) rawPath = '/' + hashPath;
+    }
+
+    const cleanPath = rawPath.replace(/\/index\.html$/, '').replace(/^\/+/, '');
+    const parts = cleanPath.split('/');
     const route = parts[0] || 'dashboard';
     const routeId = parts[1];
 
-    if (route === 'dashboard') {
+    if (route === '' || route === 'dashboard') {
       setActiveTab('dashboard');
       setSelectedCard(null);
     } else if (route === 'board' || route === 'boards') {
@@ -102,26 +109,13 @@ export const App: React.FC = () => {
     }
   };
 
-  // Strip /index.html and malformed hash signs from URL
+  // Listen to browser Back/Forward (popstate)
   useEffect(() => {
-    let currentHash = window.location.hash;
-    if (currentHash.includes('#/#/')) {
-      currentHash = currentHash.replace('#/#/', '#/');
-      window.history.replaceState(null, '', window.location.pathname + currentHash);
-    }
-    if (window.location.pathname.endsWith('/index.html')) {
-      const cleanPath = window.location.pathname.replace(/\/index\.html$/, '') || '/';
-      window.history.replaceState(null, '', cleanPath + window.location.search + currentHash);
-    }
-  }, []);
-
-  // Listen to browser Back/Forward & URL Hash changes
-  useEffect(() => {
-    const handleHashChange = () => {
-      parseAndApplyHash();
+    const handlePopState = () => {
+      parseAndApplyRoute();
     };
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   // Load project workspace data whenever active project changes
@@ -152,8 +146,8 @@ export const App: React.FC = () => {
         setActiveBoard(null);
       }
 
-      // Apply initial hash route if set
-      await parseAndApplyHash();
+      // Apply initial route on load
+      await parseAndApplyRoute();
     } catch (err) {
       console.error('Error loading project data:', err);
     }
@@ -185,14 +179,14 @@ export const App: React.FC = () => {
   const handleTabChange = (tab: 'dashboard' | 'board' | 'documents' | 'activity' | 'agents') => {
     setActiveTab(tab);
     setSelectedCard(null);
-    updateHash(tab, activeBoard?.id, null);
+    updateUrl(tab, activeBoard?.id, null);
   };
 
   const handleSelectBoard = async (board: Board) => {
     try {
       const fullBoard = await fetchBoardDetails(board.id);
       setActiveBoard(fullBoard);
-      updateHash('board', board.id, null);
+      updateUrl('board', board.id, null);
     } catch (err) {
       console.error('Error selecting board:', err);
     }
@@ -214,16 +208,16 @@ export const App: React.FC = () => {
     try {
       const fullCard = await fetchCardDetails(card.id);
       setSelectedCard(fullCard);
-      updateHash('board', activeBoard?.id, card.id);
+      updateUrl('board', activeBoard?.id, card.id);
     } catch (_) {
       setSelectedCard(card);
-      updateHash('board', activeBoard?.id, card.id);
+      updateUrl('board', activeBoard?.id, card.id);
     }
   };
 
   const handleCloseCardModal = () => {
     setSelectedCard(null);
-    updateHash(activeTab, activeBoard?.id, null);
+    updateUrl(activeTab, activeBoard?.id, null);
   };
 
   const handleRefreshCardModal = async () => {
