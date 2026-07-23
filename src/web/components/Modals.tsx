@@ -299,22 +299,30 @@ export const RegisterAgentModal: React.FC<{ projectId: string; onClose: () => vo
 
 /* Base Modal Shell Component */
 const ModalWrapper: React.FC<{ title: string; onClose: () => void; children: React.ReactNode }> = ({ title, onClose, children }) => (
-  <div style={{
-    position: 'fixed',
-    top: 0, left: 0, right: 0, bottom: 0,
-    background: 'rgba(0, 0, 0, 0.75)',
-    backdropFilter: 'blur(8px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-    padding: '20px',
-  }} className="animate-fade-in">
-    <div className="glass-panel" style={{
-      width: '100%',
-      maxWidth: '520px',
-      overflow: 'hidden',
-    }}>
+  <div
+    onClick={onClose}
+    style={{
+      position: 'fixed',
+      top: 0, left: 0, right: 0, bottom: 0,
+      background: 'rgba(0, 0, 0, 0.75)',
+      backdropFilter: 'blur(8px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: '20px',
+    }}
+    className="animate-fade-in"
+  >
+    <div
+      onClick={(e) => e.stopPropagation()}
+      className="glass-panel"
+      style={{
+        width: '100%',
+        maxWidth: '520px',
+        overflow: 'hidden',
+      }}
+    >
       <div style={{
         padding: '16px 20px',
         borderBottom: '1px solid rgba(255, 255, 255, 0.08)',

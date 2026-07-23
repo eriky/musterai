@@ -80,25 +80,33 @@ export const CardModal: React.FC<CardModalProps> = ({ card, agents, onClose, onR
   };
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0, left: 0, right: 0, bottom: 0,
-      background: 'rgba(0, 0, 0, 0.75)',
-      backdropFilter: 'blur(8px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-      padding: '20px',
-    }} className="animate-fade-in">
-      <div className="glass-panel" style={{
-        width: '100%',
-        maxWidth: '750px',
-        maxHeight: '90vh',
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0, 0, 0, 0.75)',
+        backdropFilter: 'blur(8px)',
         display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}>
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1000,
+        padding: '20px',
+      }}
+      className="animate-fade-in"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="glass-panel"
+        style={{
+          width: '100%',
+          maxWidth: '750px',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
+      >
         {/* Modal Header */}
         <div style={{
           padding: '16px 20px',
