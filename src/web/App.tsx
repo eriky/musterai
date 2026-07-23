@@ -210,7 +210,7 @@ export const App: React.FC = () => {
         )}
 
         {activeTab === 'activity' && (
-          <ActivityFeed events={events} />
+          <ActivityFeed events={events} agents={agents} />
         )}
 
         {activeTab === 'agents' && (

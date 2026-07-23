@@ -205,30 +205,53 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 Waiting for platform events...
               </div>
             ) : (
-              events.slice(0, 8).map((evt) => (
-                <div key={evt.id} style={{
-                  padding: '12px 14px',
-                  borderRadius: '10px',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  borderLeft: '3px solid #6366f1',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}>
-                  <div>
-                    <div style={{ fontSize: '0.86rem', fontWeight: 600, color: '#f8fafc' }}>
-                      {evt.action.replace('_', ' ').toUpperCase()} on {evt.entity_type}
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
-                      Actor: <span style={{ color: '#a5b4fc' }}>{evt.actor_id}</span> • ID: <span style={{ fontFamily: 'var(--font-mono)' }}>{evt.entity_id}</span>
-                    </div>
-                  </div>
+              events.slice(0, 8).map((evt) => {
+                const actorName = evt.actor_id === 'system' || !evt.actor_id
+                  ? 'System'
+                  : (agents.find((a) => a.id === evt.actor_id)?.name || evt.actor_id);
 
-                  <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
-                    {new Date(evt.created_at).toLocaleTimeString()}
-                  </span>
-                </div>
-              ))
+                let text = `${actorName} ${evt.action.replace('_', ' ')} ${evt.entity_type}`;
+                let payloadObj: any = {};
+                if (typeof evt.payload === 'string') {
+                  try { payloadObj = JSON.parse(evt.payload); } catch (_) {}
+                } else if (evt.payload) {
+                  payloadObj = evt.payload;
+                }
+
+                if (evt.entity_type === 'card' && evt.action === 'assigned') {
+                  const assignedName = agents.find((a) => a.id === payloadObj.agent_id)?.name || payloadObj.agent_id;
+                  text = `${actorName} assigned ${assignedName} to task`;
+                } else if (evt.entity_type === 'comment' && evt.action === 'created') {
+                  text = `${actorName} commented: ${payloadObj.content ? `"${payloadObj.content.slice(0, 40)}..."` : ''}`;
+                } else if (payloadObj.title) {
+                  text = `${actorName} ${evt.action} "${payloadObj.title}"`;
+                }
+
+                return (
+                  <div key={evt.id} style={{
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    borderLeft: '3px solid #6366f1',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '0.86rem', fontWeight: 600, color: '#f8fafc' }}>
+                        {text}
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '2px' }}>
+                        <span className="badge badge-medium" style={{ fontSize: '0.68rem', padding: '1px 5px' }}>{evt.entity_type}</span>
+                      </div>
+                    </div>
+
+                    <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                      {new Date(evt.created_at).toLocaleTimeString()}
+                    </span>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
