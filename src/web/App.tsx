@@ -57,6 +57,59 @@ export const App: React.FC = () => {
     loadProjects();
   }, []);
 
+  // URL Hash Sync Helper
+  const updateHash = (tab: string, boardId?: string | null, cardId?: string | null) => {
+    if (cardId) {
+      window.location.hash = `#/cards/${cardId}`;
+    } else if (tab === 'board' && boardId) {
+      window.location.hash = `#/boards/${boardId}`;
+    } else {
+      window.location.hash = `/#/${tab}`;
+    }
+  };
+
+  // Sync state from URL hash
+  const parseAndApplyHash = async () => {
+    const hash = window.location.hash || '#/dashboard';
+    const parts = hash.replace(/^#\/?/, '').split('/');
+    const route = parts[0] || 'dashboard';
+    const routeId = parts[1];
+
+    if (route === 'dashboard') {
+      setActiveTab('dashboard');
+      setSelectedCard(null);
+    } else if (route === 'board' || route === 'boards') {
+      setActiveTab('board');
+      setSelectedCard(null);
+      if (routeId) {
+        try {
+          const b = await fetchBoardDetails(routeId);
+          setActiveBoard(b);
+        } catch (_) {}
+      }
+    } else if (route === 'card' || route === 'cards') {
+      setActiveTab('board');
+      if (routeId) {
+        try {
+          const c = await fetchCardDetails(routeId);
+          setSelectedCard(c);
+        } catch (_) {}
+      }
+    } else if (['documents', 'activity', 'agents'].includes(route)) {
+      setActiveTab(route as any);
+      setSelectedCard(null);
+    }
+  };
+
+  // Listen to browser Back/Forward & URL Hash changes
+  useEffect(() => {
+    const handleHashChange = () => {
+      parseAndApplyHash();
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
   // Load project workspace data whenever active project changes
   const refreshProjectData = async () => {
     if (!activeProject) return;
@@ -84,6 +137,9 @@ export const App: React.FC = () => {
       } else {
         setActiveBoard(null);
       }
+
+      // Apply initial hash route if set
+      await parseAndApplyHash();
     } catch (err) {
       console.error('Error loading project data:', err);
     }
@@ -100,7 +156,6 @@ export const App: React.FC = () => {
 
     const unsubscribe = subscribeEvents(activeProject.id, (newEvent) => {
       setEvents((prev) => [newEvent, ...prev]);
-      // Instantly refresh all workspace components on any live event
       refreshProjectData();
       if (selectedCard && (newEvent.entity_type === 'card' || newEvent.entity_type === 'comment')) {
         fetchCardDetails(selectedCard.id).then(setSelectedCard).catch(console.error);
@@ -113,10 +168,17 @@ export const App: React.FC = () => {
     };
   }, [activeProject, selectedCard]);
 
+  const handleTabChange = (tab: 'dashboard' | 'board' | 'documents' | 'activity' | 'agents') => {
+    setActiveTab(tab);
+    setSelectedCard(null);
+    updateHash(tab, activeBoard?.id, null);
+  };
+
   const handleSelectBoard = async (board: Board) => {
     try {
       const fullBoard = await fetchBoardDetails(board.id);
       setActiveBoard(fullBoard);
+      updateHash('board', board.id, null);
     } catch (err) {
       console.error('Error selecting board:', err);
     }
@@ -138,9 +200,16 @@ export const App: React.FC = () => {
     try {
       const fullCard = await fetchCardDetails(card.id);
       setSelectedCard(fullCard);
+      updateHash('board', activeBoard?.id, card.id);
     } catch (_) {
       setSelectedCard(card);
+      updateHash('board', activeBoard?.id, card.id);
     }
+  };
+
+  const handleCloseCardModal = () => {
+    setSelectedCard(null);
+    updateHash(activeTab, activeBoard?.id, null);
   };
 
   const handleRefreshCardModal = async () => {
@@ -160,7 +229,7 @@ export const App: React.FC = () => {
         onSelectProject={(p) => setActiveProject(p)}
         onOpenNewProject={() => setShowProjectModal(true)}
         activeTab={activeTab}
-        onTabChange={(t) => setActiveTab(t)}
+        onTabChange={handleTabChange}
         isSseConnected={isSseConnected}
       />
 
@@ -265,7 +334,7 @@ export const App: React.FC = () => {
         <CardModal
           card={selectedCard}
           agents={agents}
-          onClose={() => setSelectedCard(null)}
+          onClose={handleCloseCardModal}
           onRefresh={handleRefreshCardModal}
         />
       )}
