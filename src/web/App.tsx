@@ -65,20 +65,14 @@ export const App: React.FC = () => {
     } else if (tab === 'board' && boardId) {
       targetPath = `/boards/${boardId}`;
     }
-    if (window.location.pathname !== targetPath || window.location.hash) {
+    if (window.location.pathname !== targetPath) {
       window.history.pushState(null, '', targetPath);
     }
   };
 
   // Sync state from URL pathname
   const parseAndApplyRoute = async () => {
-    let rawPath = window.location.pathname;
-    if (window.location.hash) {
-      const hashPath = window.location.hash.replace(/^[#/]+/, '');
-      if (hashPath) rawPath = '/' + hashPath;
-    }
-
-    const cleanPath = rawPath.replace(/\/index\.html$/, '').replace(/^\/+/, '');
+    const cleanPath = window.location.pathname.replace(/^\/+/, '');
     const parts = cleanPath.split('/');
     const route = parts[0] || 'dashboard';
     const routeId = parts[1];
