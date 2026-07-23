@@ -55,16 +55,29 @@ async function main() {
   const app = express();
   app.use(express.json());
   
+  // API routes
+  const apiRouter = createRouter(services, sseManager);
+  app.use('/api', apiRouter);
+  
   // Serve static files from public directory
   const publicDir = config.publicDir;
   if (fs.existsSync(publicDir)) {
     app.use(express.static(publicDir));
   }
-  
-  // API routes
-  const apiRouter = createRouter(services, sseManager);
-  app.use('/api', apiRouter);
-  
+
+  // SPA Fallback Handler: Serve index.html for root and client routes
+  app.get('*', (req: Request, res: Response, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/mcp')) {
+      return next();
+    }
+    const indexPath = path.join(publicDir, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      next();
+    }
+  });
+
   // Error handling
   app.use(errorHandler);
 

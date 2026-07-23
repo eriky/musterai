@@ -101,6 +101,14 @@ export const App: React.FC = () => {
     }
   };
 
+  // Strip /index.html from URL pathname for clean URLs
+  useEffect(() => {
+    if (window.location.pathname.endsWith('/index.html')) {
+      const cleanPath = window.location.pathname.replace(/\/index\.html$/, '') || '/';
+      window.history.replaceState(null, '', cleanPath + window.location.search + window.location.hash);
+    }
+  }, []);
+
   // Listen to browser Back/Forward & URL Hash changes
   useEffect(() => {
     const handleHashChange = () => {
