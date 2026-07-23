@@ -1,6 +1,6 @@
 // File: public/js/app.js - Shared API client, SSE, routing
 
-const API_BASE = '/api/v1';
+const API_BASE = '/api';
 let currentProjectId = null;
 let currentBoardId = null;
 let sseConnection = null;
