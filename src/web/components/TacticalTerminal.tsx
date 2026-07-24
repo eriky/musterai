@@ -5,8 +5,9 @@ import {
   Activity, Filter, RefreshCw, Terminal,
   CreditCard, Bot, FileText, Layout, FolderOpen,
   ArrowRight, Plus, Pencil, Trash2, UserPlus, UserMinus,
-  Link2, CheckCircle, Clock, MessageSquare,
+  Link2, CheckCircle, Clock, MessageSquare, Database,
 } from 'lucide-react';
+
 
 interface TacticalTerminalProps {
   events: Event[];
@@ -202,6 +203,56 @@ function describeEvent(
         text: `${actor} ${evt.action} project${p.name ? ` "${p.name}"` : ''}`,
       };
 
+    case 'knowledge_base': {
+      switch (evt.action) {
+        case 'created':
+          return {
+            icon: <Database className="w-3.5 h-3.5 text-blue-400" />,
+            text: `${actor} created Knowledge Base "${p.name || 'KB'}"`,
+          };
+        case 'linked':
+          return {
+            icon: <Database className="w-3.5 h-3.5 text-blue-400" />,
+            text: `${actor} linked Knowledge Base to project`,
+          };
+        case 'fact_added':
+          return {
+            icon: <FileText className="w-3.5 h-3.5 text-emerald-400" />,
+            text: `${actor} added gained knowledge "${p.title || 'fact'}"${p.entity_name ? ` → (${p.entity_name})` : ''}`,
+          };
+        case 'fact_updated':
+          return {
+            icon: <Pencil className="w-3.5 h-3.5 text-amber-400" />,
+            text: `${actor} updated gained knowledge "${p.title || 'fact'}"`,
+          };
+        case 'fact_deleted':
+          return {
+            icon: <Trash2 className="w-3.5 h-3.5 text-rose-400" />,
+            text: `${actor} deleted gained knowledge fact`,
+          };
+        case 'entity_created':
+          return {
+            icon: <Plus className="w-3.5 h-3.5 text-indigo-400" />,
+            text: `${actor} created entity node "${p.name || 'node'}" (${p.type || 'entity'})`,
+          };
+        case 'entity_updated':
+          return {
+            icon: <Pencil className="w-3.5 h-3.5 text-indigo-400" />,
+            text: `${actor} updated entity node "${p.name || 'node'}"`,
+          };
+        case 'relation_added':
+          return {
+            icon: <Database className="w-3.5 h-3.5 text-cyan-400" />,
+            text: `${actor} linked edge "${p.source_name || 'Node'}" --(${p.relation_type || 'link'})--> "${p.target_name || 'Node'}"`,
+          };
+        default:
+          return {
+            icon: <Database className="w-3.5 h-3.5 text-blue-400" />,
+            text: `${actor} ${evt.action} knowledge base`,
+          };
+      }
+    }
+
     default:
       return {
         icon: <Activity className="w-3.5 h-3.5 text-zinc-400" />,
@@ -243,7 +294,13 @@ const ENTITY_BADGES: Record<string, React.ReactNode> = {
       <FolderOpen className="w-2.5 h-2.5" />PROJECT
     </span>
   ),
+  knowledge_base: (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-blue-950 text-blue-400 border border-blue-700/50 rounded">
+      <Database className="w-2.5 h-2.5" />KB
+    </span>
+  ),
 };
+
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

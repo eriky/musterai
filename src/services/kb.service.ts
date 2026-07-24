@@ -23,7 +23,33 @@ export class KBService {
     private eventService?: EventService
   ) {}
 
+  private async logEventForKb(
+    kbId: string,
+    action: string,
+    entityId: string,
+    actorId?: string,
+    payload?: Record<string, unknown>
+  ): Promise<void> {
+    if (!this.eventService) return;
+    try {
+      const projectIds = await this.getLinkedProjectIds(kbId);
+      for (const projectId of projectIds) {
+        await this.eventService.create({
+          project_id: projectId,
+          entity_type: 'knowledge_base',
+          entity_id: entityId,
+          action,
+          actor_id: actorId,
+          payload,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to log KB event:', err);
+    }
+  }
+
   // --- Knowledge Base CRUD & Linkage ---
+
 
   async create(data: CreateKnowledgeBase, actorId?: string): Promise<KnowledgeBase> {
     const id = ulid();
@@ -97,13 +123,22 @@ export class KBService {
     return kbs;
   }
 
-  async linkProject(kbId: string, projectId: string): Promise<void> {
+  async linkProject(kbId: string, projectId: string, actorId?: string): Promise<void> {
     const created_at = new Date().toISOString();
     await this.db.execute(
       `INSERT OR IGNORE INTO project_knowledge_base (project_id, kb_id, created_at)
        VALUES (?, ?, ?)`,
       [projectId, kbId, created_at]
     );
+    if (this.eventService) {
+      await this.eventService.create({
+        project_id: projectId,
+        entity_type: 'knowledge_base',
+        entity_id: kbId,
+        action: 'linked',
+        actor_id: actorId,
+      });
+    }
   }
 
   async unlinkProject(kbId: string, projectId: string): Promise<void> {
@@ -127,7 +162,7 @@ export class KBService {
 
   // --- Entities ---
 
-  async upsertEntity(data: UpsertKBEntity): Promise<KBEntity> {
+  async upsertEntity(data: UpsertKBEntity, actorId?: string): Promise<KBEntity> {
     const now = new Date().toISOString();
     let existing: KBEntity | null = null;
 
@@ -150,12 +185,14 @@ export class KBService {
     const type = data.type || (this.detectEntityType(data.identifier || data.name));
     const metadataStr = data.metadata ? JSON.stringify(data.metadata) : null;
 
+    let resEntity: KBEntity;
+
     if (existing) {
       await this.db.execute(
         `UPDATE kb_entity SET name = ?, type = ?, identifier = ?, metadata = ?, updated_at = ? WHERE id = ?`,
         [data.name, type, data.identifier || existing.identifier, metadataStr || existing.metadata, now, existing.id]
       );
-      return {
+      resEntity = {
         ...existing,
         name: data.name,
         type,
@@ -163,6 +200,7 @@ export class KBService {
         metadata: data.metadata || existing.metadata,
         updated_at: now,
       };
+      await this.logEventForKb(data.kb_id, 'entity_updated', resEntity.id, actorId, { name: resEntity.name, type: resEntity.type, kb_id: data.kb_id });
     } else {
       const id = ulid();
       await this.db.execute(
@@ -170,7 +208,7 @@ export class KBService {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [id, data.kb_id, data.name, type, data.identifier || null, metadataStr, now, now]
       );
-      return {
+      resEntity = {
         id,
         kb_id: data.kb_id,
         name: data.name,
@@ -180,7 +218,10 @@ export class KBService {
         created_at: now,
         updated_at: now,
       };
+      await this.logEventForKb(data.kb_id, 'entity_created', resEntity.id, actorId, { name: resEntity.name, type: resEntity.type, kb_id: data.kb_id });
     }
+
+    return resEntity;
   }
 
   async getEntityById(id: string): Promise<KBEntity | null> {
@@ -202,7 +243,7 @@ export class KBService {
     await this.db.execute('DELETE FROM kb_entity WHERE id = ?', [id]);
   }
 
-  async updateEntity(id: string, data: Partial<UpsertKBEntity>): Promise<KBEntity> {
+  async updateEntity(id: string, data: Partial<UpsertKBEntity>, actorId?: string): Promise<KBEntity> {
     const existing = await this.getEntityById(id);
     if (!existing) throw new Error(`KBEntity with ID ${id} not found`);
 
@@ -217,7 +258,7 @@ export class KBService {
       [name, type, identifier, metadataStr, now, id]
     );
 
-    return {
+    const updated: KBEntity = {
       ...existing,
       name,
       type,
@@ -225,6 +266,9 @@ export class KBService {
       metadata: data.metadata || existing.metadata,
       updated_at: now,
     };
+
+    await this.logEventForKb(existing.kb_id, 'entity_updated', id, actorId, { name: updated.name, type: updated.type, kb_id: existing.kb_id });
+    return updated;
   }
 
 
@@ -242,7 +286,7 @@ export class KBService {
         name: data.entity_name || data.entity_identifier || 'Unknown Entity',
         identifier: data.entity_identifier,
         type: data.entity_type,
-      });
+      }, actorId);
       entityId = entity.id;
     } else if (!entityId) {
       // Auto-detect IP or email pattern in title or content if available
@@ -256,7 +300,7 @@ export class KBService {
           name: ipMatch[0],
           identifier: ipMatch[0],
           type: 'ip_address',
-        });
+        }, actorId);
         entityId = entity.id;
       } else if (emailMatch) {
         const entity = await this.upsertEntity({
@@ -264,7 +308,7 @@ export class KBService {
           name: emailMatch[0],
           identifier: emailMatch[0],
           type: 'email',
-        });
+        }, actorId);
         entityId = entity.id;
       }
     }
@@ -300,6 +344,13 @@ export class KBService {
       }
     }
 
+    await this.logEventForKb(data.kb_id, 'fact_added', id, actorId, {
+      title: fact.title,
+      category: fact.category,
+      entity_name: fact.entity_name,
+      kb_id: data.kb_id,
+    });
+
     return fact;
   }
 
@@ -332,11 +383,15 @@ export class KBService {
     return this.db.query<KBFact>(sql, params);
   }
 
-  async deleteFact(id: string): Promise<void> {
+  async deleteFact(id: string, actorId?: string): Promise<void> {
+    const existingRows = await this.db.query<KBFact>('SELECT * FROM kb_fact WHERE id = ?', [id]);
+    if (existingRows[0]) {
+      await this.logEventForKb(existingRows[0].kb_id, 'fact_deleted', id, actorId, { title: existingRows[0].title, kb_id: existingRows[0].kb_id });
+    }
     await this.db.execute('DELETE FROM kb_fact WHERE id = ?', [id]);
   }
 
-  async updateFact(id: string, data: Partial<AddGainedKnowledge>): Promise<KBFact> {
+  async updateFact(id: string, data: Partial<AddGainedKnowledge>, actorId?: string): Promise<KBFact> {
     const existingRows = await this.db.query<KBFact>('SELECT * FROM kb_fact WHERE id = ?', [id]);
     if (!existingRows[0]) throw new Error(`KBFact with ID ${id} not found`);
     const existing = existingRows[0];
@@ -355,7 +410,7 @@ export class KBService {
         name: data.entity_name || data.entity_identifier || 'Unknown Entity',
         identifier: data.entity_identifier,
         type: data.entity_type,
-      });
+      }, actorId);
       entityId = entity.id;
     }
 
@@ -382,13 +437,20 @@ export class KBService {
       }
     }
 
+    await this.logEventForKb(existing.kb_id, 'fact_updated', id, actorId, {
+      title: fact.title,
+      category: fact.category,
+      entity_name: fact.entity_name,
+      kb_id: existing.kb_id,
+    });
+
     return fact;
   }
 
 
   // --- Graph Relations ---
 
-  async addRelation(data: AddKBRelation): Promise<KBRelation> {
+  async addRelation(data: AddKBRelation, actorId?: string): Promise<KBRelation> {
     const id = ulid();
     const created_at = new Date().toISOString();
 
@@ -401,7 +463,7 @@ export class KBService {
     const source = await this.getEntityById(data.source_entity_id);
     const target = await this.getEntityById(data.target_entity_id);
 
-    return {
+    const relation: KBRelation = {
       id,
       kb_id: data.kb_id,
       source_entity_id: data.source_entity_id,
@@ -412,7 +474,17 @@ export class KBService {
       source_entity_name: source?.name,
       target_entity_name: target?.name,
     };
+
+    await this.logEventForKb(data.kb_id, 'relation_added', id, actorId, {
+      relation_type: relation.relation_type,
+      source_name: relation.source_entity_name,
+      target_name: relation.target_entity_name,
+      kb_id: data.kb_id,
+    });
+
+    return relation;
   }
+
 
   async deleteRelation(id: string): Promise<void> {
     await this.db.execute('DELETE FROM kb_relation WHERE id = ?', [id]);

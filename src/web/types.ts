@@ -85,8 +85,9 @@ export interface Document {
 export interface Event {
   id: string;
   project_id: string;
-  entity_type: 'card' | 'column' | 'board' | 'document' | 'agent' | 'project';
+  entity_type: 'card' | 'column' | 'board' | 'document' | 'agent' | 'project' | 'knowledge_base';
   entity_id: string;
+
   action: string;
   actor_id: string | null;
   payload: any;
