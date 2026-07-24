@@ -215,7 +215,7 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
                         <span className="text-[11px] font-sans text-zinc-400 capitalize">{agent.type.replace('_', ' ')}</span>
                         <span className="text-zinc-700">•</span>
                         <span className="text-[11px] font-sans text-cyan-400 font-medium capitalize">{agent.role}</span>
-                        {agent.owner_id && (
+                        {agent.type === 'ai_agent' && agent.owner_id && (
                           <>
                             <span className="text-zinc-700">•</span>
                             <span className="inline-flex items-center text-[10px] font-mono font-medium text-amber-400">
@@ -223,6 +223,7 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
                             </span>
                           </>
                         )}
+
                       </div>
                     </div>
                   </div>
@@ -319,22 +320,25 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-zinc-300 uppercase mb-1">Assigned Human Owner</label>
-                <select
-                  value={editOwnerId}
-                  onChange={(e) => setEditOwnerId(e.target.value)}
-                  className="w-full bg-command-bg border border-command-border text-zinc-200 text-xs font-mono rounded-lg p-2.5 focus:border-amber-500 outline-none cursor-pointer"
-                >
-                  <option value="">No Assigned Human Owner</option>
-                  {humanAgents.map((h) => (
-                    <option key={h.id} value={h.id} className="bg-command-card text-zinc-200">
-                      {h.name} ({h.role})
-                    </option>
-                  ))}
-                </select>
-                <p className="text-[11px] text-zinc-500 mt-1">Select which human operator owns and directs this agent.</p>
-              </div>
+              {editingAgent.type === 'ai_agent' && (
+                <div>
+                  <label className="block text-xs font-bold text-zinc-300 uppercase mb-1">Assigned Human Owner</label>
+                  <select
+                    value={editOwnerId}
+                    onChange={(e) => setEditOwnerId(e.target.value)}
+                    className="w-full bg-command-bg border border-command-border text-zinc-200 text-xs font-mono rounded-lg p-2.5 focus:border-amber-500 outline-none cursor-pointer"
+                  >
+                    <option value="">No Assigned Human Owner</option>
+                    {humanAgents.map((h) => (
+                      <option key={h.id} value={h.id} className="bg-command-card text-zinc-200">
+                        {h.name} ({h.role})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-zinc-500 mt-1">Select which human operator owns and directs this AI agent.</p>
+                </div>
+              )}
+
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
