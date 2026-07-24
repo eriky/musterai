@@ -318,10 +318,10 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
   );
 
   return (
-    <div className="space-y-4 font-sans">
+    <div className="flex flex-col flex-1 h-full min-h-0 font-sans space-y-4">
 
       {/* Header Bar */}
-      <div className="flex items-center justify-between border-b border-command-border pb-3">
+      <div className="flex-none flex items-center justify-between border-b border-command-border pb-3">
         <div className="flex items-center space-x-3">
           <Activity className="w-5 h-5 text-emerald-400 animate-pulse" />
           <h2 className="text-base font-bold text-zinc-100 uppercase tracking-wide">
@@ -347,6 +347,7 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
               <option value="column">Columns</option>
               <option value="board">Boards</option>
               <option value="project">Projects</option>
+              <option value="knowledge_base">Knowledge Base</option>
             </select>
           </div>
 
@@ -360,8 +361,9 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
         </div>
       </div>
 
-      {/* Event Feed */}
-      <div className="space-y-2 max-h-[700px] overflow-y-auto pr-1">
+      {/* Event Feed (Fills 100% available height!) */}
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1">
+
         {filteredEvents.length === 0 ? (
           <div className="text-center py-16 bg-command-surface rounded-xl tactical-border">
             <Terminal className="w-8 h-8 mx-auto mb-3 text-zinc-600 opacity-50" />

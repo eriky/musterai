@@ -55,10 +55,10 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col flex-1 h-full min-h-0 font-sans space-y-6">
       
       {/* Agents Header */}
-      <div className="flex items-center justify-between border-b border-command-border pb-4">
+      <div className="flex-none flex items-center justify-between border-b border-command-border pb-4">
         <div>
           <h2 className="text-lg font-sans font-bold text-zinc-100 flex items-center">
             <Bot className="w-5 h-5 mr-2 text-cyan-400" />
@@ -76,7 +76,7 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
         </button>
       </div>
 
-      {/* Grid of Agents */}
+      {/* Grid of Agents (Stretches 100% height!) */}
       {agents.length === 0 ? (
         <div className="text-center py-16 bg-command-surface rounded-xl tactical-border">
           <Bot className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
@@ -92,7 +92,8 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="flex-1 overflow-y-auto min-h-0 pr-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
+
           {agents.map((agent) => (
             <div
               key={agent.id}

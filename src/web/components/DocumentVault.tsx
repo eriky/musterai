@@ -120,10 +120,10 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
   };
 
   return (
-    <div className="space-y-4 font-sans">
+    <div className="flex flex-col flex-1 h-full min-h-0 font-sans space-y-4">
       
       {/* Header Bar */}
-      <div className="flex items-center justify-between border-b border-command-border pb-3">
+      <div className="flex-none flex items-center justify-between border-b border-command-border pb-3">
         <div className="flex items-center space-x-3">
           <FileText className="w-5 h-5 text-amber-400" />
           <h2 className="text-base font-bold text-zinc-100 uppercase tracking-wide">
@@ -138,7 +138,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
         </button>
       </div>
 
-      {/* Main View */}
+      {/* Main View (Stretches 100% height!) */}
       {documents.length === 0 ? (
         <div className="text-center py-16 bg-command-surface rounded-xl tactical-border">
           <FileText className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
@@ -154,38 +154,41 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 min-h-[650px]">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 min-h-0 h-full overflow-hidden">
           
           {/* Document Tree Sidebar */}
-          <div className="md:col-span-1 bg-command-surface rounded-xl p-4 tactical-border space-y-2 max-h-[700px] overflow-y-auto">
-            <h3 className="text-xs font-bold text-zinc-400 uppercase mb-3 tracking-wider">
+          <div className="md:col-span-1 bg-command-surface rounded-xl p-4 tactical-border flex flex-col h-full min-h-0 overflow-y-auto space-y-2">
+            <h3 className="flex-none text-xs font-bold text-zinc-400 uppercase mb-3 tracking-wider">
               Documents ({documents.length})
             </h3>
 
-            {documents.map((doc) => (
-              <button
-                key={doc.id}
-                onClick={() => handleSelectDoc(doc)}
-                className={`w-full text-left p-3 rounded-lg border transition-all cursor-pointer ${
-                  selectedDoc?.id === doc.id
-                    ? 'bg-amber-950/30 border-amber-500/50 text-amber-300 shadow-sm'
-                    : 'bg-command-card border-command-border text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900'
-                }`}
-              >
-                <div className="flex items-center justify-between text-xs font-bold truncate">
-                  <span className="truncate">{doc.title}</span>
-                  <span className="text-[10px] font-mono text-zinc-500 ml-1">v{doc.version}</span>
-                </div>
-                <div className="flex items-center justify-between mt-1 text-[10px] text-zinc-500">
-                  <span className="capitalize">{doc.status.replace('_', ' ')}</span>
-                  <span>{new Date(doc.updated_at).toLocaleDateString()}</span>
-                </div>
-              </button>
-            ))}
+            <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
+              {documents.map((doc) => (
+                <button
+                  key={doc.id}
+                  onClick={() => handleSelectDoc(doc)}
+                  className={`w-full text-left p-3 rounded-lg border transition-all cursor-pointer ${
+                    selectedDoc?.id === doc.id
+                      ? 'bg-amber-950/30 border-amber-500/50 text-amber-300 shadow-sm'
+                      : 'bg-command-card border-command-border text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900'
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs font-bold truncate">
+                    <span className="truncate">{doc.title}</span>
+                    <span className="text-[10px] font-mono text-zinc-500 ml-1">v{doc.version}</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1 text-[10px] text-zinc-500">
+                    <span className="capitalize">{doc.status.replace('_', ' ')}</span>
+                    <span>{new Date(doc.updated_at).toLocaleDateString()}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Document Reader / Editor */}
-          <div className="md:col-span-3 bg-command-surface rounded-xl p-6 tactical-border flex flex-col justify-between">
+          <div className="md:col-span-3 bg-command-surface rounded-xl p-6 tactical-border flex flex-col h-full min-h-0 overflow-y-auto">
+
             {selectedDoc ? (
               <div className="space-y-5">
                 

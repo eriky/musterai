@@ -141,10 +141,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col flex-1 h-full min-h-0 font-sans space-y-4">
       
       {/* Board Controls */}
-      <div className="flex items-center justify-between border-b border-command-border pb-3">
+      <div className="flex-none flex items-center justify-between border-b border-command-border pb-3">
         <div className="flex items-center space-x-3">
           <Layout className="w-5 h-5 text-cyan-400" />
           <h2 className="text-base font-sans font-bold text-zinc-100 uppercase tracking-wide">
@@ -169,9 +169,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         </div>
       </div>
 
-      {/* Kanban Drag and Drop Context */}
+      {/* Kanban Drag and Drop Context (Stretches 100% height!) */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex space-x-4 overflow-x-auto pb-6 pt-1 min-h-[600px]">
+        <div className="flex-1 flex space-x-4 overflow-x-auto min-h-0 h-full pb-2">
           {columns.map((column) => {
             const columnCards = cards.filter(c => c.column_id === column.id && !c.archived);
             const isAtWipLimit = column.wip_limit !== null && columnCards.length >= column.wip_limit;
@@ -180,8 +180,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             return (
               <div
                 key={column.id}
-                className="w-80 flex-shrink-0 bg-command-surface rounded-xl tactical-border flex flex-col max-h-[750px]"
+                className="w-80 flex-shrink-0 bg-command-surface rounded-xl tactical-border flex flex-col h-full min-h-0"
               >
+
                 {/* Column Header */}
                 <div className={`p-3.5 border-b flex items-center justify-between ${
                   isExceededWip ? 'bg-rose-950/40 border-rose-500/50 text-rose-300' :
