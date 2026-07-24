@@ -27,17 +27,16 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
   const [history, setHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
-  // Find active doc by ID, or default to the most recently updated doc
-  const selectedDoc =
-    documents.find((d) => d.id === selectedDocId) ||
-    (documents.length > 0 ? documents[documents.length - 1] : null);
+  // Find active doc by ID, or fallback to latest doc if no ID is specified
+  const foundDoc = documents.find((d) => d.id === selectedDocId);
+  const selectedDoc = foundDoc || (selectedDocId ? null : (documents.length > 0 ? documents[documents.length - 1] : null));
 
-  // Sync selectedDocId if auto-selecting fallback
+  // Sync selectedDocId if auto-selecting fallback when no ID was specified
   useEffect(() => {
-    if (selectedDoc && selectedDoc.id !== selectedDocId) {
+    if (!selectedDocId && selectedDoc) {
       onSelectDoc(selectedDoc.id);
     }
-  }, [selectedDoc, selectedDocId, onSelectDoc]);
+  }, [selectedDocId, selectedDoc, onSelectDoc]);
 
   const handleSelectDoc = (doc: Document) => {
     onSelectDoc(doc.id);
