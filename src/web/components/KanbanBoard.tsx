@@ -279,8 +279,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
       {/* Card Detail Modal */}
       {selectedCardId && cardDetails && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-command-surface border border-cyan-500/40 rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl">
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => { setSelectedCardId(null); setCardDetails(null); }}
+        >
+          <div
+            className="bg-command-surface border border-cyan-500/40 rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             
             <div className="p-4 border-b border-command-border flex items-center justify-between">
               <div className="flex items-center space-x-2">
