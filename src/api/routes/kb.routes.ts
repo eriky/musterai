@@ -2,6 +2,17 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { KBService } from '../../services/kb.service.js';
 
+function getActorId(req: Request): string | undefined {
+  return (
+    (req.headers['x-agent-id'] as string) ||
+    (req.headers['x-actor-id'] as string) ||
+    req.body?.actor_id ||
+    req.body?.agent_id ||
+    req.body?.author_id ||
+    req.body?.source_agent_id
+  );
+}
+
 export function createKBRouter(kbService: KBService): Router {
   const router = Router();
 
@@ -19,7 +30,7 @@ export function createKBRouter(kbService: KBService): Router {
   // Create Knowledge Base
   router.post('/kbs', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const kb = await kbService.create(req.body);
+      const kb = await kbService.create(req.body, getActorId(req));
       res.status(201).json(kb);
     } catch (err) {
       next(err);
@@ -101,7 +112,7 @@ export function createKBRouter(kbService: KBService): Router {
     try {
       const { project_id } = req.body;
       if (!project_id) return res.status(400).json({ error: 'project_id is required' });
-      await kbService.linkProject(req.params.id, project_id);
+      await kbService.linkProject(req.params.id, project_id, getActorId(req));
       res.status(200).json({ success: true });
     } catch (err) {
       next(err);
@@ -134,7 +145,7 @@ export function createKBRouter(kbService: KBService): Router {
   // Upsert Entity
   router.post('/kbs/entities', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const entity = await kbService.upsertEntity(req.body);
+      const entity = await kbService.upsertEntity(req.body, getActorId(req));
       res.status(201).json(entity);
     } catch (err) {
       next(err);
@@ -144,7 +155,7 @@ export function createKBRouter(kbService: KBService): Router {
   // Update Entity
   router.put('/kbs/entities/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const entity = await kbService.updateEntity(req.params.id, req.body);
+      const entity = await kbService.updateEntity(req.params.id, req.body, getActorId(req));
       res.json(entity);
     } catch (err) {
       next(err);
@@ -176,7 +187,7 @@ export function createKBRouter(kbService: KBService): Router {
   // Add Gained Knowledge Fact
   router.post('/kbs/facts', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const fact = await kbService.addFact(req.body);
+      const fact = await kbService.addFact(req.body, getActorId(req));
       res.status(201).json(fact);
     } catch (err) {
       next(err);
@@ -186,18 +197,17 @@ export function createKBRouter(kbService: KBService): Router {
   // Update Fact
   router.put('/kbs/facts/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const fact = await kbService.updateFact(req.params.id, req.body);
+      const fact = await kbService.updateFact(req.params.id, req.body, getActorId(req));
       res.json(fact);
     } catch (err) {
       next(err);
     }
   });
 
-
   // Delete Fact
   router.delete('/kbs/facts/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await kbService.deleteFact(req.params.id);
+      await kbService.deleteFact(req.params.id, getActorId(req));
       res.status(204).end();
     } catch (err) {
       next(err);
@@ -207,7 +217,7 @@ export function createKBRouter(kbService: KBService): Router {
   // Add Graph Relation
   router.post('/kbs/relations', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const relation = await kbService.addRelation(req.body);
+      const relation = await kbService.addRelation(req.body, getActorId(req));
       res.status(201).json(relation);
     } catch (err) {
       next(err);

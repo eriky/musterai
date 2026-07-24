@@ -302,8 +302,10 @@ All AI agents and human operators collaborating within CAP must follow this prot
     status: z.enum(['active', 'idle', 'offline']).optional()
   }, async (args) => {
     const result = await services.agentService.register(args);
+    activeAgentId = result.id;
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   });
+
 
   server.tool('unregister_agent', { agent_id: z.string() }, async ({ agent_id }) => {
     await services.agentService.unregister(agent_id);
@@ -339,22 +341,34 @@ All AI agents and human operators collaborating within CAP must follow this prot
     return { content: [{ type: 'text', text: JSON.stringify(kbs, null, 2) }] };
   });
 
+  let activeAgentId: string | undefined;
+
+  const getActorId = (raw?: Record<string, unknown>): string | undefined => {
+    if (raw?.agent_id && typeof raw.agent_id === 'string') return raw.agent_id;
+    if (raw?.actor_id && typeof raw.actor_id === 'string') return raw.actor_id;
+    if (raw?.author_id && typeof raw.author_id === 'string') return raw.author_id;
+    if (raw?.source_agent_id && typeof raw.source_agent_id === 'string') return raw.source_agent_id;
+    return activeAgentId;
+  };
+
   server.tool('create_knowledge_base', {
     name: z.string(),
     description: z.string().optional(),
     is_global: z.boolean().optional(),
-    project_ids: z.array(z.string()).optional()
+    project_ids: z.array(z.string()).optional(),
+    agent_id: z.string().optional(),
   }, async (args) => {
-    const kb = await services.kbService.create(args);
+    const kb = await services.kbService.create(args, getActorId(args));
     return { content: [{ type: 'text', text: JSON.stringify(kb, null, 2) }] };
   });
 
   server.tool('link_knowledge_base', {
     kb_id: z.string(),
-    project_id: z.string()
-  }, async ({ kb_id, project_id }) => {
-    await services.kbService.linkProject(kb_id, project_id);
-    return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `KB ${kb_id} linked to project ${project_id}` }) }] };
+    project_id: z.string(),
+    agent_id: z.string().optional(),
+  }, async (args) => {
+    await services.kbService.linkProject(args.kb_id, args.project_id, getActorId(args));
+    return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `KB ${args.kb_id} linked to project ${args.project_id}` }) }] };
   });
 
   server.tool('search_knowledge', {
@@ -392,9 +406,11 @@ All AI agents and human operators collaborating within CAP must follow this prot
     entity_name: z.string().optional(),
     entity_type: z.string().optional(),
     entity_identifier: z.string().optional(),
-    confidence: z.number().optional()
+    confidence: z.number().optional(),
+    agent_id: z.string().optional(),
   }, async (args) => {
-    const fact = await services.kbService.addFact(args);
+    const actorId = getActorId(args);
+    const fact = await services.kbService.addFact(args, actorId);
     return { content: [{ type: 'text', text: JSON.stringify(fact, null, 2) }] };
   });
 
@@ -403,9 +419,11 @@ All AI agents and human operators collaborating within CAP must follow this prot
     name: z.string(),
     type: z.string().optional(),
     identifier: z.string().optional(),
-    metadata: z.record(z.unknown()).optional()
+    metadata: z.record(z.unknown()).optional(),
+    agent_id: z.string().optional(),
   }, async (args) => {
-    const entity = await services.kbService.upsertEntity(args);
+    const actorId = getActorId(args);
+    const entity = await services.kbService.upsertEntity(args, actorId);
     return { content: [{ type: 'text', text: JSON.stringify(entity, null, 2) }] };
   });
 
@@ -418,9 +436,11 @@ All AI agents and human operators collaborating within CAP must follow this prot
     entity_name: z.string().optional(),
     entity_type: z.string().optional(),
     entity_identifier: z.string().optional(),
-    confidence: z.number().optional()
+    confidence: z.number().optional(),
+    agent_id: z.string().optional(),
   }, async ({ fact_id, ...data }) => {
-    const fact = await services.kbService.updateFact(fact_id, data);
+    const actorId = getActorId(data);
+    const fact = await services.kbService.updateFact(fact_id, data, actorId);
     return { content: [{ type: 'text', text: JSON.stringify(fact, null, 2) }] };
   });
 
@@ -429,9 +449,11 @@ All AI agents and human operators collaborating within CAP must follow this prot
     name: z.string().optional(),
     type: z.string().optional(),
     identifier: z.string().optional(),
-    metadata: z.record(z.unknown()).optional()
+    metadata: z.record(z.unknown()).optional(),
+    agent_id: z.string().optional(),
   }, async ({ entity_id, ...data }) => {
-    const entity = await services.kbService.updateEntity(entity_id, data);
+    const actorId = getActorId(data);
+    const entity = await services.kbService.updateEntity(entity_id, data, actorId);
     return { content: [{ type: 'text', text: JSON.stringify(entity, null, 2) }] };
   });
 
@@ -440,11 +462,14 @@ All AI agents and human operators collaborating within CAP must follow this prot
     source_entity_id: z.string(),
     target_entity_id: z.string(),
     relation_type: z.string(),
-    description: z.string().optional()
+    description: z.string().optional(),
+    agent_id: z.string().optional(),
   }, async (args) => {
-    const relation = await services.kbService.addRelation(args);
+    const actorId = getActorId(args);
+    const relation = await services.kbService.addRelation(args, actorId);
     return { content: [{ type: 'text', text: JSON.stringify(relation, null, 2) }] };
   });
+
 
   return server;
 }
