@@ -529,7 +529,7 @@ export const NewCardModal: React.FC<NewCardModalProps> = ({ columns, defaultColu
 interface NewDocModalProps {
   projectId: string;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (newDoc?: any) => void;
 }
 
 export const NewDocModal: React.FC<NewDocModalProps> = ({ projectId, onClose, onSuccess }) => {
@@ -545,8 +545,8 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ projectId, onClose, on
     setIsSubmitting(true);
     setError(null);
     try {
-      await api.createDocument(projectId, { title, content });
-      onSuccess();
+      const doc = await api.createDocument(projectId, { title, content });
+      onSuccess(doc);
       onClose();
     } catch (err: any) {
       console.error('Failed to create document:', err);

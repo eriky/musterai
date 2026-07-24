@@ -20,22 +20,31 @@ type TabType = 'board' | 'agents' | 'docs' | 'activity';
 
 // ─── URL Routing Helpers (HTML5 History API — No Hash) ─────────────────────────
 
-function parseLocation(): { projectId: string | null; tab: TabType } {
+function parseLocation(): { projectId: string | null; tab: TabType; docId: string | null } {
   const parts = window.location.pathname.split('/').filter(Boolean);
-  // Expected pattern: /projects/:projectId/:tab
+  // Expected pattern: /projects/:projectId/:tab or /projects/:projectId/docs/:docId
   if (parts[0] === 'projects' && parts[1]) {
     const projectId = parts[1];
     const rawTab = parts[2];
     const validTabs: TabType[] = ['board', 'agents', 'docs', 'activity'];
     const tab = validTabs.includes(rawTab as TabType) ? (rawTab as TabType) : 'board';
-    return { projectId, tab };
+    const docId = tab === 'docs' && parts[3] ? parts[3] : null;
+    return { projectId, tab, docId };
   }
-  return { projectId: null, tab: 'board' };
+  return { projectId: null, tab: 'board', docId: null };
 }
 
-function updateLocation(projectId: string | null, tab: TabType, replace = false) {
+function updateLocation(
+  projectId: string | null,
+  tab: TabType,
+  docId?: string | null,
+  replace = false,
+) {
   if (!projectId) return;
-  const targetPath = `/projects/${projectId}/${tab}`;
+  let targetPath = `/projects/${projectId}/${tab}`;
+  if (tab === 'docs' && docId) {
+    targetPath += `/${docId}`;
+  }
   if (window.location.pathname !== targetPath) {
     if (replace) {
       window.history.replaceState(null, '', targetPath);
@@ -53,6 +62,7 @@ export const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(initialNav.projectId);
   const [activeTab, setActiveTab] = useState<TabType>(initialNav.tab);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(initialNav.docId);
   const [summary, setSummary] = useState<ProjectSummary | null>(null);
 
   const [board, setBoard] = useState<Board | null>(null);
@@ -91,12 +101,12 @@ export const App: React.FC = () => {
 
       if (targetId) {
         setSelectedProjectId(targetId);
-        updateLocation(targetId, activeTab, true);
+        updateLocation(targetId, activeTab, selectedDocId, true);
       }
     } catch (err) {
       console.error('Error loading projects:', err);
     }
-  }, [activeTab]);
+  }, [activeTab, selectedDocId]);
 
   // Load Selected Project Data
   const loadProjectData = useCallback(async () => {
@@ -144,27 +154,35 @@ export const App: React.FC = () => {
     }
   }, [selectedProjectId, loadProjects]);
 
-  // Sync state when selectedProjectId or activeTab changes
+  // Sync state when selectedProjectId or activeTab or selectedDocId changes
   const handleSelectProject = (projectId: string) => {
     setSelectedProjectId(projectId);
-    updateLocation(projectId, activeTab);
+    updateLocation(projectId, activeTab, selectedDocId);
   };
 
   const handleSelectTab = (tab: TabType) => {
     setActiveTab(tab);
     if (selectedProjectId) {
-      updateLocation(selectedProjectId, tab);
+      updateLocation(selectedProjectId, tab, selectedDocId);
+    }
+  };
+
+  const handleSelectDoc = (docId: string) => {
+    setSelectedDocId(docId);
+    if (selectedProjectId) {
+      updateLocation(selectedProjectId, 'docs', docId);
     }
   };
 
   // Handle Browser Back / Forward buttons (popstate)
   useEffect(() => {
     const handlePopState = () => {
-      const { projectId, tab } = parseLocation();
+      const { projectId, tab, docId } = parseLocation();
       if (projectId) {
         setSelectedProjectId(projectId);
       }
       setActiveTab(tab);
+      setSelectedDocId(docId);
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -292,6 +310,8 @@ export const App: React.FC = () => {
         {activeTab === 'docs' && (
           <DocumentVault
             documents={documents}
+            selectedDocId={selectedDocId}
+            onSelectDoc={handleSelectDoc}
             onOpenNewDoc={() => setShowNewDocModal(true)}
             onRefresh={loadProjectData}
           />
@@ -355,7 +375,12 @@ export const App: React.FC = () => {
         <NewDocModal
           projectId={selectedProjectId}
           onClose={() => setShowNewDocModal(false)}
-          onSuccess={loadProjectData}
+          onSuccess={(newDoc) => {
+            if (newDoc && newDoc.id) {
+              handleSelectDoc(newDoc.id);
+            }
+            loadProjectData();
+          }}
         />
       )}
     </div>

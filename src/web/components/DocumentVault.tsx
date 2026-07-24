@@ -1,18 +1,25 @@
 // File: src/web/components/DocumentVault.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Document } from '../types.js';
-import { FileText, Edit3, History, CheckCircle, Clock, Save, Plus } from 'lucide-react';
+import { FileText, Edit3, History, CheckCircle, Clock, Save, Plus, X, ArrowLeft } from 'lucide-react';
 import { marked } from 'marked';
 import { api } from '../api.js';
 
 interface DocumentVaultProps {
   documents: Document[];
+  selectedDocId: string | null;
+  onSelectDoc: (docId: string) => void;
   onOpenNewDoc: () => void;
   onRefresh: () => void;
 }
 
-export const DocumentVault: React.FC<DocumentVaultProps> = ({ documents, onOpenNewDoc, onRefresh }) => {
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+export const DocumentVault: React.FC<DocumentVaultProps> = ({
+  documents,
+  selectedDocId,
+  onSelectDoc,
+  onOpenNewDoc,
+  onRefresh,
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
@@ -20,10 +27,20 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ documents, onOpenN
   const [history, setHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
-  const selectedDoc = documents.find(d => d.id === selectedDocId) || (documents.length > 0 ? documents[documents.length - 1] : null);
+  // Find active doc by ID, or default to the most recently updated doc
+  const selectedDoc =
+    documents.find((d) => d.id === selectedDocId) ||
+    (documents.length > 0 ? documents[documents.length - 1] : null);
+
+  // Sync selectedDocId if auto-selecting fallback
+  useEffect(() => {
+    if (selectedDoc && selectedDoc.id !== selectedDocId) {
+      onSelectDoc(selectedDoc.id);
+    }
+  }, [selectedDoc, selectedDocId, onSelectDoc]);
 
   const handleSelectDoc = (doc: Document) => {
-    setSelectedDocId(doc.id);
+    onSelectDoc(doc.id);
     setIsEditing(false);
     setShowHistory(false);
   };
@@ -34,6 +51,13 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ documents, onOpenN
     setEditContent(selectedDoc.content);
     setChangeSummary('');
     setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditTitle('');
+    setEditContent('');
+    setChangeSummary('');
   };
 
   const handleSaveEdit = async () => {
@@ -182,7 +206,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ documents, onOpenN
                   <div className="flex items-center space-x-2">
                     {getStatusBadge(selectedDoc.status)}
 
-                    {selectedDoc.status === 'draft' && (
+                    {selectedDoc.status === 'draft' && !isEditing && (
                       <button
                         onClick={() => handleStatusChange('in_review')}
                         className="px-2.5 py-1 bg-amber-600/20 text-amber-300 border border-amber-500/40 text-xs rounded hover:bg-amber-600/30 transition-colors cursor-pointer"
@@ -190,7 +214,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ documents, onOpenN
                         Submit for Review
                       </button>
                     )}
-                    {selectedDoc.status === 'in_review' && (
+                    {selectedDoc.status === 'in_review' && !isEditing && (
                       <button
                         onClick={() => handleStatusChange('approved')}
                         className="px-2.5 py-1 bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 text-xs rounded hover:bg-emerald-600/30 transition-colors cursor-pointer"
@@ -199,28 +223,42 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ documents, onOpenN
                       </button>
                     )}
 
-                    <button
-                      onClick={() => (isEditing ? handleSaveEdit() : handleStartEdit())}
-                      className="inline-flex items-center px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-600 text-xs rounded transition-colors cursor-pointer"
-                    >
-                      {isEditing ? (
-                        <>
-                          <Save className="w-3.5 h-3.5 mr-1.5 text-emerald-400" /> Save Version
-                        </>
-                      ) : (
-                        <>
-                          <Edit3 className="w-3.5 h-3.5 mr-1.5 text-amber-400" /> Edit Document
-                        </>
-                      )}
-                    </button>
+                    {/* Edit mode vs Read mode controls */}
+                    {isEditing ? (
+                      <>
+                        <button
+                          onClick={handleSaveEdit}
+                          className="inline-flex items-center px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold text-xs rounded transition-colors cursor-pointer"
+                        >
+                          <Save className="w-3.5 h-3.5 mr-1.5 text-zinc-950" /> Save Version
+                        </button>
 
-                    <button
-                      onClick={handleLoadHistory}
-                      className="p-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-amber-400 border border-zinc-700 rounded transition-colors cursor-pointer"
-                      title="Version History"
-                    >
-                      <History className="w-4 h-4" />
-                    </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          className="inline-flex items-center px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-600 text-xs rounded transition-colors cursor-pointer"
+                          title="Discard changes and exit editor"
+                        >
+                          <X className="w-3.5 h-3.5 mr-1 text-rose-400" /> Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={handleStartEdit}
+                          className="inline-flex items-center px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-600 text-xs rounded transition-colors cursor-pointer"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 mr-1.5 text-amber-400" /> Edit Document
+                        </button>
+
+                        <button
+                          onClick={handleLoadHistory}
+                          className="p-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-amber-400 border border-zinc-700 rounded transition-colors cursor-pointer"
+                          title="Version History"
+                        >
+                          <History className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
