@@ -4,9 +4,9 @@ import { fork, ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const TEST_PORT = 3099;
+const TEST_PORT = 3094;
 const TEST_DB_PATH = path.join(process.cwd(), 'data', `e2e-browser-${Date.now()}.db`);
-const APP_URL = `http://localhost:${TEST_PORT}`;
+const APP_URL = `http://127.0.0.1:${TEST_PORT}`;
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -26,8 +26,11 @@ async function waitForServer(url: string, timeoutMs = 15000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
-      const res = await fetch(url);
-      if (res.ok) return;
+      const res = await fetch(url, { signal: AbortSignal.timeout(1500) });
+      if (res.ok) {
+        await res.text();
+        return;
+      }
     } catch {}
     await sleep(300);
   }
@@ -43,33 +46,31 @@ async function runBrowserUiTest() {
 
   removeDbFiles(TEST_DB_PATH);
 
-  // 1. Spawn Isolated Test Server
-  console.log('[Server Setup] Starting isolated CAP server process on port 3099...');
+  console.log(`[Server Setup] Starting isolated CAP server process on port ${TEST_PORT}...`);
   const serverProcess: ChildProcess = fork(path.join(process.cwd(), 'dist', 'index.js'), [], {
     env: {
       ...process.env,
       CAP_PORT: String(TEST_PORT),
       CAP_DB_PATH: TEST_DB_PATH,
     },
-    stdio: 'inherit',
+    stdio: 'ignore',
   });
 
-  // Wait for server health endpoint
-  console.log('[Server Setup] Waiting for health endpoint readiness...');
-  await waitForServer(`${APP_URL}/api/v1/health`);
-  console.log('  ✓ Test server online and healthy!\n');
-
-  const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext();
-  const page = await context.newPage();
-
-  // Handle dialogs automatically
-  page.on('dialog', async (dialog) => {
-    console.log(`  [Dialog] ${dialog.type()}: ${dialog.message()}`);
-    await dialog.accept();
-  });
-
+  let browser: any = null;
   try {
+    // Wait for server health endpoint
+    console.log('[Server Setup] Waiting for health endpoint readiness...');
+    await waitForServer(`${APP_URL}/api/v1/health`);
+    console.log('  ✓ Test server online and healthy!\n');
+
+    browser = await chromium.launch({ headless: true });
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    page.on('dialog', async (dialog) => {
+      console.log(`  [Dialog] ${dialog.type()}: ${dialog.message()}`);
+      await dialog.accept();
+    });
     // Step 1: Load Web UI
     console.log('[1/8] Loading Web UI...');
     await page.goto(APP_URL, { waitUntil: 'domcontentloaded' });
@@ -206,7 +207,7 @@ async function runBrowserUiTest() {
     await page.screenshot({ path: 'scratch/ui-error-screenshot.png' }).catch(() => {});
     process.exit(1);
   } finally {
-    await browser.close();
+    if (browser) await browser.close();
     
     // Stop server and delete temporary test database file
     serverProcess.kill('SIGTERM');

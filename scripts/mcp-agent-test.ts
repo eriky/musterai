@@ -3,9 +3,9 @@ import { fork, ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const TEST_PORT = 3098;
+const TEST_PORT = 3095;
 const TEST_DB_PATH = path.join(process.cwd(), 'data', `e2e-mcp-${Date.now()}.db`);
-const APP_URL = `http://localhost:${TEST_PORT}`;
+const APP_URL = `http://127.0.0.1:${TEST_PORT}`;
 const MCP_ENDPOINT = `${APP_URL}/mcp`;
 let requestId = 1;
 
@@ -27,8 +27,11 @@ async function waitForServer(url: string, timeoutMs = 15000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
-      const res = await fetch(url);
-      if (res.ok) return;
+      const res = await fetch(url, { signal: AbortSignal.timeout(1500) });
+      if (res.ok) {
+        await res.text();
+        return;
+      }
     } catch {}
     await sleep(300);
   }
@@ -90,22 +93,21 @@ async function runMcpAgentTestSuite() {
   removeDbFiles(TEST_DB_PATH);
 
   // 1. Spawn Isolated Test Server
-  console.log('[Server Setup] Starting isolated CAP server process on port 3098...');
+  console.log(`[Server Setup] Starting isolated CAP server process on port ${TEST_PORT}...`);
   const serverProcess: ChildProcess = fork(path.join(process.cwd(), 'dist', 'index.js'), [], {
     env: {
       ...process.env,
       CAP_PORT: String(TEST_PORT),
       CAP_DB_PATH: TEST_DB_PATH,
     },
-    stdio: 'ignore',
+    stdio: 'inherit',
   });
 
-  // Wait for server health endpoint
-  console.log('[Server Setup] Waiting for health endpoint readiness...');
-  await waitForServer(`${APP_URL}/api/v1/health`);
-  console.log('  ✓ Test server online and healthy!\n');
-
   try {
+    // Wait for server health endpoint
+    console.log('[Server Setup] Waiting for health endpoint readiness...');
+    await waitForServer(`${APP_URL}/api/v1/health`);
+    console.log('  ✓ Test server online and healthy!\n');
     // Step 1: Create Project
     console.log('[1/12] Creating Project via MCP (create_project)...');
     const project = await callMCPTool('create_project', {

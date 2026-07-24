@@ -110,7 +110,7 @@ async function main() {
   const initialPort = config.port;
 
   const listenOnPort = (port: number) => {
-    const server = app.listen(port, () => {
+    const server = app.listen(port, '0.0.0.0', () => {
       console.log(`\n======================================================`);
       console.log(`  Collaborative Agent Platform (CAP) v2.0 - ONLINE`);
       console.log(`======================================================`);
