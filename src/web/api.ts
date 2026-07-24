@@ -10,10 +10,21 @@ export class ApiError extends Error {
   }
 }
 
+let activeHumanId: string | null = typeof window !== 'undefined' ? localStorage.getItem('cap_active_human_id') : null;
+
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  if (activeHumanId) {
+    headers['x-agent-id'] = activeHumanId;
+    headers['x-actor-id'] = activeHumanId;
+  }
+
   const res = await fetch(`${API_BASE}${url}`, {
     headers: {
-      'Content-Type': 'application/json',
+      ...headers,
       ...options?.headers,
     },
     ...options,
@@ -32,7 +43,17 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  getActiveHumanId: () => activeHumanId,
+  setActiveHumanId: (id: string | null) => {
+    activeHumanId = id;
+    if (typeof window !== 'undefined') {
+      if (id) localStorage.setItem('cap_active_human_id', id);
+      else localStorage.removeItem('cap_active_human_id');
+    }
+  },
+
   // Projects
+
   getProjects: () => fetchJSON<Project[]>('/projects'),
   createProject: (data: { name: string; description?: string }) => fetchJSON<Project>('/projects', { method: 'POST', body: JSON.stringify(data) }),
   getProjectSummary: (id: string) => fetchJSON<ProjectSummary>(`/projects/${id}/summary`),

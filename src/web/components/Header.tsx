@@ -1,7 +1,6 @@
-// File: src/web/components/Header.tsx
 import React from 'react';
-import { Project, ProjectSummary } from '../types.js';
-import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database } from 'lucide-react';
+import { Project, ProjectSummary, Agent } from '../types.js';
+import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, User, UserCheck } from 'lucide-react';
 
 interface HeaderProps {
   projects: Project[];
@@ -15,6 +14,9 @@ interface HeaderProps {
   onOpenRegisterAgent: () => void;
   onOpenNewCard: () => void;
   onOpenNewDoc: () => void;
+  agents?: Agent[];
+  selectedHumanId?: string | null;
+  onSelectHuman?: (id: string) => void;
 }
 
 
@@ -30,7 +32,12 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenRegisterAgent,
   onOpenNewCard,
   onOpenNewDoc,
+  agents = [],
+  selectedHumanId,
+  onSelectHuman,
 }) => {
+  const humanAgents = agents.filter(a => a.type === 'human');
+
   return (
     <header className="bg-command-surface border-b border-command-border sticky top-0 z-40 backdrop-blur-md bg-opacity-95 w-full">
       <div className="w-full px-4 sm:px-6 lg:px-8">
@@ -52,8 +59,34 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Project Selector & Actions */}
+          {/* Project & Human Operator Selectors */}
           <div className="flex items-center space-x-3">
+            
+            {/* Human Operator Picker */}
+            {onSelectHuman && (
+              <div className="flex items-center space-x-1.5 bg-zinc-900 border border-amber-500/40 rounded-md px-2.5 py-1.5 shadow-sm">
+                <UserCheck className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-xs font-sans text-zinc-400 font-medium">I am:</span>
+                <select
+                  value={selectedHumanId || ''}
+                  onChange={(e) => onSelectHuman(e.target.value)}
+                  className="bg-transparent text-amber-300 text-xs font-sans font-bold focus:outline-none cursor-pointer"
+                >
+                  {humanAgents.length === 0 ? (
+                    <option value="" className="bg-command-card text-zinc-400">Human Operator</option>
+                  ) : (
+                    humanAgents.map((h) => (
+                      <option key={h.id} value={h.id} className="bg-command-card text-zinc-200">
+                        {h.name} ({h.role})
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+            )}
+
+            <span className="text-zinc-700">|</span>
+
             {/* Project Selector Dropdown */}
             <div className="flex items-center space-x-1.5">
               <select
@@ -111,6 +144,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
           </div>
+
 
         </div>
 

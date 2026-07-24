@@ -127,11 +127,26 @@ export class AgentService {
 
   async list(): Promise<Agent[]> {
     const rows = await this.db.query<any>('SELECT * FROM agent_registration ORDER BY created_at ASC');
-    return rows.map(row => ({
+    const agents = rows.map(row => ({
       ...row,
       capabilities: row.capabilities ? JSON.parse(row.capabilities) : [],
     }));
+
+    // Auto-seed a default human operator if no human agent exists yet
+    const hasHuman = agents.some(a => a.type === 'human');
+    if (!hasHuman) {
+      const defaultHuman = await this.register({
+        name: 'Human Operator',
+        type: 'human',
+        role: 'owner',
+        capabilities: ['owner', 'architecture', 'review']
+      });
+      agents.unshift(defaultHuman);
+    }
+
+    return agents;
   }
+
 
   async heartbeat(id: string): Promise<Agent> {
     const existing = await this.getById(id);

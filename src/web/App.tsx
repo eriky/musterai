@@ -88,6 +88,8 @@ export const App: React.FC = () => {
   const [showNewDocModal, setShowNewDocModal] = useState(false);
   const [targetColumnId, setTargetColumnId] = useState<string | undefined>(undefined);
 
+  const [selectedHumanId, setSelectedHumanId] = useState<string | null>(api.getActiveHumanId());
+
   // Load Projects
   const loadProjects = useCallback(async (selectId?: string) => {
     try {
@@ -132,6 +134,15 @@ export const App: React.FC = () => {
       setAgents(agentsData);
       setDocuments(docsData);
       setEvents(eventsData);
+
+      // Auto-select human operator if not selected yet
+      const humanAgents = agentsData.filter(a => a.type === 'human');
+      const activeId = api.getActiveHumanId();
+      if ((!activeId || !humanAgents.some(h => h.id === activeId)) && humanAgents.length > 0) {
+        setSelectedHumanId(humanAgents[0].id);
+        api.setActiveHumanId(humanAgents[0].id);
+      }
+
 
       if (boardsData.length > 0) {
         const boardDetails = await api.getBoardDetails(boardsData[0].id);
@@ -272,6 +283,11 @@ export const App: React.FC = () => {
     setShowNewCardModal(true);
   };
 
+  const handleSelectHuman = (id: string) => {
+    setSelectedHumanId(id);
+    api.setActiveHumanId(id);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-command-bg text-zinc-100 font-sans w-full overflow-hidden">
       
@@ -288,7 +304,11 @@ export const App: React.FC = () => {
         onOpenRegisterAgent={() => setShowRegisterAgentModal(true)}
         onOpenNewCard={() => handleOpenNewCardModal()}
         onOpenNewDoc={() => setShowNewDocModal(true)}
+        agents={agents}
+        selectedHumanId={selectedHumanId}
+        onSelectHuman={handleSelectHuman}
       />
+
 
       {/* Main Full-Width View Area */}
       <main className="flex-1 flex flex-col min-h-0 w-full px-4 sm:px-6 lg:px-8 py-4 overflow-hidden">
