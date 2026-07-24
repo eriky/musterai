@@ -185,9 +185,11 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
         hover: true,
         tooltipDelay: 200,
         zoomView: true,
+        zoomSpeed: 0.05, // Micro-step smooth mouse wheel & trackpad zoom (reduced from giant default steps!)
         dragView: true,
         dragNodes: true,
       },
+
     };
 
     const NetworkConstructor = (vis as any).Network || vis;
@@ -356,14 +358,15 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
   const handleZoomIn = () => {
     if (!networkRef.current) return;
     const currScale = networkRef.current.getScale();
-    networkRef.current.moveTo({ scale: currScale * 1.3, animation: { duration: 250, easingFunction: 'easeInOutQuad' } });
+    networkRef.current.moveTo({ scale: currScale * 1.12, animation: { duration: 150, easingFunction: 'easeInOutQuad' } });
   };
 
   const handleZoomOut = () => {
     if (!networkRef.current) return;
     const currScale = networkRef.current.getScale();
-    networkRef.current.moveTo({ scale: currScale / 1.3, animation: { duration: 250, easingFunction: 'easeInOutQuad' } });
+    networkRef.current.moveTo({ scale: currScale / 1.12, animation: { duration: 150, easingFunction: 'easeInOutQuad' } });
   };
+
 
   const handleResetView = () => {
     if (!networkRef.current) return;
