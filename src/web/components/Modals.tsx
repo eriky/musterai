@@ -1,7 +1,8 @@
 // File: src/web/components/Modals.tsx
 import React, { useState } from 'react';
 import { Column } from '../types.js';
-import { X, Bot, Plus, FileText, FolderPlus, Layers, AlertCircle } from 'lucide-react';
+import { X, Bot, Plus, FileText, FolderPlus, Layers, AlertCircle, UserPlus } from 'lucide-react';
+
 import { api } from '../api.js';
 
 interface NewProjectModalProps {
@@ -285,9 +286,9 @@ interface NewAgentModalProps {
 
 export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess }) => {
   const [name, setName] = useState('');
-  const [type, setType] = useState<'ai_agent' | 'human'>('ai_agent');
-  const [role, setRole] = useState<'owner' | 'contributor' | 'observer'>('contributor');
-  const [capabilities, setCapabilities] = useState('code, review, test');
+  const [type] = useState<'human'>('human');
+  const [role, setRole] = useState<'owner' | 'contributor' | 'observer'>('owner');
+  const [capabilities, setCapabilities] = useState('management, architecture, review');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -298,12 +299,12 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
     setIsSubmitting(true);
     setError(null);
     try {
-      await api.registerAgent({ name, type, role, capabilities });
+      await api.registerAgent({ name, type: 'human', role, capabilities });
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Failed to register agent:', err);
-      setError(err.message || 'Failed to register agent.');
+      console.error('Failed to add user:', err);
+      setError(err.message || 'Failed to add user.');
     } finally {
       setIsSubmitting(false);
     }
@@ -314,7 +315,7 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
       <div className="bg-command-surface border border-emerald-500/40 rounded-xl w-full max-w-md p-5 shadow-2xl space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-command-border pb-3">
           <h3 className="text-sm font-bold text-zinc-100 flex items-center">
-            <Bot className="w-4 h-4 mr-2 text-emerald-400" /> Register Agent / Operator
+            <UserPlus className="w-4 h-4 mr-2 text-emerald-400" /> Add Human User / Operator
           </h3>
           <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-100 cursor-pointer">
             <X className="w-4 h-4" />
@@ -328,30 +329,32 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
           </div>
         )}
 
+        <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg text-[11px] text-zinc-400">
+          💡 <span className="font-semibold text-zinc-200">Note:</span> Manual registration is for human operators. AI agents (Claude, Cursor, Antigravity) register themselves programmatically over MCP using the Human Owner Secret Token.
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Name</label>
+            <label className="block text-zinc-400 mb-1 font-semibold">User Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Claude-Backend, Gemini-Frontend"
+              placeholder="e.g. Erik, Alice"
               className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2.5 focus:border-emerald-500 focus:outline-none"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-zinc-400 mb-1 font-semibold">Type</label>
-              <select
-                value={type}
-                onChange={(e) => setType(e.target.value as any)}
-                className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2"
-              >
-                <option value="ai_agent">AI Agent</option>
-                <option value="human">Human Operator</option>
-              </select>
+              <label className="block text-zinc-400 mb-1 font-semibold">Account Type</label>
+              <input
+                type="text"
+                disabled
+                value="Human Operator"
+                className="w-full bg-zinc-900 border border-command-border text-emerald-400 font-bold rounded p-2 opacity-80"
+              />
             </div>
 
             <div>
@@ -359,10 +362,10 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as any)}
-                className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2"
+                className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 cursor-pointer"
               >
-                <option value="contributor">Contributor</option>
                 <option value="owner">Owner</option>
+                <option value="contributor">Contributor</option>
                 <option value="observer">Observer</option>
               </select>
             </div>
@@ -374,7 +377,7 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
               type="text"
               value={capabilities}
               onChange={(e) => setCapabilities(e.target.value)}
-              placeholder="e.g. backend, ts, react, testing"
+              placeholder="e.g. management, architecture, review"
               className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 focus:border-emerald-500 focus:outline-none"
             />
           </div>
@@ -389,10 +392,10 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !name.trim()}
-              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 text-zinc-950 font-bold rounded cursor-pointer"
+              disabled={isSubmitting}
+              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold rounded cursor-pointer disabled:opacity-50"
             >
-              {isSubmitting ? 'Registering...' : 'Register Agent'}
+              {isSubmitting ? 'Adding...' : 'Add User'}
             </button>
           </div>
         </form>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Project, ProjectSummary, Agent } from '../types.js';
-import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, User, UserCheck } from 'lucide-react';
+import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, User, UserCheck, UserPlus } from 'lucide-react';
+
 
 interface HeaderProps {
   projects: Project[];
@@ -125,8 +126,9 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={onOpenRegisterAgent}
                 className="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 cursor-pointer"
               >
-                <Bot className="w-3.5 h-3.5 mr-1 text-emerald-400" /> + Agent
+                <UserPlus className="w-3.5 h-3.5 mr-1 text-emerald-400" /> + User
               </button>
+
 
               <button
                 onClick={onOpenNewCard}
