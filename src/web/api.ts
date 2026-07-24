@@ -96,8 +96,11 @@ export const api = {
   getHumanSecretToken: () => fetchJSON<{ secret_token: string }>(`/settings/human-secret`),
   registerAgent: (data: { name: string; type: string; role: string; capabilities?: string; secret_token?: string }) =>
     fetchJSON<Agent>(`/agents`, { method: 'POST', body: JSON.stringify(data) }),
+  updateAgent: (id: string, data: { name?: string; role?: string; capabilities?: string; status?: string; owner_id?: string | null }) =>
+    fetchJSON<Agent>(`/agents/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   unregisterAgent: (id: string) => fetchJSON<void>(`/agents/${id}`, { method: 'DELETE' }),
   agentHeartbeat: (id: string) => fetchJSON<Agent>(`/agents/${id}/heartbeat`, { method: 'POST' }),
+
 
 
   // Events

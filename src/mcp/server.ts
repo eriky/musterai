@@ -310,7 +310,20 @@ All AI agents and human operators collaborating within CAP must follow this prot
 
 
 
+  server.tool('update_agent', {
+    agent_id: z.string(),
+    name: z.string().optional(),
+    role: z.enum(['owner', 'contributor', 'observer']).optional(),
+    capabilities: z.union([z.string(), z.array(z.string())]).optional(),
+    status: z.enum(['active', 'idle', 'offline']).optional(),
+    owner_id: z.string().nullable().optional()
+  }, async ({ agent_id, ...data }) => {
+    const agent = await services.agentService.update(agent_id, data);
+    return { content: [{ type: 'text', text: JSON.stringify(agent, null, 2) }] };
+  });
+
   server.tool('unregister_agent', { agent_id: z.string() }, async ({ agent_id }) => {
+
     await services.agentService.unregister(agent_id);
     return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Agent ${agent_id} unregistered.` }) }] };
   });

@@ -114,6 +114,35 @@ export class AgentService {
     await this.db.execute('DELETE FROM agent_registration WHERE id = ?', [id]);
   }
 
+  async update(id: string, data: { name?: string; role?: 'owner' | 'contributor' | 'observer'; capabilities?: string | string[]; status?: 'active' | 'idle' | 'offline'; owner_id?: string | null }): Promise<Agent> {
+    const existing = await this.getById(id);
+    if (!existing) throw new Error(`Agent with ID ${id} not found`);
+
+    const name = data.name !== undefined ? data.name : existing.name;
+    const role = data.role !== undefined ? data.role : existing.role;
+    const status = data.status !== undefined ? data.status : existing.status;
+    const owner_id = data.owner_id !== undefined ? data.owner_id : existing.owner_id;
+
+    let capabilitiesStr: string | null = existing.capabilities ? JSON.stringify(existing.capabilities) : null;
+    if (data.capabilities !== undefined) {
+      if (typeof data.capabilities === 'string') {
+        capabilitiesStr = JSON.stringify(data.capabilities.split(',').map(s => s.trim()).filter(Boolean));
+      } else if (Array.isArray(data.capabilities)) {
+        capabilitiesStr = JSON.stringify(data.capabilities);
+      }
+    }
+
+    await this.db.execute(
+      `UPDATE agent_registration
+       SET name = ?, role = ?, capabilities = ?, status = ?, owner_id = ?
+       WHERE id = ?`,
+      [name, role, capabilitiesStr, status, owner_id, id]
+    );
+
+    return (await this.getById(id))!;
+  }
+
+
   async getById(id: string): Promise<Agent | null> {
     const rows = await this.db.query<any>('SELECT * FROM agent_registration WHERE id = ?', [id]);
     const row = rows[0];

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Agent, Card } from '../types.js';
-import { Bot, Clock, RefreshCw, UserPlus, Trash2, Key, Copy, Check, ShieldCheck } from 'lucide-react';
+import { Bot, Clock, RefreshCw, UserPlus, Trash2, Key, Copy, Check, ShieldCheck, Edit3, Pencil, X, Save } from 'lucide-react';
 import { api } from '../api.js';
 
 interface AgentGridProps {
@@ -9,6 +9,7 @@ interface AgentGridProps {
   onHeartbeat: (agentId: string) => void;
   onUnregisterAgent: (agentId: string) => void;
   onOpenRegisterAgent: () => void;
+  onRefresh?: () => void;
 }
 
 export const AgentGrid: React.FC<AgentGridProps> = ({
@@ -17,9 +18,19 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
   onHeartbeat,
   onUnregisterAgent,
   onOpenRegisterAgent,
+  onRefresh,
 }) => {
   const [secretToken, setSecretToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Edit Modal State
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editOwnerId, setEditOwnerId] = useState<string>('');
+  const [editRole, setEditRole] = useState<'owner' | 'contributor' | 'observer'>('contributor');
+  const [editCapabilities, setEditCapabilities] = useState('');
+  const [editStatus, setEditStatus] = useState<'active' | 'idle' | 'offline'>('active');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     api.getHumanSecretToken()
@@ -32,6 +43,37 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
     navigator.clipboard.writeText(secretToken);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleOpenEdit = (agent: Agent) => {
+    setEditingAgent(agent);
+    setEditName(agent.name);
+    setEditOwnerId(agent.owner_id || '');
+    setEditRole(agent.role);
+    setEditCapabilities(agent.capabilities ? agent.capabilities.join(', ') : '');
+    setEditStatus(agent.status);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAgent) return;
+
+    setIsSaving(true);
+    try {
+      await api.updateAgent(editingAgent.id, {
+        name: editName,
+        owner_id: editOwnerId || null,
+        role: editRole,
+        capabilities: editCapabilities,
+        status: editStatus,
+      });
+      setEditingAgent(null);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error('Failed to update agent:', err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const getStatusBadge = (status: Agent['status']) => {
@@ -69,6 +111,8 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
     if (mins < 60) return `${mins}m ago`;
     return `${Math.floor(mins / 60)}h ago`;
   };
+
+  const humanAgents = agents.filter(a => a.type === 'human');
 
   return (
     <div className="flex flex-col flex-1 h-full min-h-0 font-sans space-y-6">
@@ -133,8 +177,7 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
         </button>
       </div>
 
-
-      {/* Grid of Agents (Stretches 100% height!) */}
+      {/* Grid of Agents */}
       {agents.length === 0 ? (
         <div className="text-center py-16 bg-command-surface rounded-xl tactical-border">
           <Bot className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
@@ -155,51 +198,52 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
           {agents.map((agent) => (
             <div
               key={agent.id}
-              className="bg-command-surface rounded-xl p-5 tactical-border hover:border-cyan-500/40 transition-all group relative overflow-hidden"
+              className="bg-command-surface rounded-xl p-5 tactical-border hover:border-cyan-500/40 transition-all group relative overflow-hidden flex flex-col justify-between"
             >
-              {/* Top Row */}
-              <div className="flex items-start justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-cyan-400 group-hover:border-cyan-500/50 transition-colors">
-                    <Bot className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-sans font-bold text-zinc-100 group-hover:text-cyan-300 transition-colors">
-                      {agent.name}
-                    </h3>
-                    <div className="flex items-center space-x-2 mt-0.5 flex-wrap">
-                      <span className="text-[11px] font-sans text-zinc-400 capitalize">{agent.type.replace('_', ' ')}</span>
-                      <span className="text-zinc-700">•</span>
-                      <span className="text-[11px] font-sans text-cyan-400 font-medium capitalize">{agent.role}</span>
-                      {agent.owner_id && (
-                        <>
-                          <span className="text-zinc-700">•</span>
-                          <span className="inline-flex items-center text-[10px] font-mono font-medium text-amber-400">
-                            <ShieldCheck className="w-3 h-3 mr-0.5" /> Owned
-                          </span>
-                        </>
-                      )}
+              <div>
+                {/* Top Row */}
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-cyan-400 group-hover:border-cyan-500/50 transition-colors">
+                      <Bot className="w-5 h-5" />
                     </div>
-
+                    <div>
+                      <h3 className="text-sm font-sans font-bold text-zinc-100 group-hover:text-cyan-300 transition-colors">
+                        {agent.name}
+                      </h3>
+                      <div className="flex items-center space-x-2 mt-0.5 flex-wrap">
+                        <span className="text-[11px] font-sans text-zinc-400 capitalize">{agent.type.replace('_', ' ')}</span>
+                        <span className="text-zinc-700">•</span>
+                        <span className="text-[11px] font-sans text-cyan-400 font-medium capitalize">{agent.role}</span>
+                        {agent.owner_id && (
+                          <>
+                            <span className="text-zinc-700">•</span>
+                            <span className="inline-flex items-center text-[10px] font-mono font-medium text-amber-400">
+                              <ShieldCheck className="w-3 h-3 mr-0.5" /> Owned
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
+
+                  {getStatusBadge(agent.status)}
                 </div>
 
-                {getStatusBadge(agent.status)}
-              </div>
-
-              {/* Capabilities */}
-              <div className="mt-4 pt-3 border-t border-command-border/60">
-                <div className="text-[11px] font-sans text-zinc-400 mb-1.5 font-medium">Capabilities:</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {agent.capabilities && agent.capabilities.length > 0 ? (
-                    agent.capabilities.map((cap, idx) => (
-                      <span key={idx} className="px-2 py-0.5 bg-zinc-900 text-zinc-300 text-xs font-sans rounded border border-zinc-800">
-                        {cap}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs font-sans text-zinc-500 italic">General</span>
-                  )}
+                {/* Capabilities */}
+                <div className="mt-4 pt-3 border-t border-command-border/60">
+                  <div className="text-[11px] font-sans text-zinc-400 mb-1.5 font-medium">Capabilities:</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {agent.capabilities && agent.capabilities.length > 0 ? (
+                      agent.capabilities.map((cap, idx) => (
+                        <span key={idx} className="px-2 py-0.5 bg-zinc-900 text-zinc-300 text-xs font-sans rounded border border-zinc-800">
+                          {cap}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs font-sans text-zinc-500 italic">General</span>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -211,6 +255,14 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
                 </div>
 
                 <div className="flex items-center space-x-1.5">
+                  <button
+                    onClick={() => handleOpenEdit(agent)}
+                    title="Edit Agent & Owner Assignment"
+                    className="inline-flex items-center px-2 py-1 bg-zinc-900 hover:bg-zinc-800 text-amber-400 border border-zinc-700 hover:border-amber-500/50 rounded text-xs transition-all cursor-pointer font-mono"
+                  >
+                    <Pencil className="w-3 h-3 mr-1" /> Edit
+                  </button>
+
                   <button
                     onClick={() => onHeartbeat(agent.id)}
                     title="Send Heartbeat"
@@ -237,6 +289,115 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
         </div>
       )}
 
+      {/* Edit Agent Modal */}
+      {editingAgent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-command-surface border border-command-border rounded-xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-command-border pb-3">
+              <div className="flex items-center space-x-2">
+                <Edit3 className="w-5 h-5 text-amber-400" />
+                <h3 className="text-base font-bold text-zinc-100 uppercase tracking-wide">Edit Agent Attributes</h3>
+              </div>
+              <button
+                onClick={() => setEditingAgent(null)}
+                className="text-zinc-500 hover:text-zinc-300 p-1 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-zinc-300 uppercase mb-1">Agent Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full bg-command-bg border border-command-border text-zinc-200 text-sm rounded-lg p-2.5 focus:border-amber-500 outline-none"
+                  placeholder="e.g. Claude 3.7 Sonnet"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-300 uppercase mb-1">Assigned Human Owner</label>
+                <select
+                  value={editOwnerId}
+                  onChange={(e) => setEditOwnerId(e.target.value)}
+                  className="w-full bg-command-bg border border-command-border text-zinc-200 text-xs font-mono rounded-lg p-2.5 focus:border-amber-500 outline-none cursor-pointer"
+                >
+                  <option value="">No Assigned Human Owner</option>
+                  {humanAgents.map((h) => (
+                    <option key={h.id} value={h.id} className="bg-command-card text-zinc-200">
+                      {h.name} ({h.role})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-zinc-500 mt-1">Select which human operator owns and directs this agent.</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-300 uppercase mb-1">Role</label>
+                  <select
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value as any)}
+                    className="w-full bg-command-bg border border-command-border text-zinc-200 text-xs font-mono rounded-lg p-2.5 focus:border-amber-500 outline-none cursor-pointer"
+                  >
+                    <option value="owner">Owner</option>
+                    <option value="contributor">Contributor</option>
+                    <option value="observer">Observer</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-300 uppercase mb-1">Status</label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value as any)}
+                    className="w-full bg-command-bg border border-command-border text-zinc-200 text-xs font-mono rounded-lg p-2.5 focus:border-amber-500 outline-none cursor-pointer"
+                  >
+                    <option value="active">Active</option>
+                    <option value="idle">Idle</option>
+                    <option value="offline">Offline</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-300 uppercase mb-1">Capabilities (Comma Separated)</label>
+                <input
+                  type="text"
+                  value={editCapabilities}
+                  onChange={(e) => setEditCapabilities(e.target.value)}
+                  className="w-full bg-command-bg border border-command-border text-zinc-200 text-xs font-mono rounded-lg p-2.5 focus:border-amber-500 outline-none"
+                  placeholder="code, testing, architecture, review"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-3 border-t border-command-border">
+                <button
+                  type="button"
+                  onClick={() => setEditingAgent(null)}
+                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-bold rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="inline-flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-500 text-zinc-950 text-xs font-bold rounded-lg cursor-pointer shadow-sm disabled:opacity-50"
+                >
+                  <Save className="w-3.5 h-3.5 mr-1.5" />
+                  {isSaving ? 'Saving...' : 'Save Agent Attributes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
+

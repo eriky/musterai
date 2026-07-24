@@ -44,6 +44,17 @@ export function createAgentRouter(agentService: AgentService): Router {
     }
   });
 
+  // Update agent attributes (name, capabilities, owner assignment, role, status)
+  router.put('/agents/:id', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const agent = await agentService.update(req.params.id, req.body);
+      res.json(agent);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+
   router.delete('/agents/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const actorId = req.headers['x-actor-id'] as string | undefined;

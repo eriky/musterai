@@ -186,6 +186,20 @@ describe('Domain Services Integration Tests', () => {
     expect(reboundAgent.id).toBe(initialAgent.id);
     expect(reboundAgent.name).toBe('Claude 3.7 (Rebound)');
     expect(reboundAgent.status).toBe('active');
+
+    // Update agent attributes & human owner assignment
+    const updatedAgent = await agentService.update(initialAgent.id, {
+      name: 'Claude 3.7 Sonnet (Updated)',
+      capabilities: ['code', 'architecture', 'review'],
+      role: 'owner',
+      owner_id: 'human_erik'
+    });
+
+    expect(updatedAgent.name).toBe('Claude 3.7 Sonnet (Updated)');
+    expect(updatedAgent.capabilities).toEqual(['code', 'architecture', 'review']);
+    expect(updatedAgent.role).toBe('owner');
+    expect(updatedAgent.owner_id).toBe('human_erik');
   });
 });
+
 

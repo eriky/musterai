@@ -136,6 +136,15 @@ export interface UpdateAgentStatus {
   status: 'active' | 'idle' | 'offline';
 }
 
+export interface UpdateAgent {
+  name?: string;
+  role?: 'owner' | 'contributor' | 'observer';
+  capabilities?: string | string[];
+  status?: 'active' | 'idle' | 'offline';
+  owner_id?: string | null;
+}
+
+
 export interface Comment {
   id: string;
   card_id: string;

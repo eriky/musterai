@@ -320,8 +320,10 @@ export const App: React.FC = () => {
             onHeartbeat={handleAgentHeartbeat}
             onUnregisterAgent={handleUnregisterAgent}
             onOpenRegisterAgent={() => setShowRegisterAgentModal(true)}
+            onRefresh={loadProjectData}
           />
         )}
+
 
         {activeTab === 'board' && (
           <KanbanBoard
