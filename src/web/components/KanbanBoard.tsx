@@ -3,7 +3,9 @@ import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Board, Column, Card, Agent, CardDetails, Document } from '../types.js';
 import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink } from 'lucide-react';
+import { marked } from 'marked';
 import { api } from '../api.js';
+
 
 interface KanbanBoardProps {
   board: Board | null;
@@ -304,9 +306,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             <div className="p-5 overflow-y-auto space-y-5 flex-1 font-sans">
               <div>
                 <h3 className="text-base font-bold text-zinc-100">{cardDetails.title}</h3>
-                <p className="text-xs text-zinc-300 mt-2 bg-command-card p-3 rounded-lg border border-command-border whitespace-pre-wrap">
-                  {cardDetails.description || 'No description provided.'}
-                </p>
+                <div
+                  className="markdown-render text-xs text-zinc-300 mt-2 bg-command-card p-3 rounded-lg border border-command-border leading-relaxed overflow-x-auto [&>p:last-child]:mb-0"
+                  dangerouslySetInnerHTML={{ __html: marked.parse(cardDetails.description || 'No description provided.') as string }}
+                />
               </div>
 
               {/* Assignees & Assign Control */}
@@ -432,12 +435,15 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
                 <div className="space-y-3 max-h-48 overflow-y-auto mb-4">
                   {cardDetails.comments.map((c) => (
-                    <div key={c.id} className="bg-command-card p-3 rounded-lg border border-command-border">
-                      <div className="flex items-center justify-between text-[11px] text-zinc-400 mb-1">
+                    <div key={c.id} className="bg-command-card p-3 rounded-lg border border-command-border space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-zinc-400">
                         <span className="text-cyan-400 font-semibold">{c.author_name || 'Agent/User'}</span>
                         <span>{new Date(c.created_at).toLocaleString()}</span>
                       </div>
-                      <p className="text-xs text-zinc-200">{c.content}</p>
+                      <div
+                        className="markdown-render text-xs text-zinc-200 leading-relaxed overflow-x-auto [&>p:last-child]:mb-0"
+                        dangerouslySetInnerHTML={{ __html: marked.parse(c.content || '') as string }}
+                      />
                     </div>
                   ))}
                 </div>
@@ -455,13 +461,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       ))}
                     </select>
                   </div>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
+                  <div className="flex space-x-2 items-start">
+                    <textarea
+                      rows={2}
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
-                      placeholder="Add comment..."
-                      className="flex-1 bg-command-card border border-command-border text-zinc-200 text-xs rounded px-3 py-2 focus:outline-none focus:border-cyan-500"
+                      placeholder="Add comment (Markdown supported)..."
+                      className="flex-1 bg-command-card border border-command-border text-zinc-200 text-xs rounded px-3 py-2 focus:outline-none focus:border-cyan-500 resize-y"
                     />
                     <button
                       type="submit"

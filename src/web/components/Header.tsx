@@ -1,21 +1,22 @@
 // File: src/web/components/Header.tsx
 import React from 'react';
 import { Project, ProjectSummary } from '../types.js';
-import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers } from 'lucide-react';
+import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database } from 'lucide-react';
 
 interface HeaderProps {
   projects: Project[];
   selectedProjectId: string | null;
   onSelectProject: (id: string) => void;
   summary: ProjectSummary | null;
-  activeTab: 'agents' | 'board' | 'docs' | 'activity';
-  onSelectTab: (tab: 'agents' | 'board' | 'docs' | 'activity') => void;
+  activeTab: 'agents' | 'board' | 'docs' | 'activity' | 'kb';
+  onSelectTab: (tab: 'agents' | 'board' | 'docs' | 'activity' | 'kb') => void;
   onOpenNewProject: () => void;
   onOpenNewBoard: () => void;
   onOpenRegisterAgent: () => void;
   onOpenNewCard: () => void;
   onOpenNewDoc: () => void;
 }
+
 
 export const Header: React.FC<HeaderProps> = ({
   projects,
@@ -154,6 +155,18 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
 
             <button
+              onClick={() => onSelectTab('kb')}
+              className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-medium transition-all ${
+                activeTab === 'kb'
+                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-command-card'
+              }`}
+            >
+              <Database className="w-3.5 h-3.5 mr-1.5 text-indigo-400" />
+              Knowledge Base
+            </button>
+
+            <button
               onClick={() => onSelectTab('activity')}
               className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-medium transition-all ${
                 activeTab === 'activity'
@@ -164,6 +177,7 @@ export const Header: React.FC<HeaderProps> = ({
               <Activity className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
               Activity Log
             </button>
+
           </nav>
 
           {/* Clean Summary Stats */}

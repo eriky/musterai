@@ -1,5 +1,5 @@
 // File: src/web/api.ts
-import { Project, Board, Column, Card, CardDetails, Document, Agent, Event, ProjectSummary, Label } from './types.js';
+import { Project, Board, Column, Card, CardDetails, Document, Agent, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree } from './types.js';
 
 const API_BASE = '/api/v1';
 
@@ -79,4 +79,43 @@ export const api = {
 
   // Events
   getEvents: (projectId: string, limit: number = 30) => fetchJSON<Event[]>(`/projects/${projectId}/events?limit=${limit}`),
+
+  // Knowledge Base
+  getKBs: (projectId?: string) => fetchJSON<KnowledgeBase[]>(projectId ? `/kbs?project_id=${projectId}` : '/kbs'),
+  createKB: (data: { name: string; description?: string; is_global?: boolean; project_ids?: string[] }) =>
+    fetchJSON<KnowledgeBase>('/kbs', { method: 'POST', body: JSON.stringify(data) }),
+  linkKB: (kbId: string, projectId: string) => fetchJSON<void>(`/kbs/${kbId}/link`, { method: 'POST', body: JSON.stringify({ project_id: projectId }) }),
+  unlinkKB: (kbId: string, projectId: string) => fetchJSON<void>(`/kbs/${kbId}/unlink`, { method: 'POST', body: JSON.stringify({ project_id: projectId }) }),
+  deleteKB: (id: string) => fetchJSON<void>(`/kbs/${id}`, { method: 'DELETE' }),
+  searchKnowledge: (query: string, kbId?: string, projectId?: string) => {
+    let url = `/kbs/search?q=${encodeURIComponent(query)}`;
+    if (kbId) url += `&kb_id=${kbId}`;
+    if (projectId) url += `&project_id=${projectId}`;
+    return fetchJSON<{ facts: KBFact[]; entities: KBEntity[] }>(url);
+  },
+  getGraphTree: (kbId?: string, projectId?: string) => {
+    let url = '/kbs/graph';
+    if (kbId) url += `?kb_id=${kbId}`;
+    else if (projectId) url += `?project_id=${projectId}`;
+    return fetchJSON<KBGraphTree>(url);
+  },
+  getEntityKnowledge: (queryStr: string, kbId?: string) => {
+    let url = `/kbs/entity-knowledge?q=${encodeURIComponent(queryStr)}`;
+    if (kbId) url += `&kb_id=${kbId}`;
+    return fetchJSON<EntityKnowledgeResult>(url);
+  },
+  getKBFacts: (kbId: string) => fetchJSON<KBFact[]>(`/kbs/${kbId}/facts`),
+  addFact: (data: { kb_id: string; title: string; content: string; category?: string; entity_name?: string; entity_identifier?: string; entity_type?: string }) =>
+    fetchJSON<KBFact>('/kbs/facts', { method: 'POST', body: JSON.stringify(data) }),
+  updateFact: (id: string, data: Partial<{ title: string; content: string; category: string; entity_name: string; entity_identifier: string; entity_type: string }>) =>
+    fetchJSON<KBFact>(`/kbs/facts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteFact: (id: string) => fetchJSON<void>(`/kbs/facts/${id}`, { method: 'DELETE' }),
+  upsertEntity: (data: { kb_id: string; name: string; type?: string; identifier?: string }) =>
+    fetchJSON<KBEntity>('/kbs/entities', { method: 'POST', body: JSON.stringify(data) }),
+  updateEntity: (id: string, data: Partial<{ name: string; type: string; identifier: string }>) =>
+    fetchJSON<KBEntity>(`/kbs/entities/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  addRelation: (data: { kb_id: string; source_entity_id: string; target_entity_id: string; relation_type: string; description?: string }) =>
+    fetchJSON<KBRelation>('/kbs/relations', { method: 'POST', body: JSON.stringify(data) }),
 };
+
+

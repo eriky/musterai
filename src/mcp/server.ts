@@ -9,7 +9,8 @@ import {
   CommentService,
   DocumentService,
   AgentService,
-  EventService
+  EventService,
+  KBService
 } from '../services/index.js';
 
 const z = zod;
@@ -23,7 +24,9 @@ export interface Services {
   documentService: DocumentService;
   agentService: AgentService;
   eventService: EventService;
+  kbService: KBService;
 }
+
 
 export function createMcpServer(services: Services): McpServer {
   const server = new McpServer({
@@ -328,5 +331,122 @@ All AI agents and human operators collaborating within CAP must follow this prot
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   });
 
+  // --- Knowledge Base Tools ---
+  server.tool('list_knowledge_bases', {
+    project_id: z.string().optional()
+  }, async ({ project_id }) => {
+    const kbs = await services.kbService.list(project_id);
+    return { content: [{ type: 'text', text: JSON.stringify(kbs, null, 2) }] };
+  });
+
+  server.tool('create_knowledge_base', {
+    name: z.string(),
+    description: z.string().optional(),
+    is_global: z.boolean().optional(),
+    project_ids: z.array(z.string()).optional()
+  }, async (args) => {
+    const kb = await services.kbService.create(args);
+    return { content: [{ type: 'text', text: JSON.stringify(kb, null, 2) }] };
+  });
+
+  server.tool('link_knowledge_base', {
+    kb_id: z.string(),
+    project_id: z.string()
+  }, async ({ kb_id, project_id }) => {
+    await services.kbService.linkProject(kb_id, project_id);
+    return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `KB ${kb_id} linked to project ${project_id}` }) }] };
+  });
+
+  server.tool('search_knowledge', {
+    query: z.string(),
+    kb_id: z.string().optional(),
+    project_id: z.string().optional(),
+    limit: z.number().optional()
+  }, async ({ query, kb_id, project_id, limit }) => {
+    let kbIds: string[] | undefined;
+    if (kb_id) {
+      kbIds = [kb_id];
+    } else if (project_id) {
+      const kbs = await services.kbService.list(project_id);
+      kbIds = kbs.map(k => k.id);
+    }
+    const results = await services.kbService.searchKnowledge(query, kbIds, limit);
+    return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
+  });
+
+  server.tool('get_entity_knowledge', {
+    query: z.string().describe('Entity ID, canonical identifier (IP, email, hostname), or entity name'),
+    kb_id: z.string().optional()
+  }, async ({ query, kb_id }) => {
+    const result = await services.kbService.getEntityKnowledge(query, kb_id ? [kb_id] : undefined);
+    if (!result) return { content: [{ type: 'text', text: `No entity knowledge found for "${query}"` }] };
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  });
+
+  server.tool('add_gained_knowledge', {
+    kb_id: z.string(),
+    title: z.string(),
+    content: z.string(),
+    category: z.string().optional(),
+    entity_id: z.string().optional(),
+    entity_name: z.string().optional(),
+    entity_type: z.string().optional(),
+    entity_identifier: z.string().optional(),
+    confidence: z.number().optional()
+  }, async (args) => {
+    const fact = await services.kbService.addFact(args);
+    return { content: [{ type: 'text', text: JSON.stringify(fact, null, 2) }] };
+  });
+
+  server.tool('upsert_kb_entity', {
+    kb_id: z.string(),
+    name: z.string(),
+    type: z.string().optional(),
+    identifier: z.string().optional(),
+    metadata: z.record(z.unknown()).optional()
+  }, async (args) => {
+    const entity = await services.kbService.upsertEntity(args);
+    return { content: [{ type: 'text', text: JSON.stringify(entity, null, 2) }] };
+  });
+
+  server.tool('update_gained_knowledge', {
+    fact_id: z.string(),
+    title: z.string().optional(),
+    content: z.string().optional(),
+    category: z.string().optional(),
+    entity_id: z.string().optional(),
+    entity_name: z.string().optional(),
+    entity_type: z.string().optional(),
+    entity_identifier: z.string().optional(),
+    confidence: z.number().optional()
+  }, async ({ fact_id, ...data }) => {
+    const fact = await services.kbService.updateFact(fact_id, data);
+    return { content: [{ type: 'text', text: JSON.stringify(fact, null, 2) }] };
+  });
+
+  server.tool('update_kb_entity', {
+    entity_id: z.string(),
+    name: z.string().optional(),
+    type: z.string().optional(),
+    identifier: z.string().optional(),
+    metadata: z.record(z.unknown()).optional()
+  }, async ({ entity_id, ...data }) => {
+    const entity = await services.kbService.updateEntity(entity_id, data);
+    return { content: [{ type: 'text', text: JSON.stringify(entity, null, 2) }] };
+  });
+
+  server.tool('add_kb_relation', {
+    kb_id: z.string(),
+    source_entity_id: z.string(),
+    target_entity_id: z.string(),
+    relation_type: z.string(),
+    description: z.string().optional()
+  }, async (args) => {
+    const relation = await services.kbService.addRelation(args);
+    return { content: [{ type: 'text', text: JSON.stringify(relation, null, 2) }] };
+  });
+
   return server;
 }
+
+

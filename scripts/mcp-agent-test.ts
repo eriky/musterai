@@ -3,10 +3,10 @@ import { fork, ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const TEST_PORT = 3095;
+let TEST_PORT = 3198;
 const TEST_DB_PATH = path.join(process.cwd(), 'data', `e2e-mcp-${Date.now()}.db`);
-const APP_URL = `http://127.0.0.1:${TEST_PORT}`;
-const MCP_ENDPOINT = `${APP_URL}/mcp`;
+let APP_URL = `http://127.0.0.1:${TEST_PORT}`;
+let MCP_ENDPOINT = `${APP_URL}/mcp`;
 let requestId = 1;
 
 function sleep(ms: number) {
@@ -23,21 +23,6 @@ function removeDbFiles(dbPath: string) {
   }
 }
 
-async function waitForServer(url: string, timeoutMs = 15000) {
-  const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(1500) });
-      if (res.ok) {
-        await res.text();
-        return;
-      }
-    } catch {}
-    await sleep(300);
-  }
-  throw new Error(`Server failed to start at ${url} within ${timeoutMs}ms`);
-}
-
 async function callMCPTool(toolName: string, args: Record<string, any> = {}) {
   const payload = {
     jsonrpc: '2.0',
@@ -49,7 +34,7 @@ async function callMCPTool(toolName: string, args: Record<string, any> = {}) {
     },
   };
 
-  const response = await fetch(MCP_ENDPOINT, {
+  const res = await fetch(MCP_ENDPOINT, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -58,21 +43,19 @@ async function callMCPTool(toolName: string, args: Record<string, any> = {}) {
     body: JSON.stringify(payload),
   });
 
-  if (!response.ok) {
-    throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`MCP HTTP call failed (${res.status}): ${errText}`);
   }
 
-  const responseText = await response.text();
-  
-  // Extract json data line from SSE stream response
+  const responseText = await res.text();
   const lines = responseText.split('\n');
-  const dataLine = lines.find(l => l.startsWith('data: '));
+  const dataLine = lines.find((l) => l.startsWith('data: '));
   const rawJson = dataLine ? dataLine.replace(/^data:\s*/, '') : responseText;
-  
-  const jsonResponse: any = JSON.parse(rawJson);
 
+  const jsonResponse = JSON.parse(rawJson);
   if (jsonResponse.error) {
-    throw new Error(`MCP Error (${jsonResponse.error.code}): ${jsonResponse.error.message}`);
+    throw new Error(`MCP tool error [${jsonResponse.error.code}]: ${jsonResponse.error.message}`);
   }
 
   const content = jsonResponse.result?.content?.[0]?.text;
@@ -83,10 +66,11 @@ async function callMCPTool(toolName: string, args: Record<string, any> = {}) {
   return JSON.parse(content);
 }
 
+
 async function runMcpAgentTestSuite() {
   console.log('===========================================================');
   console.log('   STARTING MCP E2E TEST SUITE (Isolated Temp DB Mode)');
-  console.log('   Target Endpoint: ' + MCP_ENDPOINT);
+  console.log('   Target Port Base: ' + TEST_PORT);
   console.log('   Test DB File: ' + TEST_DB_PATH);
   console.log('===========================================================\n');
 
@@ -100,14 +84,43 @@ async function runMcpAgentTestSuite() {
       CAP_PORT: String(TEST_PORT),
       CAP_DB_PATH: TEST_DB_PATH,
     },
-    stdio: 'inherit',
+    stdio: 'pipe',
   });
+
+  let activePort = TEST_PORT;
+  serverProcess.stdout?.on('data', (data) => {
+    const str = data.toString();
+    process.stdout.write(str);
+    const match = str.match(/REST API:\s*http:\/\/[^:]+:(\d+)/);
+    if (match) {
+      activePort = parseInt(match[1], 10);
+      APP_URL = `http://localhost:${activePort}`;
+      MCP_ENDPOINT = `${APP_URL}/mcp`;
+    }
+  });
+
+  serverProcess.stderr?.on('data', (data) => process.stderr.write(data));
 
   try {
     // Wait for server health endpoint
     console.log('[Server Setup] Waiting for health endpoint readiness...');
-    await waitForServer(`${APP_URL}/api/v1/health`);
-    console.log('  ✓ Test server online and healthy!\n');
+    let healthy = false;
+    const start = Date.now();
+    while (Date.now() - start < 15000) {
+      try {
+        const res = await fetch(`http://localhost:${activePort}/api/v1/health`, { signal: AbortSignal.timeout(1500) });
+        if (res.ok) {
+          healthy = true;
+          break;
+        }
+      } catch {}
+      await sleep(300);
+    }
+    if (!healthy) throw new Error(`Server failed to start on port ${activePort}`);
+
+    console.log(`  ✓ Test server online and healthy at port ${activePort}!\n`);
+
+
     // Step 1: Create Project
     console.log('[1/12] Creating Project via MCP (create_project)...');
     const project = await callMCPTool('create_project', {
@@ -234,11 +247,37 @@ async function runMcpAgentTestSuite() {
     console.log(`      - Cards: ${summary.card_count}`);
     console.log(`      - Registered Agents: ${summary.agent_count}`);
     console.log(`      - Active Agents: ${summary.active_agent_count}`);
-    console.log(`      - Design Documents: ${summary.document_count}`);
-    console.log(`  ✓ Total Audit Events Recorded: ${activity.length}`);
+    // Step 13: Knowledge Base & Gained Knowledge Tools
+    console.log('\n[13/13] Testing Knowledge Base MCP Tools (create_knowledge_base, add_gained_knowledge, get_entity_knowledge, search_knowledge)...');
+    const kb = await callMCPTool('create_knowledge_base', {
+      name: 'E2E Test KB',
+      description: 'Knowledge base created during automated test run',
+      project_ids: [project.id],
+    });
+    console.log(`  ✓ Knowledge Base Created! ID: ${kb.id}, Name: "${kb.name}"`);
+
+    const fact = await callMCPTool('add_gained_knowledge', {
+      kb_id: kb.id,
+      title: 'Server Alpha CPU Constraint',
+      content: 'Server Alpha on 192.168.1.99 has 1 CPU core and should not build Docker images.',
+      category: 'constraint',
+    });
+    console.log(`  ✓ Gained Knowledge Fact Added! ID: ${fact.id}, Title: "${fact.title}"`);
+
+    const entityKnowledge = await callMCPTool('get_entity_knowledge', {
+      query: '192.168.1.99',
+      kb_id: kb.id,
+    });
+    console.log(`  ✓ Canonical Entity Knowledge Retrieved for 192.168.1.99: Entity Type: ${entityKnowledge.entity.type}`);
+
+    const searchRes = await callMCPTool('search_knowledge', {
+      query: '192.168.1.99',
+      project_id: project.id,
+    });
+    console.log(`  ✓ Search Knowledge Returned: ${searchRes.facts.length} fact(s) and ${searchRes.entities.length} entity/entities.`);
 
     console.log('\n===========================================================');
-    console.log('   🎉 ALL 12 MCP PROTOCOL TESTS PASSED CLEANLY!');
+    console.log('   🎉 ALL 13 MCP PROTOCOL TESTS PASSED CLEANLY!');
     console.log('===========================================================\n');
   } finally {
     serverProcess.kill('SIGTERM');
@@ -247,6 +286,7 @@ async function runMcpAgentTestSuite() {
     console.log(`  🧹 Deleted temporary MCP test database files (${path.basename(TEST_DB_PATH)}*).`);
   }
 }
+
 
 runMcpAgentTestSuite().catch((err) => {
   console.error('\n❌ MCP Test Suite Error:', err);

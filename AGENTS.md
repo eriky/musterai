@@ -185,6 +185,19 @@ Comment on:
 | `heartbeat` | Refresh `last_seen_at` timestamp and maintain `active` status. |
 | `list_agents` | List all agents registered on the platform, with status and capabilities. |
 
+### Knowledge Base Tools
+
+| Tool | Description |
+| :--- | :--- |
+| `list_knowledge_bases` | List all Knowledge Bases, optionally filtered by `project_id`. |
+| `create_knowledge_base` | Create a new Knowledge Base (`Home KB`, `Work KB`, etc.). |
+| `link_knowledge_base` | Link a Knowledge Base to a project. |
+| `search_knowledge` | Search gained knowledge facts, entities, IPs, hostnames, and emails. |
+| `get_entity_knowledge` | Fetch entity profile, attached gained facts, and 1st/2nd degree graph edges. |
+| `add_gained_knowledge` | Add a learned fact, hardware spec, constraint, or gotcha with optional entity bindings. |
+| `upsert_kb_entity` | Create or update a node in the Knowledge Graph. |
+| `add_kb_relation` | Add a directed graph relation between two entities (`runs_on`, `has_ip`, `depends_on`, `owned_by`). |
+
 ### Activity Tools
 
 | Tool | Description |
@@ -199,18 +212,19 @@ Comment on:
 src/
 ├── index.ts              # Express server entry point
 ├── api/
-│   └── routes/           # REST API route handlers (projects, boards, cards, agents, docs, health)
+│   └── routes/           # REST API route handlers (projects, boards, cards, agents, docs, kbs, health)
 ├── db/
 │   ├── database.ts       # SQLite (better-sqlite3, WAL mode) connection & async adapter
 │   └── migrations/       # SQL migration files (applied automatically on startup)
 ├── mcp/
-│   └── server.ts         # MCP Streamable HTTP server (33 tools + collaboration_protocol prompt)
+│   └── server.ts         # MCP Streamable HTTP server (41 tools + collaboration_protocol prompt)
 ├── realtime/
 │   └── sse.ts            # Server-Sent Events broadcaster (live activity stream)
-├── services/             # Business logic layer (projects, boards, cards, agents, documents)
+├── services/             # Business logic layer (projects, boards, cards, agents, documents, kb)
 ├── shared/               # Shared types & Zod validation schemas
-└── web/                  # React 19 SPA (Vite, Tailwind, drag-and-drop Kanban)
+└── web/                  # React 19 SPA (Vite, Tailwind, drag-and-drop Kanban, Knowledge Base)
 ```
+
 
 ### Key Design Decisions
 

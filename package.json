@@ -23,6 +23,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "ulid": "^2.3.0",
+    "vis-data": "^8.0.4",
+    "vis-network": "^10.1.0",
     "zod": "^3.24.0"
   },
   "devDependencies": {

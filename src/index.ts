@@ -13,7 +13,8 @@ import {
   CommentService,
   DocumentService,
   AgentService,
-  EventService
+  EventService,
+  KBService
 } from './services/index.js';
 import { SSEManager } from './realtime/sse.js';
 import { createRouter } from './api/router.js';
@@ -38,6 +39,7 @@ async function main() {
 
   const boardService = new BoardService(db, eventService);
   const documentService = new DocumentService(db, eventService);
+  const kbService = new KBService(db, eventService);
   const services: Services = {
     projectService: new ProjectService(db, eventService, boardService, documentService),
     boardService,
@@ -46,8 +48,10 @@ async function main() {
     commentService: new CommentService(db, eventService),
     documentService,
     agentService: new AgentService(db, eventService),
-    eventService
+    eventService,
+    kbService,
   };
+
 
   const existingProjects = await services.projectService.list();
   if (existingProjects.length === 0) {

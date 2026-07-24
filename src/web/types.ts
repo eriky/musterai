@@ -103,3 +103,81 @@ export interface ProjectSummary {
   active_agent_count: number;
   document_count: number;
 }
+
+export interface KnowledgeBase {
+  id: string;
+  name: string;
+  description: string | null;
+  is_global: number;
+  created_at: string;
+  updated_at: string;
+  linked_project_ids?: string[];
+}
+
+export interface KBEntity {
+  id: string;
+  kb_id: string;
+  name: string;
+  type: string;
+  identifier: string | null;
+  metadata: any;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KBFact {
+  id: string;
+  kb_id: string;
+  entity_id: string | null;
+  title: string;
+  content: string;
+  category: string;
+  confidence: number;
+  source_agent_id: string | null;
+  created_at: string;
+  updated_at: string;
+  entity_name?: string;
+  entity_identifier?: string;
+}
+
+export interface KBRelation {
+  id: string;
+  kb_id: string;
+  source_entity_id: string;
+  target_entity_id: string;
+  relation_type: string;
+  description: string | null;
+  created_at: string;
+  source_entity_name?: string;
+  target_entity_name?: string;
+}
+
+export interface EntityKnowledgeResult {
+  entity: KBEntity;
+  facts: KBFact[];
+  outgoing_relations: KBRelation[];
+  incoming_relations: KBRelation[];
+}
+
+export interface KBGraphNode {
+  id: string;
+  name: string;
+  type: string;
+  identifier: string | null;
+  kb_id: string;
+  fact_count: number;
+}
+
+export interface KBGraphLink {
+  id: string;
+  source: string;
+  target: string;
+  relation_type: string;
+  description: string | null;
+}
+
+export interface KBGraphTree {
+  nodes: KBGraphNode[];
+  links: KBGraphLink[];
+}
+

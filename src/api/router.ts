@@ -11,6 +11,7 @@ import { createDocumentRouter } from './routes/document.routes.js';
 import { createAgentRouter } from './routes/agent.routes.js';
 import { createEventRouter } from './routes/event.routes.js';
 import { createHealthRouter } from './routes/health.routes.js';
+import { createKBRouter } from './routes/kb.routes.js';
 
 export function createRouter(services: Services, sseManager: SSEManager, db: DatabaseAdapter): Router {
   const router = Router();
@@ -24,6 +25,8 @@ export function createRouter(services: Services, sseManager: SSEManager, db: Dat
   v1.use(createDocumentRouter(services.documentService));
   v1.use(createAgentRouter(services.agentService));
   v1.use(createEventRouter(services.eventService, sseManager));
+  v1.use(createKBRouter(services.kbService));
+
 
   router.use('/v1', v1);
   return router;

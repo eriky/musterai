@@ -186,7 +186,7 @@ export interface DocumentVersion {
 export interface Event {
   id: string;
   project_id: string;
-  entity_type: 'project' | 'board' | 'column' | 'card' | 'document' | 'agent';
+  entity_type: 'project' | 'board' | 'column' | 'card' | 'document' | 'agent' | 'knowledge_base';
   entity_id: string;
   action: string;
   actor_id: string | null;
@@ -196,7 +196,7 @@ export interface Event {
 
 export interface CreateEvent {
   project_id: string;
-  entity_type: 'project' | 'board' | 'column' | 'card' | 'document' | 'agent';
+  entity_type: 'project' | 'board' | 'column' | 'card' | 'document' | 'agent' | 'knowledge_base';
   entity_id: string;
   action: string;
   actor_id?: string;
@@ -219,4 +219,138 @@ export interface ProjectSummary {
   agent_count: number;
   active_agent_count: number;
   document_count: number;
+  kb_count?: number;
 }
+
+export interface KnowledgeBase {
+  id: string;
+  name: string;
+  description: string | null;
+  is_global: number;
+  created_at: string;
+  updated_at: string;
+  linked_project_ids?: string[];
+}
+
+export interface CreateKnowledgeBase {
+  name: string;
+  description?: string;
+  is_global?: boolean;
+  project_ids?: string[];
+}
+
+export interface KBEntity {
+  id: string;
+  kb_id: string;
+  name: string;
+  type: string;
+  identifier: string | null;
+  metadata: Record<string, unknown> | string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpsertKBEntity {
+  kb_id: string;
+  name: string;
+  type?: string;
+  identifier?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateKBEntity {
+  name?: string;
+  type?: string;
+  identifier?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface KBFact {
+  id: string;
+  kb_id: string;
+  entity_id: string | null;
+  title: string;
+  content: string;
+  category: string;
+  confidence: number;
+  source_agent_id: string | null;
+  created_at: string;
+  updated_at: string;
+  entity_name?: string;
+  entity_identifier?: string;
+}
+
+export interface AddGainedKnowledge {
+  kb_id: string;
+  title: string;
+  content: string;
+  category?: string;
+  entity_id?: string;
+  entity_name?: string;
+  entity_type?: string;
+  entity_identifier?: string;
+  confidence?: number;
+  source_agent_id?: string;
+}
+
+export interface UpdateKBFact {
+  title?: string;
+  content?: string;
+  category?: string;
+  entity_id?: string;
+  entity_name?: string;
+  entity_type?: string;
+  entity_identifier?: string;
+  confidence?: number;
+}
+
+
+export interface KBRelation {
+  id: string;
+  kb_id: string;
+  source_entity_id: string;
+  target_entity_id: string;
+  relation_type: string;
+  description: string | null;
+  created_at: string;
+  source_entity_name?: string;
+  target_entity_name?: string;
+}
+
+export interface AddKBRelation {
+  kb_id: string;
+  source_entity_id: string;
+  target_entity_id: string;
+  relation_type: string;
+  description?: string;
+}
+
+export interface EntityKnowledgeResult {
+  entity: KBEntity;
+  facts: KBFact[];
+  outgoing_relations: KBRelation[];
+  incoming_relations: KBRelation[];
+}
+
+export interface KBGraphNode {
+  id: string;
+  name: string;
+  type: string;
+  identifier: string | null;
+  kb_id: string;
+  fact_count: number;
+}
+
+export interface KBGraphLink {
+  id: string;
+  source: string;
+  target: string;
+  relation_type: string;
+  description: string | null;
+}
+
+export interface KBGraphTree {
+  nodes: KBGraphNode[];
+  links: KBGraphLink[];
+}
+

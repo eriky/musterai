@@ -7,6 +7,7 @@ import { AgentGrid } from './components/AgentGrid.js';
 import { KanbanBoard } from './components/KanbanBoard.js';
 import { DocumentVault } from './components/DocumentVault.js';
 import { TacticalTerminal } from './components/TacticalTerminal.js';
+import { KnowledgeBaseView } from './components/KnowledgeBase.js';
 import {
   NewProjectModal,
   NewBoardModal,
@@ -16,34 +17,39 @@ import {
   NewDocModal,
 } from './components/Modals.js';
 
-type TabType = 'board' | 'agents' | 'docs' | 'activity';
+type TabType = 'board' | 'agents' | 'docs' | 'activity' | 'kb';
 
 // ─── URL Routing Helpers (HTML5 History API — No Hash) ─────────────────────────
 
-function parseLocation(): { projectId: string | null; tab: TabType; docId: string | null } {
+function parseLocation(): { projectId: string | null; tab: TabType; docId: string | null; entityId: string | null } {
   const parts = window.location.pathname.split('/').filter(Boolean);
-  // Expected pattern: /projects/:projectId/:tab or /projects/:projectId/docs/:docId
+  // Expected pattern: /projects/:projectId/:tab, /projects/:projectId/docs/:docId, or /projects/:projectId/kb/:entityId
   if (parts[0] === 'projects' && parts[1]) {
     const projectId = parts[1];
     const rawTab = parts[2];
-    const validTabs: TabType[] = ['board', 'agents', 'docs', 'activity'];
+    const validTabs: TabType[] = ['board', 'agents', 'docs', 'activity', 'kb'];
     const tab = validTabs.includes(rawTab as TabType) ? (rawTab as TabType) : 'board';
     const docId = tab === 'docs' && parts[3] ? parts[3] : null;
-    return { projectId, tab, docId };
+    const entityId = tab === 'kb' && parts[3] ? parts[3] : null;
+    return { projectId, tab, docId, entityId };
   }
-  return { projectId: null, tab: 'board', docId: null };
+  return { projectId: null, tab: 'board', docId: null, entityId: null };
 }
+
 
 function updateLocation(
   projectId: string | null,
   tab: TabType,
   docId?: string | null,
+  entityId?: string | null,
   replace = false,
 ) {
   if (!projectId) return;
   let targetPath = `/projects/${projectId}/${tab}`;
   if (tab === 'docs' && docId) {
     targetPath += `/${docId}`;
+  } else if (tab === 'kb' && entityId) {
+    targetPath += `/${entityId}`;
   }
   if (window.location.pathname !== targetPath) {
     if (replace) {
@@ -63,6 +69,7 @@ export const App: React.FC = () => {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(initialNav.projectId);
   const [activeTab, setActiveTab] = useState<TabType>(initialNav.tab);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(initialNav.docId);
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(initialNav.entityId);
   const [summary, setSummary] = useState<ProjectSummary | null>(null);
 
   const [board, setBoard] = useState<Board | null>(null);
@@ -101,12 +108,12 @@ export const App: React.FC = () => {
 
       if (targetId) {
         setSelectedProjectId(targetId);
-        updateLocation(targetId, activeTab, selectedDocId, true);
+        updateLocation(targetId, activeTab, selectedDocId, selectedEntityId, true);
       }
     } catch (err) {
       console.error('Error loading projects:', err);
     }
-  }, [activeTab, selectedDocId]);
+  }, [activeTab, selectedDocId, selectedEntityId]);
 
   // Load Selected Project Data
   const loadProjectData = useCallback(async () => {
@@ -157,37 +164,39 @@ export const App: React.FC = () => {
   // Sync state when selectedProjectId or activeTab or selectedDocId changes
   const handleSelectProject = (projectId: string) => {
     setSelectedProjectId(projectId);
-    updateLocation(projectId, activeTab, selectedDocId);
+    updateLocation(projectId, activeTab, selectedDocId, selectedEntityId);
   };
 
   const handleSelectTab = (tab: TabType) => {
     setActiveTab(tab);
     if (selectedProjectId) {
-      updateLocation(selectedProjectId, tab, selectedDocId);
+      updateLocation(selectedProjectId, tab, selectedDocId, selectedEntityId);
     }
   };
 
   const handleSelectDoc = (docId: string) => {
     setSelectedDocId(docId);
     if (selectedProjectId) {
-      updateLocation(selectedProjectId, 'docs', docId);
+      updateLocation(selectedProjectId, 'docs', docId, null);
     }
   };
 
   // Handle Browser Back / Forward buttons (popstate)
   useEffect(() => {
     const handlePopState = () => {
-      const { projectId, tab, docId } = parseLocation();
+      const { projectId, tab, docId, entityId } = parseLocation();
       if (projectId) {
         setSelectedProjectId(projectId);
       }
       setActiveTab(tab);
       setSelectedDocId(docId);
+      setSelectedEntityId(entityId);
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
 
   useEffect(() => {
     loadProjects();
@@ -264,7 +273,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-command-bg text-zinc-100 font-sans w-full">
+    <div className="h-screen flex flex-col bg-command-bg text-zinc-100 font-sans w-full overflow-hidden">
       
       {/* Platform Header */}
       <Header
@@ -282,7 +291,8 @@ export const App: React.FC = () => {
       />
 
       {/* Main Full-Width View Area */}
-      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 flex flex-col min-h-0 w-full px-4 sm:px-6 lg:px-8 py-4 overflow-hidden">
+
         {activeTab === 'agents' && (
           <AgentGrid
             agents={agents}
@@ -317,6 +327,20 @@ export const App: React.FC = () => {
           />
         )}
 
+        {activeTab === 'kb' && (
+          <KnowledgeBaseView
+            currentProject={projects.find((p) => p.id === selectedProjectId) || null}
+            initialEntityId={selectedEntityId}
+            onSelectEntity={(entityId) => {
+              setSelectedEntityId(entityId);
+              if (selectedProjectId) {
+                updateLocation(selectedProjectId, 'kb', null, entityId);
+              }
+            }}
+          />
+        )}
+
+
         {activeTab === 'activity' && (
           <TacticalTerminal
             events={events}
@@ -327,6 +351,7 @@ export const App: React.FC = () => {
           />
         )}
       </main>
+
 
       {/* Modals */}
       {showNewProjectModal && (
