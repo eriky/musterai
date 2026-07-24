@@ -229,6 +229,9 @@ export const App: React.FC = () => {
         {activeTab === 'activity' && (
           <TacticalTerminal
             events={events}
+            agents={agents}
+            cards={cards}
+            documents={documents}
             onRefresh={loadProjectData}
           />
         )}

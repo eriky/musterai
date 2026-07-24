@@ -1,177 +1,39 @@
 // File: src/web/components/TacticalTerminal.tsx
 import React, { useState } from 'react';
-import { Event } from '../types.js';
+import { Event, Agent, Card, Document } from '../types.js';
 import {
   Activity, Filter, RefreshCw, Terminal,
   CreditCard, Bot, FileText, Layout, FolderOpen,
   ArrowRight, Plus, Pencil, Trash2, UserPlus, UserMinus,
-  Link2, CheckCircle, Clock, MessageSquare, Tag,
+  Link2, CheckCircle, Clock, MessageSquare,
 } from 'lucide-react';
 
 interface TacticalTerminalProps {
   events: Event[];
+  agents: Agent[];
+  cards: Card[];
+  documents: Document[];
   onRefresh: () => void;
 }
 
-// Map raw action strings to human-readable sentences & icons
-function describeEvent(evt: Event): { icon: React.ReactNode; text: string } {
-  const p = evt.payload || {};
+// ─── Name resolution helpers ─────────────────────────────────────────────────
 
-  switch (evt.entity_type) {
-    case 'card': {
-      switch (evt.action) {
-        case 'created':
-          return {
-            icon: <Plus className="w-3.5 h-3.5 text-cyan-400" />,
-            text: `Card "${p.title || 'Untitled'}" created in column ${shortId(p.column_id as string)}`,
-          };
-        case 'updated':
-          return {
-            icon: <Pencil className="w-3.5 h-3.5 text-blue-400" />,
-            text: buildCardUpdateText(p),
-          };
-        case 'moved':
-          return {
-            icon: <ArrowRight className="w-3.5 h-3.5 text-indigo-400" />,
-            text: `Card moved to new column`,
-          };
-        case 'assigned':
-          return {
-            icon: <UserPlus className="w-3.5 h-3.5 text-emerald-400" />,
-            text: `Agent assigned to card`,
-          };
-        case 'unassigned':
-          return {
-            icon: <UserMinus className="w-3.5 h-3.5 text-rose-400" />,
-            text: `Agent removed from card`,
-          };
-        case 'document_linked':
-          return {
-            icon: <Link2 className="w-3.5 h-3.5 text-amber-400" />,
-            text: `Document linked to card`,
-          };
-        case 'archived':
-          return {
-            icon: <Trash2 className="w-3.5 h-3.5 text-zinc-500" />,
-            text: `Card archived`,
-          };
-        default:
-          return {
-            icon: <CreditCard className="w-3.5 h-3.5 text-cyan-400" />,
-            text: `Card ${evt.action}`,
-          };
-      }
-    }
-
-    case 'document': {
-      switch (evt.action) {
-        case 'created':
-          return {
-            icon: <Plus className="w-3.5 h-3.5 text-amber-400" />,
-            text: `Document "${p.title || 'Untitled'}" created`,
-          };
-        case 'updated':
-          return {
-            icon: <Pencil className="w-3.5 h-3.5 text-amber-400" />,
-            text: `Document updated${p.change_summary ? ` — "${p.change_summary}"` : ''}`,
-          };
-        case 'status_changed':
-          return {
-            icon: <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />,
-            text: `Document status changed to ${p.status || 'unknown'}`,
-          };
-        default:
-          return {
-            icon: <FileText className="w-3.5 h-3.5 text-amber-400" />,
-            text: `Document ${evt.action}`,
-          };
-      }
-    }
-
-    case 'agent': {
-      switch (evt.action) {
-        case 'registered':
-          return {
-            icon: <UserPlus className="w-3.5 h-3.5 text-emerald-400" />,
-            text: `Agent "${p.name || shortId(evt.entity_id)}" registered as ${p.role || 'contributor'}`,
-          };
-        case 'unregistered':
-          return {
-            icon: <UserMinus className="w-3.5 h-3.5 text-rose-400" />,
-            text: `Agent "${p.name || shortId(evt.entity_id)}" unregistered`,
-          };
-        case 'heartbeat':
-          return {
-            icon: <Activity className="w-3.5 h-3.5 text-emerald-400" />,
-            text: `Agent heartbeat — still active`,
-          };
-        default:
-          return {
-            icon: <Bot className="w-3.5 h-3.5 text-emerald-400" />,
-            text: `Agent ${evt.action}`,
-          };
-      }
-    }
-
-    case 'column': {
-      switch (evt.action) {
-        case 'created':
-          return {
-            icon: <Plus className="w-3.5 h-3.5 text-indigo-400" />,
-            text: `Column "${p.name || 'Untitled'}" added to board`,
-          };
-        case 'deleted':
-          return {
-            icon: <Trash2 className="w-3.5 h-3.5 text-rose-400" />,
-            text: `Column "${p.name || shortId(evt.entity_id)}" deleted`,
-          };
-        case 'updated':
-          return {
-            icon: <Pencil className="w-3.5 h-3.5 text-indigo-400" />,
-            text: `Column updated${p.name ? ` → "${p.name}"` : ''}`,
-          };
-        default:
-          return {
-            icon: <Layout className="w-3.5 h-3.5 text-indigo-400" />,
-            text: `Column ${evt.action}`,
-          };
-      }
-    }
-
-    case 'board': {
-      return {
-        icon: <Layout className="w-3.5 h-3.5 text-indigo-400" />,
-        text: `Board ${evt.action}${p.name ? ` — "${p.name}"` : ''}`,
-      };
-    }
-
-    case 'project': {
-      return {
-        icon: <FolderOpen className="w-3.5 h-3.5 text-violet-400" />,
-        text: `Project ${evt.action}${p.name ? ` — "${p.name}"` : ''}`,
-      };
-    }
-
-    default:
-      return {
-        icon: <Activity className="w-3.5 h-3.5 text-zinc-400" />,
-        text: `${evt.entity_type} ${evt.action}`,
-      };
-  }
+function agentName(agents: Agent[], id?: string | null): string {
+  if (!id) return 'System';
+  const a = agents.find((a) => a.id === id);
+  return a ? a.name : `Agent #${id.slice(-6)}`;
 }
 
-function buildCardUpdateText(p: Record<string, any>): string {
-  const parts: string[] = [];
-  if (p.title) parts.push(`title → "${p.title}"`);
-  if (p.priority) parts.push(`priority → ${p.priority}`);
-  if (p.description !== undefined) parts.push('description updated');
-  if (p.due_date) parts.push(`due date → ${p.due_date}`);
-  return parts.length > 0 ? `Card updated: ${parts.join(', ')}` : 'Card updated';
+function cardTitle(cards: Card[], id?: string | null): string {
+  if (!id) return 'unknown card';
+  const c = cards.find((c) => c.id === id);
+  return c ? `"${c.title}"` : `card #${id.slice(-6)}`;
 }
 
-function shortId(id?: string): string {
-  if (!id) return '—';
-  return `#${id.substring(id.length - 6)}`;
+function docTitle(documents: Document[], id?: string | null): string {
+  if (!id) return 'unknown document';
+  const d = documents.find((d) => d.id === id);
+  return d ? `"${d.title}"` : `doc #${id.slice(-6)}`;
 }
 
 function relativeTime(isoDate: string): string {
@@ -185,46 +47,218 @@ function relativeTime(isoDate: string): string {
   return new Date(isoDate).toLocaleDateString();
 }
 
+// ─── Event description builder ───────────────────────────────────────────────
+
+function describeEvent(
+  evt: Event,
+  agents: Agent[],
+  cards: Card[],
+  documents: Document[],
+): { icon: React.ReactNode; text: string } {
+  const p: Record<string, any> = evt.payload || {};
+  const actor = agentName(agents, evt.actor_id);
+
+  switch (evt.entity_type) {
+    case 'card': {
+      const card = cardTitle(cards, evt.entity_id);
+      switch (evt.action) {
+        case 'created':
+          return {
+            icon: <Plus className="w-3.5 h-3.5 text-cyan-400" />,
+            text: `${actor} created card ${card}`,
+          };
+        case 'updated': {
+          const parts: string[] = [];
+          if (p.title) parts.push(`title → "${p.title}"`);
+          if (p.priority) parts.push(`priority → ${p.priority}`);
+          if (p.description !== undefined) parts.push('description updated');
+          if (p.due_date) parts.push(`due date → ${p.due_date}`);
+          const detail = parts.length > 0 ? `: ${parts.join(', ')}` : '';
+          return {
+            icon: <Pencil className="w-3.5 h-3.5 text-blue-400" />,
+            text: `${actor} updated card ${card}${detail}`,
+          };
+        }
+        case 'moved':
+          return {
+            icon: <ArrowRight className="w-3.5 h-3.5 text-indigo-400" />,
+            text: `${actor} moved card ${card} to a new column`,
+          };
+        case 'assigned': {
+          const assignee = agentName(agents, p.agent_id);
+          return {
+            icon: <UserPlus className="w-3.5 h-3.5 text-emerald-400" />,
+            text: `${actor} assigned ${assignee} to card ${card}`,
+          };
+        }
+        case 'unassigned': {
+          const unassignee = agentName(agents, p.agent_id);
+          return {
+            icon: <UserMinus className="w-3.5 h-3.5 text-rose-400" />,
+            text: `${actor} removed ${unassignee} from card ${card}`,
+          };
+        }
+        case 'document_linked': {
+          const doc = docTitle(documents, p.document_id);
+          return {
+            icon: <Link2 className="w-3.5 h-3.5 text-amber-400" />,
+            text: `${actor} linked document ${doc} to card ${card}`,
+          };
+        }
+        case 'archived':
+          return {
+            icon: <Trash2 className="w-3.5 h-3.5 text-zinc-500" />,
+            text: `${actor} archived card ${card}`,
+          };
+        default:
+          return {
+            icon: <CreditCard className="w-3.5 h-3.5 text-cyan-400" />,
+            text: `${actor} ${evt.action} card ${card}`,
+          };
+      }
+    }
+
+    case 'document': {
+      const doc = docTitle(documents, evt.entity_id);
+      switch (evt.action) {
+        case 'created':
+          return {
+            icon: <Plus className="w-3.5 h-3.5 text-amber-400" />,
+            text: `${actor} created document ${doc}`,
+          };
+        case 'updated':
+          return {
+            icon: <Pencil className="w-3.5 h-3.5 text-amber-400" />,
+            text: `${actor} updated document ${doc}${p.change_summary ? ` — "${p.change_summary}"` : ''}`,
+          };
+        case 'status_changed':
+          return {
+            icon: <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />,
+            text: `${actor} set document ${doc} to ${p.status || 'new status'}`,
+          };
+        default:
+          return {
+            icon: <FileText className="w-3.5 h-3.5 text-amber-400" />,
+            text: `${actor} ${evt.action} document ${doc}`,
+          };
+      }
+    }
+
+    case 'agent': {
+      const agentN = p.name || agentName(agents, evt.entity_id);
+      switch (evt.action) {
+        case 'registered':
+          return {
+            icon: <UserPlus className="w-3.5 h-3.5 text-emerald-400" />,
+            text: `${agentN} registered as ${p.role || 'contributor'}`,
+          };
+        case 'unregistered':
+          return {
+            icon: <UserMinus className="w-3.5 h-3.5 text-rose-400" />,
+            text: `${agentN} unregistered from project`,
+          };
+        default:
+          return {
+            icon: <Bot className="w-3.5 h-3.5 text-emerald-400" />,
+            text: `${agentN} ${evt.action}`,
+          };
+      }
+    }
+
+    case 'column': {
+      switch (evt.action) {
+        case 'created':
+          return {
+            icon: <Plus className="w-3.5 h-3.5 text-indigo-400" />,
+            text: `${actor} added column "${p.name || 'Untitled'}" to board`,
+          };
+        case 'deleted':
+          return {
+            icon: <Trash2 className="w-3.5 h-3.5 text-rose-400" />,
+            text: `${actor} deleted column "${p.name || `#${evt.entity_id.slice(-6)}`}"`,
+          };
+        case 'updated':
+          return {
+            icon: <Pencil className="w-3.5 h-3.5 text-indigo-400" />,
+            text: `${actor} updated column${p.name ? ` → "${p.name}"` : ''}`,
+          };
+        default:
+          return {
+            icon: <Layout className="w-3.5 h-3.5 text-indigo-400" />,
+            text: `${actor} ${evt.action} column`,
+          };
+      }
+    }
+
+    case 'board':
+      return {
+        icon: <Layout className="w-3.5 h-3.5 text-indigo-400" />,
+        text: `${actor} ${evt.action} board${p.name ? ` "${p.name}"` : ''}`,
+      };
+
+    case 'project':
+      return {
+        icon: <FolderOpen className="w-3.5 h-3.5 text-violet-400" />,
+        text: `${actor} ${evt.action} project${p.name ? ` "${p.name}"` : ''}`,
+      };
+
+    default:
+      return {
+        icon: <Activity className="w-3.5 h-3.5 text-zinc-400" />,
+        text: `${actor}: ${evt.entity_type} ${evt.action}`,
+      };
+  }
+}
+
+// ─── Entity type badges ───────────────────────────────────────────────────────
+
 const ENTITY_BADGES: Record<string, React.ReactNode> = {
   card: (
-    <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-cyan-950 text-cyan-400 border border-cyan-700/50 rounded">
-      <CreditCard className="w-2.5 h-2.5" /><span>CARD</span>
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-cyan-950 text-cyan-400 border border-cyan-700/50 rounded">
+      <CreditCard className="w-2.5 h-2.5" />CARD
     </span>
   ),
   agent: (
-    <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-700/50 rounded">
-      <Bot className="w-2.5 h-2.5" /><span>AGENT</span>
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-700/50 rounded">
+      <Bot className="w-2.5 h-2.5" />AGENT
     </span>
   ),
   document: (
-    <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-amber-950 text-amber-400 border border-amber-700/50 rounded">
-      <FileText className="w-2.5 h-2.5" /><span>DOC</span>
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-amber-950 text-amber-400 border border-amber-700/50 rounded">
+      <FileText className="w-2.5 h-2.5" />DOC
     </span>
   ),
   board: (
-    <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-indigo-950 text-indigo-400 border border-indigo-700/50 rounded">
-      <Layout className="w-2.5 h-2.5" /><span>BOARD</span>
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-indigo-950 text-indigo-400 border border-indigo-700/50 rounded">
+      <Layout className="w-2.5 h-2.5" />BOARD
     </span>
   ),
   column: (
-    <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-indigo-950 text-indigo-400 border border-indigo-700/50 rounded">
-      <Layout className="w-2.5 h-2.5" /><span>COLUMN</span>
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-indigo-950 text-indigo-400 border border-indigo-700/50 rounded">
+      <Layout className="w-2.5 h-2.5" />COLUMN
     </span>
   ),
   project: (
-    <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-violet-950 text-violet-400 border border-violet-700/50 rounded">
-      <FolderOpen className="w-2.5 h-2.5" /><span>PROJECT</span>
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-violet-950 text-violet-400 border border-violet-700/50 rounded">
+      <FolderOpen className="w-2.5 h-2.5" />PROJECT
     </span>
   ),
 };
 
-export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({ events, onRefresh }) => {
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
+  events,
+  agents,
+  cards,
+  documents,
+  onRefresh,
+}) => {
   const [filterEntity, setFilterEntity] = useState<string>('all');
 
-  const filteredEvents = events.filter((e) => {
-    if (filterEntity === 'all') return true;
-    return e.entity_type === filterEntity;
-  });
+  const filteredEvents = events.filter((e) =>
+    filterEntity === 'all' ? true : e.entity_type === filterEntity,
+  );
 
   return (
     <div className="space-y-4 font-sans">
@@ -262,7 +296,7 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({ events, onRe
           <button
             onClick={onRefresh}
             className="p-1.5 bg-command-card hover:bg-zinc-800 text-zinc-400 hover:text-emerald-400 border border-command-border rounded transition-colors cursor-pointer"
-            title="Refresh Feed"
+            title="Refresh"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -279,7 +313,7 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({ events, onRe
           </div>
         ) : (
           filteredEvents.map((evt) => {
-            const { icon, text } = describeEvent(evt);
+            const { icon, text } = describeEvent(evt, agents, cards, documents);
             const badge = ENTITY_BADGES[evt.entity_type] ?? ENTITY_BADGES['project'];
 
             return (
@@ -294,28 +328,18 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({ events, onRe
 
                 {/* Main content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {badge}
                     <span className="text-xs font-sans text-zinc-100">{text}</span>
                   </div>
 
-                  <div className="flex items-center space-x-3 mt-1.5">
-                    <span className="text-[10px] font-mono text-zinc-500 flex items-center space-x-1">
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <span className="text-[10px] font-mono text-zinc-500 flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5" />
-                      <span>{relativeTime(evt.created_at)}</span>
-                      <span className="text-zinc-700 mx-1">·</span>
-                      <span>{new Date(evt.created_at).toLocaleTimeString()}</span>
+                      {relativeTime(evt.created_at)}
+                      <span className="text-zinc-700 mx-0.5">·</span>
+                      {new Date(evt.created_at).toLocaleTimeString()}
                     </span>
-
-                    <span className="text-[10px] font-mono text-zinc-600">
-                      {evt.entity_type}/{shortId(evt.entity_id)}
-                    </span>
-
-                    {evt.actor_id && (
-                      <span className="text-[10px] font-mono text-cyan-500/80">
-                        by agent {shortId(evt.actor_id)}
-                      </span>
-                    )}
                   </div>
                 </div>
               </div>
