@@ -26,14 +26,13 @@ export class AgentService {
     }
 
     await this.db.execute(
-      `INSERT INTO agent_registration (id, project_id, name, type, role, capabilities, status, last_seen_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, data.project_id, data.name, data.type, data.role, capabilitiesStr, status, last_seen_at, created_at]
+      `INSERT INTO agent_registration (id, name, type, role, capabilities, status, last_seen_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, data.name, data.type, data.role, capabilitiesStr, status, last_seen_at, created_at]
     );
 
     const agent: Agent = {
       id,
-      project_id: data.project_id,
       name: data.name,
       type: data.type,
       role: data.role,
@@ -43,36 +42,13 @@ export class AgentService {
       created_at,
     };
 
-    if (this.eventService) {
-      await this.eventService.create({
-        project_id: data.project_id,
-        entity_type: 'agent',
-        entity_id: id,
-        action: 'registered',
-        actor_id: id,
-        payload: { name: agent.name, role: agent.role },
-      });
-    }
-
     return agent;
   }
 
   async unregister(id: string, actorId?: string): Promise<void> {
     const existing = await this.getById(id);
     if (!existing) throw new Error(`Agent with ID ${id} not found`);
-
     await this.db.execute('DELETE FROM agent_registration WHERE id = ?', [id]);
-
-    if (this.eventService) {
-      await this.eventService.create({
-        project_id: existing.project_id,
-        entity_type: 'agent',
-        entity_id: id,
-        action: 'unregistered',
-        actor_id: actorId,
-        payload: { name: existing.name },
-      });
-    }
   }
 
   async getById(id: string): Promise<Agent | null> {
@@ -86,8 +62,8 @@ export class AgentService {
     };
   }
 
-  async list(projectId: string): Promise<Agent[]> {
-    const rows = await this.db.query<any>('SELECT * FROM agent_registration WHERE project_id = ? ORDER BY created_at ASC', [projectId]);
+  async list(): Promise<Agent[]> {
+    const rows = await this.db.query<any>('SELECT * FROM agent_registration ORDER BY created_at ASC');
     return rows.map(row => ({
       ...row,
       capabilities: row.capabilities ? JSON.parse(row.capabilities) : [],
@@ -116,7 +92,7 @@ export class AgentService {
       return;
     }
 
-    // Passive update: set agents to 'idle' if > 5m, 'offline' if > 15m
+    // Passive update: set agents to 'idle' if >5m, 'offline' if >15m
     const now = new Date().getTime();
     const agents = await this.db.query<any>('SELECT id, status, last_seen_at FROM agent_registration');
 

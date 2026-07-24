@@ -47,7 +47,6 @@ All agents operating on CAP **must** conform to the following workflow rules to 
 
 ```json
 {
-  "project_id": "<project_id>",
   "name": "<Your-Agent-Name>",
   "type": "ai_agent",
   "role": "contributor",
@@ -181,10 +180,10 @@ Comment on:
 
 | Tool | Description |
 | :--- | :--- |
-| `register_agent` | Register an AI agent or human operator in a project. |
-| `unregister_agent` | Remove an agent registration from a project. |
+| `register_agent` | Register an AI agent or human operator globally on the platform. |
+| `unregister_agent` | Remove an agent registration from the platform. |
 | `heartbeat` | Refresh `last_seen_at` timestamp and maintain `active` status. |
-| `list_agents` | List all agents registered in a project, with status and capabilities. |
+| `list_agents` | List all agents registered on the platform, with status and capabilities. |
 
 ### Activity Tools
 

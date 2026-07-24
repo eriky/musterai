@@ -279,12 +279,11 @@ export const NewColumnModal: React.FC<NewColumnModalProps> = ({ boardId, onClose
 };
 
 interface NewAgentModalProps {
-  projectId: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export const NewAgentModal: React.FC<NewAgentModalProps> = ({ projectId, onClose, onSuccess }) => {
+export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess }) => {
   const [name, setName] = useState('');
   const [type, setType] = useState<'ai_agent' | 'human'>('ai_agent');
   const [role, setRole] = useState<'owner' | 'contributor' | 'observer'>('contributor');
@@ -299,7 +298,7 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ projectId, onClose
     setIsSubmitting(true);
     setError(null);
     try {
-      await api.registerAgent(projectId, { name, type, role, capabilities });
+      await api.registerAgent({ name, type, role, capabilities });
       onSuccess();
       onClose();
     } catch (err: any) {

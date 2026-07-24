@@ -292,7 +292,6 @@ All AI agents and human operators collaborating within CAP must follow this prot
 
   // --- Agent Management Tools ---
   server.tool('register_agent', {
-    project_id: z.string(),
     name: z.string(),
     type: z.enum(['ai_agent', 'human']),
     role: z.enum(['owner', 'contributor', 'observer']),
@@ -313,8 +312,8 @@ All AI agents and human operators collaborating within CAP must follow this prot
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   });
 
-  server.tool('list_agents', { project_id: z.string() }, async ({ project_id }) => {
-    const result = await services.agentService.list(project_id);
+  server.tool('list_agents', {}, async () => {
+    const result = await services.agentService.list();
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   });
 

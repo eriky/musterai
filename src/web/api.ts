@@ -71,9 +71,9 @@ export const api = {
   getDocumentHistory: (id: string) => fetchJSON<any[]>(`/documents/${id}/versions`),
 
   // Agents
-  getAgents: (projectId: string) => fetchJSON<Agent[]>(`/projects/${projectId}/agents`),
-  registerAgent: (projectId: string, data: { name: string; type: string; role: string; capabilities?: string }) =>
-    fetchJSON<Agent>(`/projects/${projectId}/agents`, { method: 'POST', body: JSON.stringify(data) }),
+  getAgents: () => fetchJSON<Agent[]>(`/agents`),
+  registerAgent: (data: { name: string; type: string; role: string; capabilities?: string }) =>
+    fetchJSON<Agent>(`/agents`, { method: 'POST', body: JSON.stringify(data) }),
   unregisterAgent: (id: string) => fetchJSON<void>(`/agents/${id}`, { method: 'DELETE' }),
   agentHeartbeat: (id: string) => fetchJSON<Agent>(`/agents/${id}/heartbeat`, { method: 'POST' }),
 

@@ -62,7 +62,7 @@ export const App: React.FC = () => {
       const [sumData, boardsData, agentsData, docsData, eventsData] = await Promise.all([
         api.getProjectSummary(selectedProjectId),
         api.getBoards(selectedProjectId),
-        api.getAgents(selectedProjectId),
+        api.getAgents(),
         api.getDocuments(selectedProjectId),
         api.getEvents(selectedProjectId, 40),
       ]);
@@ -261,9 +261,8 @@ export const App: React.FC = () => {
         />
       )}
 
-      {showRegisterAgentModal && selectedProjectId && (
+      {showRegisterAgentModal && (
         <NewAgentModal
-          projectId={selectedProjectId}
           onClose={() => setShowRegisterAgentModal(false)}
           onSuccess={loadProjectData}
         />

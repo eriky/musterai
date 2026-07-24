@@ -117,7 +117,6 @@ async function runMcpAgentTestSuite() {
     // Step 2: Register Agent
     console.log('\n[2/12] Registering AI Agent via MCP (register_agent)...');
     const agent = await callMCPTool('register_agent', {
-      project_id: project.id,
       name: 'External-Test-Agent-01',
       type: 'ai_agent',
       role: 'contributor',

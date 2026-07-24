@@ -108,7 +108,6 @@ export interface CreateLabel {
 
 export interface Agent {
   id: string;
-  project_id: string;
   name: string;
   type: 'ai_agent' | 'human';
   role: 'owner' | 'contributor' | 'observer';
@@ -119,7 +118,6 @@ export interface Agent {
 }
 
 export interface RegisterAgent {
-  project_id: string;
   name: string;
   type: 'ai_agent' | 'human';
   role: 'owner' | 'contributor' | 'observer';

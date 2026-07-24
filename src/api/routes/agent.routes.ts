@@ -5,18 +5,20 @@ import { AgentService } from '../../services/agent.service.js';
 export function createAgentRouter(agentService: AgentService): Router {
   const router = Router();
 
-  router.get('/projects/:projectId/agents', async (req: Request, res: Response, next: NextFunction) => {
+  // Global agent list
+  router.get('/agents', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const agents = await agentService.list(req.params.projectId);
+      const agents = await agentService.list();
       res.json(agents);
     } catch (err) {
       next(err);
     }
   });
 
-  router.post('/projects/:projectId/agents', async (req: Request, res: Response, next: NextFunction) => {
+  // Register a new global agent
+  router.post('/agents', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const agent = await agentService.register({ ...req.body, project_id: req.params.projectId });
+      const agent = await agentService.register(req.body);
       res.status(201).json(agent);
     } catch (err) {
       next(err);

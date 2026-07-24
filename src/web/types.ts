@@ -46,7 +46,6 @@ export interface Label {
 
 export interface Agent {
   id: string;
-  project_id: string;
   name: string;
   type: 'ai_agent' | 'human';
   role: 'owner' | 'contributor' | 'observer';

@@ -149,12 +149,12 @@ All AI agents and human operators collaborating within this project must observe
     );
     const card_count = Number(cards[0]?.count || 0);
 
-    const agents = await this.db.query<{ count: number }>('SELECT COUNT(*) as count FROM agent_registration WHERE project_id = ?', [id]);
+    const agents = await this.db.query<{ count: number }>('SELECT COUNT(*) as count FROM agent_registration');
     const agent_count = Number(agents[0]?.count || 0);
 
     const activeAgents = await this.db.query<{ count: number }>(
-      'SELECT COUNT(*) as count FROM agent_registration WHERE project_id = ? AND status = ?',
-      [id, 'active']
+      'SELECT COUNT(*) as count FROM agent_registration WHERE status = ?',
+      ['active']
     );
     const active_agent_count = Number(activeAgents[0]?.count || 0);
 
