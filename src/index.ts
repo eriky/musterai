@@ -75,7 +75,8 @@ async function main() {
 
   // MCP Streamable HTTP Transport
   app.post('/mcp', async (req: Request, res: Response) => {
-    const mcpServer = createMcpServer(services);
+    const mcpServer = createMcpServer(services, req);
+
     const mcpTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     });

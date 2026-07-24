@@ -28,11 +28,28 @@ export interface Services {
 }
 
 
-export function createMcpServer(services: Services): McpServer {
+import { Request } from 'express';
+
+let lastRegisteredAgentId: string | undefined;
+
+export function createMcpServer(services: Services, req?: Request): McpServer {
   const server = new McpServer({
     name: 'collaborative-agent-platform',
     version: '2.0.0',
   });
+
+  let activeAgentId: string | undefined;
+
+  const getActorId = (raw?: Record<string, unknown>): string | undefined => {
+    if (raw?.agent_id && typeof raw.agent_id === 'string') return raw.agent_id;
+    if (raw?.actor_id && typeof raw.actor_id === 'string') return raw.actor_id;
+    if (raw?.author_id && typeof raw.author_id === 'string') return raw.author_id;
+    if (raw?.source_agent_id && typeof raw.source_agent_id === 'string') return raw.source_agent_id;
+    const headerAgentId = req?.headers?.['x-agent-id'] || req?.headers?.['x-actor-id'];
+    if (typeof headerAgentId === 'string' && headerAgentId.trim()) return headerAgentId.trim();
+    return activeAgentId || lastRegisteredAgentId;
+  };
+
 
   // --- MCP Collaboration Prompts ---
   server.prompt('collaboration_protocol', {}, () => ({
@@ -160,7 +177,7 @@ All AI agents and human operators collaborating within CAP must follow this prot
     labels: z.array(z.string()).optional(),
     assignees: z.array(z.string()).optional()
   }, async (args) => {
-    const card = await services.cardService.create(args);
+    const card = await services.cardService.create(args, getActorId(args));
     return { content: [{ type: 'text', text: JSON.stringify(card, null, 2) }] };
   });
 
@@ -176,7 +193,7 @@ All AI agents and human operators collaborating within CAP must follow this prot
     priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
     due_date: z.string().nullable().optional()
   }, async ({ card_id, ...data }) => {
-    const details = await services.cardService.update(card_id, data);
+    const details = await services.cardService.update(card_id, data, getActorId(data));
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
   });
 
@@ -185,50 +202,51 @@ All AI agents and human operators collaborating within CAP must follow this prot
     target_column_id: z.string().optional(),
     position: z.string().optional()
   }, async ({ card_id, target_column_id, position }) => {
-    const details = await services.cardService.move(card_id, { target_column_id, position });
+    const details = await services.cardService.move(card_id, { target_column_id, position }, getActorId({ card_id, target_column_id }));
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
   });
 
   server.tool('assign_card', { card_id: z.string(), agent_id: z.string() }, async ({ card_id, agent_id }) => {
-    await services.cardService.assign(card_id, agent_id);
+    await services.cardService.assign(card_id, agent_id, getActorId({ card_id, agent_id }));
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
   });
 
   server.tool('unassign_card', { card_id: z.string(), agent_id: z.string() }, async ({ card_id, agent_id }) => {
-    await services.cardService.unassign(card_id, agent_id);
+    await services.cardService.unassign(card_id, agent_id, getActorId({ card_id, agent_id }));
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
   });
 
-  server.tool('add_comment', { card_id: z.string(), author_id: z.string(), content: z.string() }, async (args) => {
-    const comment = await services.commentService.create(args);
+  server.tool('add_comment', { card_id: z.string(), author_id: z.string().optional(), content: z.string() }, async (args) => {
+    const author_id = args.author_id || getActorId(args) || 'system';
+    const comment = await services.commentService.create({ ...args, author_id });
     return { content: [{ type: 'text', text: JSON.stringify(comment, null, 2) }] };
   });
 
   server.tool('add_label', { card_id: z.string(), label_id: z.string() }, async ({ card_id, label_id }) => {
-    await services.cardService.addLabel(card_id, label_id);
+    await services.cardService.addLabel(card_id, label_id, getActorId({ card_id }));
     return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
   });
 
   server.tool('remove_label', { card_id: z.string(), label_id: z.string() }, async ({ card_id, label_id }) => {
-    await services.cardService.removeLabel(card_id, label_id);
+    await services.cardService.removeLabel(card_id, label_id, getActorId({ card_id }));
     return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
   });
 
   server.tool('archive_card', { card_id: z.string() }, async ({ card_id }) => {
-    await services.cardService.archive(card_id);
+    await services.cardService.archive(card_id, getActorId({ card_id }));
     return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
   });
 
   server.tool('link_document_to_card', { card_id: z.string(), document_id: z.string() }, async ({ card_id, document_id }) => {
-    await services.cardService.linkDocument(card_id, document_id);
+    await services.cardService.linkDocument(card_id, document_id, getActorId({ card_id }));
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
   });
 
   server.tool('unlink_document_from_card', { card_id: z.string(), document_id: z.string() }, async ({ card_id, document_id }) => {
-    await services.cardService.unlinkDocument(card_id, document_id);
+    await services.cardService.unlinkDocument(card_id, document_id, getActorId({ card_id }));
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
   });
@@ -260,7 +278,8 @@ All AI agents and human operators collaborating within CAP must follow this prot
     parent_id: z.string().optional(),
     author_id: z.string().optional()
   }, async (args) => {
-    const result = await services.documentService.create(args);
+    const author_id = args.author_id || getActorId(args);
+    const result = await services.documentService.create({ ...args, author_id });
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   });
 
@@ -276,7 +295,8 @@ All AI agents and human operators collaborating within CAP must follow this prot
     change_summary: z.string().optional(),
     author_id: z.string().optional()
   }, async ({ document_id, ...data }) => {
-    const result = await services.documentService.update(document_id, data);
+    const author_id = data.author_id || getActorId(data);
+    const result = await services.documentService.update(document_id, { ...data, author_id });
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   });
 
@@ -284,9 +304,10 @@ All AI agents and human operators collaborating within CAP must follow this prot
     document_id: z.string(),
     status: z.enum(['draft', 'in_review', 'approved'])
   }, async ({ document_id, status }) => {
-    const result = await services.documentService.setStatus(document_id, status);
+    const result = await services.documentService.setStatus(document_id, status, getActorId({ document_id, status }));
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   });
+
 
   server.tool('get_document_history', { document_id: z.string() }, async ({ document_id }) => {
     const result = await services.documentService.getHistory(document_id);
@@ -305,8 +326,10 @@ All AI agents and human operators collaborating within CAP must follow this prot
   }, async (args) => {
     const result = await services.agentService.register(args);
     activeAgentId = result.id;
+    lastRegisteredAgentId = result.id;
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   });
+
 
 
 
@@ -357,15 +380,7 @@ All AI agents and human operators collaborating within CAP must follow this prot
     return { content: [{ type: 'text', text: JSON.stringify(kbs, null, 2) }] };
   });
 
-  let activeAgentId: string | undefined;
 
-  const getActorId = (raw?: Record<string, unknown>): string | undefined => {
-    if (raw?.agent_id && typeof raw.agent_id === 'string') return raw.agent_id;
-    if (raw?.actor_id && typeof raw.actor_id === 'string') return raw.actor_id;
-    if (raw?.author_id && typeof raw.author_id === 'string') return raw.author_id;
-    if (raw?.source_agent_id && typeof raw.source_agent_id === 'string') return raw.source_agent_id;
-    return activeAgentId;
-  };
 
   server.tool('create_knowledge_base', {
     name: z.string(),
