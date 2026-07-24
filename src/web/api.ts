@@ -3,6 +3,13 @@ import { Project, Board, Column, Card, CardDetails, Document, Agent, Event, Proj
 
 const API_BASE = '/api/v1';
 
+export class ApiError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${url}`, {
     headers: {
@@ -14,7 +21,7 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`API Error (${res.status}): ${errText}`);
+    throw new ApiError(res.status, `API Error (${res.status}): ${errText}`);
   }
 
   if (res.status === 204) {

@@ -1,7 +1,7 @@
 // File: src/web/App.tsx
 import React, { useEffect, useState, useCallback } from 'react';
 import { Project, Board, Column, Card, Agent, Document, Event, ProjectSummary } from './types.js';
-import { api } from './api.js';
+import { api, ApiError } from './api.js';
 import { Header } from './components/Header.js';
 import { AgentGrid } from './components/AgentGrid.js';
 import { KanbanBoard } from './components/KanbanBoard.js';
@@ -83,9 +83,22 @@ export const App: React.FC = () => {
         setCards([]);
       }
     } catch (err) {
-      console.error('Error loading project data:', err);
+      if (err instanceof ApiError && err.status === 404) {
+        // Project was deleted — clear selection and reload the list
+        setSelectedProjectId(null);
+        setSummary(null);
+        setBoard(null);
+        setColumns([]);
+        setCards([]);
+        setAgents([]);
+        setDocuments([]);
+        setEvents([]);
+        loadProjects();
+      } else {
+        console.error('Error loading project data:', err);
+      }
     }
-  }, [selectedProjectId]);
+  }, [selectedProjectId, loadProjects]);
 
   useEffect(() => {
     loadProjects();

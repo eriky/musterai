@@ -55,7 +55,10 @@ export function createProjectRouter(projectService: ProjectService): Router {
     try {
       const summary = await projectService.getSummary(req.params.id);
       res.json(summary);
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.message?.includes('not found')) {
+        return res.status(404).json({ error: err.message });
+      }
       next(err);
     }
   });
