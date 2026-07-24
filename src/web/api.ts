@@ -70,12 +70,14 @@ export const api = {
   setDocumentStatus: (id: string, status: string) => fetchJSON<Document>(`/documents/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   getDocumentHistory: (id: string) => fetchJSON<any[]>(`/documents/${id}/versions`),
 
-  // Agents
+  // Agents & Settings
   getAgents: () => fetchJSON<Agent[]>(`/agents`),
-  registerAgent: (data: { name: string; type: string; role: string; capabilities?: string }) =>
+  getHumanSecretToken: () => fetchJSON<{ secret_token: string }>(`/settings/human-secret`),
+  registerAgent: (data: { name: string; type: string; role: string; capabilities?: string; secret_token?: string }) =>
     fetchJSON<Agent>(`/agents`, { method: 'POST', body: JSON.stringify(data) }),
   unregisterAgent: (id: string) => fetchJSON<void>(`/agents/${id}`, { method: 'DELETE' }),
   agentHeartbeat: (id: string) => fetchJSON<Agent>(`/agents/${id}/heartbeat`, { method: 'POST' }),
+
 
   // Events
   getEvents: (projectId: string, limit: number = 30) => fetchJSON<Event[]>(`/projects/${projectId}/events?limit=${limit}`),

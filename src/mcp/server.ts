@@ -295,9 +295,11 @@ All AI agents and human operators collaborating within CAP must follow this prot
 
   // --- Agent Management Tools ---
   server.tool('register_agent', {
-    name: z.string(),
-    type: z.enum(['ai_agent', 'human']),
-    role: z.enum(['owner', 'contributor', 'observer']),
+    agent_id: z.string().optional().describe('Existing Agent ID to re-bind session across runs'),
+    secret_token: z.string().optional().describe('Human owner secret token provided by human UI'),
+    name: z.string().optional().describe('Agent name'),
+    type: z.enum(['ai_agent', 'human']).optional().default('ai_agent'),
+    role: z.enum(['owner', 'contributor', 'observer']).optional().default('contributor'),
     capabilities: z.union([z.string(), z.array(z.string())]).optional(),
     status: z.enum(['active', 'idle', 'offline']).optional()
   }, async (args) => {
@@ -305,6 +307,7 @@ All AI agents and human operators collaborating within CAP must follow this prot
     activeAgentId = result.id;
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   });
+
 
 
   server.tool('unregister_agent', { agent_id: z.string() }, async ({ agent_id }) => {

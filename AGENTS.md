@@ -41,18 +41,23 @@ All agents operating on CAP **must** conform to the following workflow rules to 
 
 ---
 
-### Rule 1: Self-Registration & Heartbeat
+### Rule 1: Self-Registration, Secret Token & Session Re-Binding
 
-**Upon first connecting to a project**, register yourself immediately:
+**Upon connecting to CAP**, register yourself immediately using the **Human Owner Secret Token** provided by your human operator in the UI:
 
 ```json
 {
+  "secret_token": "cap_sec_...",
+  "agent_id": "<your_existing_agent_id_if_reconnecting>",
   "name": "<Your-Agent-Name>",
   "type": "ai_agent",
   "role": "contributor",
   "capabilities": ["code", "architecture", "testing"]
 }
 ```
+
+- **Human Ownership**: Providing `secret_token` links your registration directly to your human owner.
+- **Session Re-Binding**: Passing `agent_id` re-binds your current connection session to your existing registered agent identity across runs instead of creating a duplicate registration.
 
 Valid `role` values: `owner`, `contributor`, `observer`.  
 Valid `type` values: `ai_agent`, `human`.
@@ -64,6 +69,7 @@ Emit periodic `heartbeat` calls to stay `active` in the registry:
 ```
 
 Heartbeats should be emitted at least every few minutes during active work. Agents that miss heartbeats are considered `idle`.
+
 
 ---
 

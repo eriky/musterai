@@ -1,7 +1,7 @@
-// File: src/web/components/AgentGrid.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Agent, Card } from '../types.js';
-import { Bot, Clock, RefreshCw, UserPlus, Trash2 } from 'lucide-react';
+import { Bot, Clock, RefreshCw, UserPlus, Trash2, Key, Copy, Check, ShieldCheck } from 'lucide-react';
+import { api } from '../api.js';
 
 interface AgentGridProps {
   agents: Agent[];
@@ -18,6 +18,22 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
   onUnregisterAgent,
   onOpenRegisterAgent,
 }) => {
+  const [secretToken, setSecretToken] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    api.getHumanSecretToken()
+      .then((res) => setSecretToken(res.secret_token))
+      .catch((err) => console.error('Failed to load human secret token:', err));
+  }, []);
+
+  const handleCopySecret = () => {
+    if (!secretToken) return;
+    navigator.clipboard.writeText(secretToken);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const getStatusBadge = (status: Agent['status']) => {
     switch (status) {
       case 'active':
@@ -57,6 +73,47 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
   return (
     <div className="flex flex-col flex-1 h-full min-h-0 font-sans space-y-6">
       
+      {/* Human Owner Secret Token Banner */}
+      <div className="flex-none bg-command-surface border border-command-border rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-start space-x-3">
+          <div className="p-2.5 bg-amber-950/60 border border-amber-500/40 rounded-lg text-amber-400 mt-0.5">
+            <Key className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h3 className="text-sm font-bold text-zinc-100 uppercase tracking-wide">Human Owner Secret Token</h3>
+              <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-amber-950 text-amber-400 border border-amber-700/50 rounded">SECURITY</span>
+            </div>
+            <p className="text-xs text-zinc-400 mt-1 max-w-2xl">
+              Provide this secret token to your AI agents (Claude, Cursor, Antigravity). Agents pass this secret token during <code className="text-amber-300 font-mono bg-zinc-900 px-1 py-0.5 rounded">register_agent</code> to link ownership to you and re-bind their session across runs.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2 bg-command-card border border-command-border p-1.5 rounded-lg w-full md:w-auto justify-between md:justify-start">
+          <code className="text-xs font-mono font-bold text-amber-300 px-2 tracking-wider">
+            {secretToken || 'Loading secret token...'}
+          </code>
+          <button
+            onClick={handleCopySecret}
+            disabled={!secretToken}
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-zinc-950 rounded-md text-xs font-bold transition-all cursor-pointer shadow-sm disabled:opacity-50"
+          >
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                <span>Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy Token</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* Agents Header */}
       <div className="flex-none flex items-center justify-between border-b border-command-border pb-4">
         <div>
@@ -75,6 +132,7 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
           <UserPlus className="w-3.5 h-3.5 mr-1.5" /> Register Agent
         </button>
       </div>
+
 
       {/* Grid of Agents (Stretches 100% height!) */}
       {agents.length === 0 ? (
@@ -109,11 +167,20 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
                     <h3 className="text-sm font-sans font-bold text-zinc-100 group-hover:text-cyan-300 transition-colors">
                       {agent.name}
                     </h3>
-                    <div className="flex items-center space-x-2 mt-0.5">
+                    <div className="flex items-center space-x-2 mt-0.5 flex-wrap">
                       <span className="text-[11px] font-sans text-zinc-400 capitalize">{agent.type.replace('_', ' ')}</span>
                       <span className="text-zinc-700">•</span>
                       <span className="text-[11px] font-sans text-cyan-400 font-medium capitalize">{agent.role}</span>
+                      {agent.owner_id && (
+                        <>
+                          <span className="text-zinc-700">•</span>
+                          <span className="inline-flex items-center text-[10px] font-mono font-medium text-amber-400">
+                            <ShieldCheck className="w-3 h-3 mr-0.5" /> Owned
+                          </span>
+                        </>
+                      )}
                     </div>
+
                   </div>
                 </div>
 

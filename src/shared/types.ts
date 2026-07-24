@@ -115,15 +115,22 @@ export interface Agent {
   status: 'active' | 'idle' | 'offline';
   last_seen_at: string;
   created_at: string;
+  owner_id?: string | null;
+  secret_token?: string | null;
 }
 
 export interface RegisterAgent {
-  name: string;
-  type: 'ai_agent' | 'human';
-  role: 'owner' | 'contributor' | 'observer';
+  id?: string;
+  agent_id?: string;
+  name?: string;
+  type?: 'ai_agent' | 'human';
+  role?: 'owner' | 'contributor' | 'observer';
   capabilities?: string | string[];
   status?: 'active' | 'idle' | 'offline';
+  secret_token?: string;
+  owner_id?: string;
 }
+
 
 export interface UpdateAgentStatus {
   status: 'active' | 'idle' | 'offline';

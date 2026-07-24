@@ -151,4 +151,41 @@ describe('Domain Services Integration Tests', () => {
     const history = await documentService.getHistory(doc.id);
     expect(history.length).toBe(2);
   });
+
+  it('Feature: secret token verification and agent session re-binding', async () => {
+    const token = await agentService.getHumanSecretToken();
+    expect(token).toMatch(/^cap_sec_/);
+
+    // Rejects registration with invalid secret_token
+    await expect(
+      agentService.register({
+        name: 'Malicious Agent',
+        type: 'ai_agent',
+        role: 'contributor',
+        secret_token: 'wrong_secret'
+      })
+    ).rejects.toThrow('Invalid secret token');
+
+    // Register initial agent with valid token
+    const initialAgent = await agentService.register({
+      name: 'Claude 3.7',
+      type: 'ai_agent',
+      role: 'contributor',
+      secret_token: token,
+      capabilities: ['code', 'testing']
+    });
+    expect(initialAgent.id).toBeDefined();
+
+    // Re-bind session using existing agent_id
+    const reboundAgent = await agentService.register({
+      agent_id: initialAgent.id,
+      name: 'Claude 3.7 (Rebound)',
+      secret_token: token
+    });
+
+    expect(reboundAgent.id).toBe(initialAgent.id);
+    expect(reboundAgent.name).toBe('Claude 3.7 (Rebound)');
+    expect(reboundAgent.status).toBe('active');
+  });
 });
+

@@ -53,7 +53,10 @@ export interface Agent {
   status: 'active' | 'idle' | 'offline';
   last_seen_at: string;
   created_at: string;
+  owner_id?: string | null;
+  secret_token?: string | null;
 }
+
 
 export interface CardDetails extends Card {
   assignees: Agent[];

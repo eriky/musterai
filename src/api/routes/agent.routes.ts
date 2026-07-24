@@ -5,6 +5,16 @@ import { AgentService } from '../../services/agent.service.js';
 export function createAgentRouter(agentService: AgentService): Router {
   const router = Router();
 
+  // Get Human Owner Secret Token (for UI display)
+  router.get('/settings/human-secret', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const secret_token = await agentService.getHumanSecretToken();
+      res.json({ secret_token });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   // Global agent list
   router.get('/agents', async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -15,7 +25,7 @@ export function createAgentRouter(agentService: AgentService): Router {
     }
   });
 
-  // Register a new global agent
+  // Register a new global agent (or re-bind existing session)
   router.post('/agents', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const agent = await agentService.register(req.body);
