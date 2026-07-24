@@ -1,98 +1,175 @@
 // File: src/services/project.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Project, CreateProject, CAPEvent } from '../shared/types.js';
-import { NotFoundError } from '../shared/errors.js';
-
+import { Project, CreateProject, UpdateProject, ProjectSummary } from '../shared/types.js';
 import { EventService } from './event.service.js';
-
 import { BoardService } from './board.service.js';
+import { DocumentService } from './document.service.js';
 
 export class ProjectService {
   constructor(
     private db: DatabaseAdapter,
     private eventService?: EventService,
-    private boardService?: BoardService
+    private boardService?: BoardService,
+    private documentService?: DocumentService
   ) {}
 
-  async create(data: CreateProject): Promise<Project> {
-    const now = new Date().toISOString();
-    const project: Project = {
-      id: ulid(),
-      name: data.name,
-      description: data.description || null,
-      created_at: now,
-      updated_at: now
-    };
+  async create(data: CreateProject, actorId?: string): Promise<Project> {
+    const id = ulid();
+    const created_at = new Date().toISOString();
+    const updated_at = created_at;
 
     await this.db.execute(
-      `INSERT INTO projects (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-      [project.id, project.name, project.description, project.created_at, project.updated_at]
+      `INSERT INTO project (id, name, description, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, data.name, data.description || null, created_at, updated_at]
     );
 
-    if (this.boardService) {
-      await this.boardService.create({ project_id: project.id, name: 'Development Board' });
+    const project: Project = {
+      id,
+      name: data.name,
+      description: data.description || null,
+      created_at,
+      updated_at,
+    };
+
+    if (this.eventService) {
+      await this.eventService.create({
+        project_id: id,
+        entity_type: 'project',
+        entity_id: id,
+        action: 'created',
+        actor_id: actorId,
+        payload: { name: project.name },
+      });
     }
 
-    await this.eventService?.emit(project.id, 'project', project.id, 'created', 'system', { name: project.name });
+    if (this.boardService) {
+      await this.boardService.create({ project_id: id, name: 'Sprint 1' }, actorId);
+    }
+
+    if (this.documentService) {
+      await this.documentService.create({
+        project_id: id,
+        title: 'Agent Operating Protocol & Collaboration Standard',
+        content: `# Collaborative Agent Platform — Operating Protocol
+
+All AI agents and human operators collaborating within this project must observe the following workflow rules:
+
+1. **Agent Self-Registration**:
+   - Register your agent via \`register_agent\` tool or UI upon initial connection.
+   - Emit periodic \`heartbeat\` calls to indicate active status.
+
+2. **Design Specifications First**:
+   - Always read project design specs via \`list_documents\` before starting tasks.
+   - Propose architectural updates using \`create_document\` or \`update_document\` with status \`in_review\`.
+
+3. **Kanban Card Workflow**:
+   - Select unassigned tasks from 'Backlog' or 'To Do' columns.
+   - Assign yourself using \`assign_card\` and move card to 'In Progress' via \`move_card\`.
+   - Adhere strictly to WIP limits set on board columns.
+
+4. **Transparent Communication**:
+   - Post progress updates, code diffs, and blockers using \`add_comment\`.
+   - When implementation is ready, move card to 'In Review' for peer agent or human verification.`,
+      });
+    }
 
     return project;
   }
 
+  async getById(id: string): Promise<Project | null> {
+    const rows = await this.db.query<Project>('SELECT * FROM project WHERE id = ?', [id]);
+    return rows[0] || null;
+  }
+
   async list(): Promise<Project[]> {
-    return this.db.query<Project>(`SELECT * FROM projects ORDER BY created_at DESC`);
+    return this.db.query<Project>('SELECT * FROM project ORDER BY created_at DESC');
   }
 
-  async getById(id: string): Promise<Project> {
-    const rows = await this.db.query<Project>(`SELECT * FROM projects WHERE id = ?`, [id]);
-    if (rows.length === 0) {
-      throw new NotFoundError(`Project with ID ${id} not found`);
-    }
-    return rows[0];
-  }
+  async update(id: string, data: UpdateProject, actorId?: string): Promise<Project> {
+    const existing = await this.getById(id);
+    if (!existing) throw new Error(`Project with ID ${id} not found`);
 
-  async update(id: string, data: Partial<CreateProject>): Promise<Project> {
-    const project = await this.getById(id);
-    const updatedName = data.name !== undefined ? data.name : project.name;
-    const updatedDescription = data.description !== undefined ? data.description : project.description;
-    const updatedAt = new Date().toISOString();
+    const name = data.name !== undefined ? data.name : existing.name;
+    const description = data.description !== undefined ? data.description : existing.description;
+    const updated_at = new Date().toISOString();
 
     await this.db.execute(
-      `UPDATE projects SET name = ?, description = ?, updated_at = ? WHERE id = ?`,
-      [updatedName, updatedDescription, updatedAt, id]
+      `UPDATE project SET name = ?, description = ?, updated_at = ? WHERE id = ?`,
+      [name, description, updated_at, id]
     );
 
-    await this.eventService?.emit(id, 'project', id, 'updated', 'system', data);
+    const updated: Project = { ...existing, name, description, updated_at };
 
-    return this.getById(id);
+    if (this.eventService) {
+      await this.eventService.create({
+        project_id: id,
+        entity_type: 'project',
+        entity_id: id,
+        action: 'updated',
+        actor_id: actorId,
+        payload: data as Record<string, unknown>,
+      });
+    }
+
+    return updated;
   }
 
-  async delete(id: string): Promise<void> {
-    const project = await this.getById(id);
-    await this.db.execute(`DELETE FROM projects WHERE id = ?`, [id]);
-    await this.eventService?.emit(id, 'project', id, 'deleted', 'system', {});
+  async delete(id: string, actorId?: string): Promise<void> {
+    const existing = await this.getById(id);
+    if (!existing) throw new Error(`Project with ID ${id} not found`);
+
+    await this.db.execute('DELETE FROM project WHERE id = ?', [id]);
+
+    if (this.eventService) {
+      await this.eventService.create({
+        project_id: id,
+        entity_type: 'project',
+        entity_id: id,
+        action: 'deleted',
+        actor_id: actorId,
+      });
+    }
   }
 
-  async getSummary(id: string): Promise<any> {
+  async getSummary(id: string): Promise<ProjectSummary> {
     const project = await this.getById(id);
-    
-    const boards = await this.db.query<{ count: number }>(`SELECT COUNT(*) as count FROM boards WHERE project_id = ?`, [id]);
-    const agents = await this.db.query<{ count: number }>(`SELECT COUNT(*) as count FROM agent_registrations WHERE project_id = ?`, [id]);
-    const docs = await this.db.query<{ count: number }>(`SELECT COUNT(*) as count FROM documents WHERE project_id = ?`, [id]);
-    
+    if (!project) throw new Error(`Project with ID ${id} not found`);
+
+    const boards = await this.db.query<{ count: number }>('SELECT COUNT(*) as count FROM board WHERE project_id = ?', [id]);
+    const board_count = Number(boards[0]?.count || 0);
+
     const cards = await this.db.query<{ count: number }>(
-      `SELECT COUNT(*) as count FROM cards c
-       JOIN columns col ON c.column_id = col.id
-       JOIN boards b ON col.board_id = b.id
-       WHERE b.project_id = ?`, [id]
+      `SELECT COUNT(*) as count FROM card c 
+       JOIN "column" col ON c.column_id = col.id 
+       JOIN board b ON col.board_id = b.id 
+       WHERE b.project_id = ? AND c.archived = 0`,
+      [id]
     );
+    const card_count = Number(cards[0]?.count || 0);
+
+    const agents = await this.db.query<{ count: number }>('SELECT COUNT(*) as count FROM agent_registration WHERE project_id = ?', [id]);
+    const agent_count = Number(agents[0]?.count || 0);
+
+    const activeAgents = await this.db.query<{ count: number }>(
+      'SELECT COUNT(*) as count FROM agent_registration WHERE project_id = ? AND status = ?',
+      [id, 'active']
+    );
+    const active_agent_count = Number(activeAgents[0]?.count || 0);
+
+    const docs = await this.db.query<{ count: number }>('SELECT COUNT(*) as count FROM document WHERE project_id = ?', [id]);
+    const document_count = Number(docs[0]?.count || 0);
 
     return {
-      ...project,
-      board_count: boards[0].count,
-      agent_count: agents[0].count,
-      document_count: docs[0].count,
-      card_count: cards[0].count
+      project_id: id,
+      name: project.name,
+      description: project.description,
+      board_count,
+      card_count,
+      agent_count,
+      active_agent_count,
+      document_count,
     };
   }
 }

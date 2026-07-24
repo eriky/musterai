@@ -1,92 +1,118 @@
 // File: src/api/routes/card.routes.ts
-import { Router } from 'express';
-import { CardService, CommentService } from '../../services/index.js';
+import { Router, Request, Response, NextFunction } from 'express';
+import { CardService } from '../../services/card.service.js';
+import { CommentService } from '../../services/comment.service.js';
 
-export function createCardRoutes(cardService: CardService, commentService: CommentService): Router {
+export function createCardRouter(cardService: CardService, commentService: CommentService): Router {
   const router = Router();
 
-  router.post('/', async (req, res, next) => {
+  router.get('/boards/:boardId/cards', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await cardService.create(req.body);
-      res.status(201).json(result);
-    } catch (err) { next(err); }
+      const cards = await cardService.list({
+        board_id: req.params.boardId,
+        column_id: req.query.column_id as string,
+        assignee_id: req.query.assignee_id as string,
+        label: req.query.label as string,
+        archived: req.query.archived === 'true',
+      });
+      res.json(cards);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.get('/', async (req, res, next) => {
+  router.post('/columns/:columnId/cards', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await cardService.list(req.query as any);
-      res.json(result);
-    } catch (err) { next(err); }
+      const card = await cardService.create({ ...req.body, column_id: req.params.columnId });
+      res.status(201).json(card);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.get('/:id', async (req, res, next) => {
+  router.get('/cards/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await cardService.getById(req.params.id);
-      res.json(result);
-    } catch (err) { next(err); }
+      const card = await cardService.getById(req.params.id);
+      res.json(card);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.patch('/:id', async (req, res, next) => {
+  router.put('/cards/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await cardService.update(req.params.id, req.body);
-      res.json(result);
-    } catch (err) { next(err); }
+      const card = await cardService.update(req.params.id, req.body);
+      res.json(card);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.post('/:id/move', async (req, res, next) => {
+  router.patch('/cards/:id/move', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await cardService.move(req.params.id, req.body.target_column_id, req.body.position);
-      res.json(result);
-    } catch (err) { next(err); }
+      const card = await cardService.move(req.params.id, req.body);
+      res.json(card);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.post('/:id/assign', async (req, res, next) => {
+  router.post('/cards/:id/comments', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const comment = await commentService.create({ ...req.body, card_id: req.params.id });
+      res.status(201).json(comment);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/cards/:id/assignees', async (req: Request, res: Response, next: NextFunction) => {
     try {
       await cardService.assign(req.params.id, req.body.agent_id);
-      res.status(204).end();
-    } catch (err) { next(err); }
+      const card = await cardService.getById(req.params.id);
+      res.json(card);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.post('/:id/unassign', async (req, res, next) => {
+  router.delete('/cards/:id/assignees/:agentId', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await cardService.unassign(req.params.id, req.body.agent_id);
-      res.status(204).end();
-    } catch (err) { next(err); }
+      await cardService.unassign(req.params.id, req.params.agentId);
+      const card = await cardService.getById(req.params.id);
+      res.json(card);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.post('/:id/labels', async (req, res, next) => {
+  router.post('/cards/:id/labels', async (req: Request, res: Response, next: NextFunction) => {
     try {
       await cardService.addLabel(req.params.id, req.body.label_id);
-      res.status(204).end();
-    } catch (err) { next(err); }
+      const card = await cardService.getById(req.params.id);
+      res.json(card);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.delete('/:id/labels/:labelId', async (req, res, next) => {
+  router.delete('/cards/:id/labels/:labelId', async (req: Request, res: Response, next: NextFunction) => {
     try {
       await cardService.removeLabel(req.params.id, req.params.labelId);
+      const card = await cardService.getById(req.params.id);
+      res.json(card);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete('/cards/:id', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await cardService.archive(req.params.id);
       res.status(204).end();
-    } catch (err) { next(err); }
-  });
-
-  router.post('/:id/archive', async (req, res, next) => {
-    try {
-      const result = await cardService.archive(req.params.id);
-      res.json(result);
-    } catch (err) { next(err); }
-  });
-
-  router.delete('/:id', async (req, res, next) => {
-    try {
-      await cardService.delete(req.params.id);
-      res.status(204).end();
-    } catch (err) { next(err); }
-  });
-
-  router.post('/:id/comments', async (req, res, next) => {
-    try {
-      const result = await commentService.create({ card_id: req.params.id, ...req.body });
-      res.status(201).json(result);
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   });
 
   return router;

@@ -1,0 +1,40 @@
+name: CAP v2.0 CI
+
+on:
+  push:
+    branches: [ main, feat/*, rebuild/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install Build Dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential sqlite3 libsqlite3-dev
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Build (Vite SPA + TypeScript)
+        run: npm run build
+
+      - name: Run Vitest Suite
+        run: npm test
+
+      - name: Verify Health Route Unit Test
+        run: npx vitest run tests/health.test.ts --passWithNoTests

@@ -1,51 +1,66 @@
 // File: src/api/routes/document.routes.ts
-import { Router } from 'express';
-import { DocumentService } from '../../services/index.js';
+import { Router, Request, Response, NextFunction } from 'express';
+import { DocumentService } from '../../services/document.service.js';
 
-export function createDocumentRoutes(documentService: DocumentService): Router {
+export function createDocumentRouter(documentService: DocumentService): Router {
   const router = Router();
 
-  router.post('/', async (req, res, next) => {
+  router.get('/projects/:projectId/documents', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await documentService.create(req.body);
-      res.status(201).json(result);
-    } catch (err) { next(err); }
+      const status = req.query.status as string;
+      const parent_id = req.query.parent_id === 'null' ? null : (req.query.parent_id as string);
+      const docs = await documentService.list(req.params.projectId, { status, parent_id });
+      res.json(docs);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.get('/', async (req, res, next) => {
+  router.post('/projects/:projectId/documents', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await documentService.list(req.query.projectId as string, req.query as any);
-      res.json(result);
-    } catch (err) { next(err); }
+      const doc = await documentService.create({ ...req.body, project_id: req.params.projectId });
+      res.status(201).json(doc);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.get('/:id', async (req, res, next) => {
+  router.get('/documents/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const version = req.query.version ? parseInt(req.query.version as string, 10) : undefined;
-      const result = await documentService.getById(req.params.id, version);
-      res.json(result);
-    } catch (err) { next(err); }
+      const doc = await documentService.getById(req.params.id, version);
+      if (!doc) return res.status(404).json({ error: 'Document not found' });
+      res.json(doc);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.patch('/:id', async (req, res, next) => {
+  router.put('/documents/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await documentService.update(req.params.id, req.body);
-      res.json(result);
-    } catch (err) { next(err); }
+      const doc = await documentService.update(req.params.id, req.body);
+      res.json(doc);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.post('/:id/status', async (req, res, next) => {
+  router.patch('/documents/:id/status', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await documentService.setStatus(req.params.id, req.body.status);
-      res.json(result);
-    } catch (err) { next(err); }
+      const doc = await documentService.setStatus(req.params.id, req.body.status);
+      res.json(doc);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.get('/:id/history', async (req, res, next) => {
+  router.get('/documents/:id/versions', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await documentService.getHistory(req.params.id);
-      res.json(result);
-    } catch (err) { next(err); }
+      const history = await documentService.getHistory(req.params.id);
+      res.json(history);
+    } catch (err) {
+      next(err);
+    }
   });
 
   return router;

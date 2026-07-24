@@ -1,25 +1,30 @@
 // File: src/api/router.ts
 import { Router } from 'express';
+import { DatabaseAdapter } from '../db/adapter.js';
 import { Services } from '../mcp/server.js';
 import { SSEManager } from '../realtime/sse.js';
-import { createProjectRoutes } from './routes/project.routes.js';
-import { createBoardRoutes } from './routes/board.routes.js';
-import { createColumnRoutes } from './routes/column.routes.js';
-import { createCardRoutes } from './routes/card.routes.js';
-import { createDocumentRoutes } from './routes/document.routes.js';
-import { createAgentRoutes } from './routes/agent.routes.js';
-import { createEventRoutes } from './routes/event.routes.js';
+import { createProjectRouter } from './routes/project.routes.js';
+import { createBoardRouter } from './routes/board.routes.js';
+import { createColumnRouter } from './routes/column.routes.js';
+import { createCardRouter } from './routes/card.routes.js';
+import { createDocumentRouter } from './routes/document.routes.js';
+import { createAgentRouter } from './routes/agent.routes.js';
+import { createEventRouter } from './routes/event.routes.js';
+import { createHealthRouter } from './routes/health.routes.js';
 
-export function createRouter(services: Services, sseManager: SSEManager): Router {
+export function createRouter(services: Services, sseManager: SSEManager, db: DatabaseAdapter): Router {
   const router = Router();
+  const v1 = Router();
 
-  router.use('/projects', createProjectRoutes(services.projectService));
-  router.use('/boards', createBoardRoutes(services.boardService));
-  router.use('/columns', createColumnRoutes(services.columnService));
-  router.use('/cards', createCardRoutes(services.cardService, services.commentService));
-  router.use('/documents', createDocumentRoutes(services.documentService));
-  router.use('/agents', createAgentRoutes(services.agentService));
-  router.use('/events', createEventRoutes(services.eventService, sseManager));
+  v1.use(createHealthRouter(db));
+  v1.use('/projects', createProjectRouter(services.projectService));
+  v1.use(createBoardRouter(services.boardService, services.columnService, services.cardService));
+  v1.use(createColumnRouter(services.columnService));
+  v1.use(createCardRouter(services.cardService, services.commentService));
+  v1.use(createDocumentRouter(services.documentService));
+  v1.use(createAgentRouter(services.agentService));
+  v1.use(createEventRouter(services.eventService, sseManager));
 
+  router.use('/v1', v1);
   return router;
 }

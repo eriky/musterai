@@ -1,49 +1,62 @@
 // File: src/api/routes/board.routes.ts
-import { Router } from 'express';
-import { BoardService } from '../../services/index.js';
+import { Router, Request, Response, NextFunction } from 'express';
+import { BoardService } from '../../services/board.service.js';
+import { ColumnService } from '../../services/column.service.js';
+import { CardService } from '../../services/card.service.js';
 
-export function createBoardRoutes(boardService: BoardService): Router {
+export function createBoardRouter(
+  boardService: BoardService,
+  columnService: ColumnService,
+  cardService: CardService
+): Router {
   const router = Router();
 
-  router.post('/', async (req, res, next) => {
+  router.get('/projects/:projectId/boards', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await boardService.create(req.body);
-      res.status(201).json(result);
-    } catch (err) { next(err); }
+      const boards = await boardService.list(req.params.projectId);
+      res.json(boards);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.get('/', async (req, res, next) => {
+  router.post('/projects/:projectId/boards', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const projectId = req.query.projectId as string | undefined;
-      if (projectId) {
-        const result = await boardService.list(projectId);
-        res.json(result);
-      } else {
-        const result = await boardService.listAll();
-        res.json(result);
-      }
-    } catch (err) { next(err); }
+      const board = await boardService.create({ ...req.body, project_id: req.params.projectId });
+      res.status(201).json(board);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.get('/:id', async (req, res, next) => {
+  router.get('/boards/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await boardService.getById(req.params.id);
-      res.json(result);
-    } catch (err) { next(err); }
+      const board = await boardService.getById(req.params.id);
+      if (!board) return res.status(404).json({ error: 'Board not found' });
+      const columns = await columnService.list(board.id);
+      const cards = await cardService.list({ board_id: board.id });
+      res.json({ ...board, columns, cards });
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.post('/:id/labels', async (req, res, next) => {
+  router.put('/boards/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await boardService.createLabel({ ...req.body, board_id: req.params.id });
-      res.status(201).json(result);
-    } catch (err) { next(err); }
+      const board = await boardService.update(req.params.id, req.body);
+      res.json(board);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.get('/:id/labels', async (req, res, next) => {
+  router.delete('/boards/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await boardService.listLabels(req.params.id);
-      res.json(result);
-    } catch (err) { next(err); }
+      await boardService.delete(req.params.id);
+      res.status(204).end();
+    } catch (err) {
+      next(err);
+    }
   });
 
   return router;

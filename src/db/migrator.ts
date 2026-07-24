@@ -3,6 +3,129 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseAdapter } from './adapter.js';
 
+const INITIAL_SQL = `-- Migration fallback
+CREATE TABLE IF NOT EXISTS project (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS board (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "column" (
+  id TEXT PRIMARY KEY,
+  board_id TEXT NOT NULL REFERENCES board(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  position TEXT NOT NULL,
+  wip_limit INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS card (
+  id TEXT PRIMARY KEY,
+  column_id TEXT NOT NULL REFERENCES "column"(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  position TEXT NOT NULL,
+  priority TEXT NOT NULL DEFAULT 'medium',
+  due_date TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  archived INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS label (
+  id TEXT PRIMARY KEY,
+  board_id TEXT NOT NULL REFERENCES board(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS card_label (
+  card_id TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
+  label_id TEXT NOT NULL REFERENCES label(id) ON DELETE CASCADE,
+  PRIMARY KEY (card_id, label_id)
+);
+
+CREATE TABLE IF NOT EXISTS agent_registration (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  role TEXT NOT NULL,
+  capabilities TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  last_seen_at TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS card_assignee (
+  card_id TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
+  agent_id TEXT NOT NULL REFERENCES agent_registration(id) ON DELETE CASCADE,
+  PRIMARY KEY (card_id, agent_id)
+);
+
+CREATE TABLE IF NOT EXISTS comment (
+  id TEXT PRIMARY KEY,
+  card_id TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
+  author_id TEXT NOT NULL REFERENCES agent_registration(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS attachment (
+  id TEXT PRIMARY KEY,
+  card_id TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
+  filename TEXT NOT NULL,
+  path TEXT NOT NULL,
+  mime_type TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS document (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+  parent_id TEXT REFERENCES document(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'draft',
+  author_id TEXT REFERENCES agent_registration(id) ON DELETE SET NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS document_version (
+  id TEXT PRIMARY KEY,
+  document_id TEXT NOT NULL REFERENCES document(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  author_id TEXT REFERENCES agent_registration(id) ON DELETE SET NULL,
+  change_summary TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS event (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+  entity_type TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  action TEXT NOT NULL,
+  actor_id TEXT REFERENCES agent_registration(id) ON DELETE SET NULL,
+  payload TEXT,
+  created_at TEXT NOT NULL
+);
+`;
+
 export class Migrator {
   private db: DatabaseAdapter;
   private migrationsDir: string;
@@ -12,39 +135,14 @@ export class Migrator {
     this.migrationsDir = migrationsDir;
   }
 
-  public async run(): Promise<void> {
-    await this.db.migrate(`
-      CREATE TABLE IF NOT EXISTS _migrations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        filename TEXT NOT NULL UNIQUE,
-        applied_at TEXT NOT NULL
-      );
-    `);
-
-    const appliedMigrations = await this.db.query<{ filename: string }>('SELECT filename FROM _migrations');
-    const appliedSet = new Set(appliedMigrations.map((m: { filename: string }) => m.filename));
-
-    if (!fs.existsSync(this.migrationsDir)) {
-      return;
-    }
-
-    const files = fs.readdirSync(this.migrationsDir)
-      .filter(f => f.endsWith('.sql'))
-      .sort();
-
-    for (const file of files) {
-      if (appliedSet.has(file)) {
-        continue;
+  async run(): Promise<void> {
+    let sqlToRun = INITIAL_SQL;
+    if (fs.existsSync(this.migrationsDir)) {
+      const files = fs.readdirSync(this.migrationsDir).filter(f => f.endsWith('.sql')).sort();
+      if (files.length > 0) {
+        sqlToRun = files.map(file => fs.readFileSync(path.join(this.migrationsDir, file), 'utf-8')).join('\n;\n');
       }
-
-      const sql = fs.readFileSync(path.join(this.migrationsDir, file), 'utf-8');
-      await this.db.migrate(sql);
-
-      const now = new Date().toISOString();
-      await this.db.execute(
-        'INSERT INTO _migrations (filename, applied_at) VALUES (?, ?)',
-        [file, now]
-      );
     }
+    await this.db.migrate(sqlToRun);
   }
 }

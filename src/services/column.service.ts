@@ -1,11 +1,9 @@
 // File: src/services/column.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Column, CreateColumn, CAPEvent } from '../shared/types.js';
-import { NotFoundError, ConflictError } from '../shared/errors.js';
-import { generateRank, rankAfter, rankBefore, rankBetween } from '../shared/lexorank.js';
-
+import { Column, CreateColumn, UpdateColumn } from '../shared/types.js';
 import { EventService } from './event.service.js';
+import { rankAfter } from '../shared/lexorank.js';
 
 export class ColumnService {
   constructor(
@@ -13,111 +11,112 @@ export class ColumnService {
     private eventService?: EventService
   ) {}
 
-  async create(data: CreateColumn): Promise<Column> {
-    const now = new Date().toISOString();
-    const allCols = await this.db.query<Column>(
-      `SELECT position FROM columns WHERE board_id = ? ORDER BY position ASC`, 
-      [data.board_id]
-    );
+  async create(data: CreateColumn, actorId?: string): Promise<Column> {
+    const id = ulid();
 
-    let position: string;
-
-    if (allCols.length === 0) {
-      position = generateRank();
-    } else if (data.position === 'f') {
-      // First — insert before the first column
-      position = rankBefore(allCols[0].position);
-    } else if (data.position === 'l') {
-      // Left of middle — insert between first and center
-      const mid = Math.floor((allCols.length - 1) / 2);
-      position = rankBetween(
-        mid > 0 ? allCols[mid - 1].position : null,
-        allCols[mid].position
-      );
-    } else if (data.position === 'm') {
-      // Middle — insert at the center point
-      const mid = Math.floor(allCols.length / 2);
-      position = rankBetween(
-        allCols[mid - 1]?.position ?? null,
-        allCols[mid]?.position ?? null
-      );
-    } else if (data.position === 'r') {
-      // Right of middle — insert between center and last
-      const mid = Math.floor(allCols.length / 2);
-      position = rankBetween(
-        allCols[mid].position,
-        allCols[mid + 1]?.position ?? null
-      );
-    } else {
-      // Default / undefined — append at end
-      position = rankAfter(allCols[allCols.length - 1].position);
+    let position = data.position;
+    if (!position) {
+      const cols = await this.list(data.board_id);
+      const lastPos = cols.length > 0 ? cols[cols.length - 1].position : '';
+      position = rankAfter(lastPos);
     }
 
-    const column: Column = {
-      id: ulid(),
+    const wip_limit = data.wip_limit !== undefined ? data.wip_limit : null;
+
+    await this.db.execute(
+      `INSERT INTO "column" (id, board_id, name, position, wip_limit)
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, data.board_id, data.name, position, wip_limit]
+    );
+
+    const col: Column = {
+      id,
       board_id: data.board_id,
       name: data.name,
       position,
-      wip_limit: data.wip_limit || null,
-      created_at: now,
-      updated_at: now
+      wip_limit,
     };
 
-    await this.db.execute(
-      `INSERT INTO columns (id, board_id, name, position, wip_limit, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [column.id, column.board_id, column.name, column.position, column.wip_limit, column.created_at, column.updated_at]
-    );
-
-    const b = await this.db.query<{project_id: string}>('SELECT project_id FROM boards WHERE id = ?', [column.board_id]);
-    if (b.length > 0) {
-      await this.eventService?.emit(b[0].project_id, 'column', column.id, 'created', 'system', { name: column.name });
+    if (this.eventService) {
+      const boardRows = await this.db.query<{ project_id: string }>('SELECT project_id FROM board WHERE id = ?', [data.board_id]);
+      if (boardRows[0]) {
+        await this.eventService.create({
+          project_id: boardRows[0].project_id,
+          entity_type: 'column',
+          entity_id: id,
+          action: 'created',
+          actor_id: actorId,
+          payload: { name: col.name, board_id: col.board_id },
+        });
+      }
     }
 
-    return column;
+    return col;
   }
 
-  async getById(id: string): Promise<Column> {
-    const rows = await this.db.query<Column>(`SELECT * FROM columns WHERE id = ?`, [id]);
-    if (rows.length === 0) {
-      throw new NotFoundError(`Column with ID ${id} not found`);
-    }
-    return rows[0];
+  async getById(id: string): Promise<Column | null> {
+    const rows = await this.db.query<Column>('SELECT * FROM "column" WHERE id = ?', [id]);
+    return rows[0] || null;
   }
 
-  async update(id: string, data: Partial<CreateColumn>): Promise<Column> {
-    const column = await this.getById(id);
-    const updatedName = data.name !== undefined ? data.name : column.name;
-    const updatedWip = data.wip_limit !== undefined ? data.wip_limit : column.wip_limit;
-    const updatedAt = new Date().toISOString();
+  async list(boardId: string): Promise<Column[]> {
+    return this.db.query<Column>('SELECT * FROM "column" WHERE board_id = ? ORDER BY position ASC', [boardId]);
+  }
+
+  async update(id: string, data: UpdateColumn, actorId?: string): Promise<Column> {
+    const existing = await this.getById(id);
+    if (!existing) throw new Error(`Column with ID ${id} not found`);
+
+    const name = data.name !== undefined ? data.name : existing.name;
+    const wip_limit = data.wip_limit !== undefined ? data.wip_limit : existing.wip_limit;
+    const position = data.position !== undefined ? data.position : existing.position;
 
     await this.db.execute(
-      `UPDATE columns SET name = ?, wip_limit = ?, updated_at = ? WHERE id = ?`,
-      [updatedName, updatedWip, updatedAt, id]
+      'UPDATE "column" SET name = ?, wip_limit = ?, position = ? WHERE id = ?',
+      [name, wip_limit, position, id]
     );
 
-    return this.getById(id);
-  }
+    const updated: Column = { ...existing, name, wip_limit, position };
 
-  async move(id: string, position: string): Promise<Column> {
-    const column = await this.getById(id);
-    const updatedAt = new Date().toISOString();
-
-    await this.db.execute(
-      `UPDATE columns SET position = ?, updated_at = ? WHERE id = ?`,
-      [position, updatedAt, id]
-    );
-
-    return this.getById(id);
-  }
-
-  async delete(id: string): Promise<void> {
-    const column = await this.getById(id);
-    
-    const cards = await this.db.query<{count: number}>(`SELECT COUNT(*) as count FROM cards WHERE column_id = ? AND archived = 0`, [id]);
-    if (cards[0].count > 0) {
-      throw new ConflictError(`Cannot delete column with ID ${id} because it contains active cards`);
+    if (this.eventService) {
+      const boardRows = await this.db.query<{ project_id: string }>('SELECT project_id FROM board WHERE id = ?', [existing.board_id]);
+      if (boardRows[0]) {
+        await this.eventService.create({
+          project_id: boardRows[0].project_id,
+          entity_type: 'column',
+          entity_id: id,
+          action: 'updated',
+          actor_id: actorId,
+          payload: data as Record<string, unknown>,
+        });
+      }
     }
 
-    await this.db.execute(`DELETE FROM columns WHERE id = ?`, [id]);
+    return updated;
+  }
+
+  async delete(id: string, actorId?: string): Promise<void> {
+    const existing = await this.getById(id);
+    if (!existing) throw new Error(`Column with ID ${id} not found`);
+
+    const cards = await this.db.query<{ count: number }>('SELECT COUNT(*) as count FROM card WHERE column_id = ? AND archived = 0', [id]);
+    if (Number(cards[0]?.count || 0) > 0) {
+      throw new Error(`Cannot delete column ${id} because it contains active cards.`);
+    }
+
+    await this.db.execute('DELETE FROM "column" WHERE id = ?', [id]);
+
+    if (this.eventService) {
+      const boardRows = await this.db.query<{ project_id: string }>('SELECT project_id FROM board WHERE id = ?', [existing.board_id]);
+      if (boardRows[0]) {
+        await this.eventService.create({
+          project_id: boardRows[0].project_id,
+          entity_type: 'column',
+          entity_id: id,
+          action: 'deleted',
+          actor_id: actorId,
+        });
+      }
+    }
   }
 }

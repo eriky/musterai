@@ -1,348 +1,274 @@
-import React, { useState, useEffect } from 'react';
-import { Project, Board, Document, AgentRegistration, CAPEvent, Card } from './types';
+// File: src/web/App.tsx
+import React, { useEffect, useState, useCallback } from 'react';
+import { Project, Board, Column, Card, Agent, Document, Event, ProjectSummary } from './types.js';
+import { api } from './api.js';
+import { Header } from './components/Header.js';
+import { AgentGrid } from './components/AgentGrid.js';
+import { KanbanBoard } from './components/KanbanBoard.js';
+import { DocumentVault } from './components/DocumentVault.js';
+import { TacticalTerminal } from './components/TacticalTerminal.js';
 import {
-  fetchProjects, fetchProjectSummary, fetchBoards, fetchBoardDetails,
-  fetchDocuments, fetchAgents, fetchEvents, subscribeEvents, moveCard, fetchCardDetails
-} from './api';
-import { Header } from './components/Header';
-import { Dashboard } from './components/Dashboard';
-import { KanbanBoard } from './components/KanbanBoard';
-import { CardModal } from './components/CardModal';
-import { DocumentHub } from './components/DocumentHub';
-import { ActivityFeed } from './components/ActivityFeed';
-import { AgentsHub } from './components/AgentsHub';
-import {
-  CreateProjectModal, CreateBoardModal, CreateCardModal,
-  CreateDocumentModal, RegisterAgentModal
-} from './components/Modals';
+  NewProjectModal,
+  NewBoardModal,
+  NewColumnModal,
+  NewAgentModal,
+  NewCardModal,
+  NewDocModal,
+} from './components/Modals.js';
 
 export const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [activeProject, setActiveProject] = useState<Project | null>(null);
-  const [projectSummary, setProjectSummary] = useState<Project | null>(null);
-
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'board' | 'documents' | 'activity' | 'agents'>('dashboard');
-
-  const [boards, setBoards] = useState<Board[]>([]);
-  const [activeBoard, setActiveBoard] = useState<Board | null>(null);
-
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [summary, setSummary] = useState<ProjectSummary | null>(null);
+  
+  const [board, setBoard] = useState<Board | null>(null);
+  const [columns, setColumns] = useState<Column[]>([]);
+  const [cards, setCards] = useState<Card[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [agents, setAgents] = useState<AgentRegistration[]>([]);
-  const [events, setEvents] = useState<CAPEvent[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
 
-  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
-  const [isSseConnected, setIsSseConnected] = useState(false);
+  const [activeTab, setActiveTab] = useState<'agents' | 'board' | 'docs' | 'activity'>('board');
 
-  // Modal States
-  const [showProjectModal, setShowProjectModal] = useState(false);
-  const [showBoardModal, setShowBoardModal] = useState(false);
-  const [showCardModal, setShowCardModal] = useState<string | null>(null); // columnId
-  const [showDocModal, setShowDocModal] = useState(false);
+  // Modals visibility
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [showNewBoardModal, setShowNewBoardModal] = useState(false);
+  const [showNewColumnModal, setShowNewColumnModal] = useState(false);
   const [showRegisterAgentModal, setShowRegisterAgentModal] = useState(false);
+  const [showNewCardModal, setShowNewCardModal] = useState(false);
+  const [showNewDocModal, setShowNewDocModal] = useState(false);
+  const [targetColumnId, setTargetColumnId] = useState<string | undefined>(undefined);
 
-  // Load initial projects
-  const loadProjects = async () => {
+  // Load Projects
+  const loadProjects = useCallback(async (selectId?: string) => {
     try {
-      const list = await fetchProjects();
+      const list = await api.getProjects();
       setProjects(list);
-      if (list.length > 0 && !activeProject) {
-        setActiveProject(list[0]);
+      if (selectId) {
+        setSelectedProjectId(selectId);
+      } else if (list.length > 0 && !selectedProjectId) {
+        setSelectedProjectId(list[0].id);
       }
     } catch (err) {
       console.error('Error loading projects:', err);
     }
-  };
+  }, [selectedProjectId]);
 
-  useEffect(() => {
-    loadProjects();
-  }, []);
+  // Load Selected Project Data
+  const loadProjectData = useCallback(async () => {
+    if (!selectedProjectId) return;
 
-  // URL Path Sync Helper (HTML5 History API)
-  const updateUrl = (tab: string, boardId?: string | null, cardId?: string | null) => {
-    let targetPath = `/${tab}`;
-    if (cardId) {
-      targetPath = `/cards/${cardId}`;
-    } else if (tab === 'board' && boardId) {
-      targetPath = `/boards/${boardId}`;
-    }
-    if (window.location.pathname !== targetPath) {
-      window.history.pushState(null, '', targetPath);
-    }
-  };
-
-  // Sync state from URL pathname
-  const parseAndApplyRoute = async () => {
-    const cleanPath = window.location.pathname.replace(/^\/+/, '');
-    const parts = cleanPath.split('/');
-    const route = parts[0] || 'dashboard';
-    const routeId = parts[1];
-
-    if (route === '' || route === 'dashboard') {
-      setActiveTab('dashboard');
-      setSelectedCard(null);
-    } else if (route === 'board' || route === 'boards') {
-      setActiveTab('board');
-      setSelectedCard(null);
-      if (routeId) {
-        try {
-          const b = await fetchBoardDetails(routeId);
-          setActiveBoard(b);
-        } catch (_) {}
-      }
-    } else if (route === 'card' || route === 'cards') {
-      setActiveTab('board');
-      if (routeId) {
-        try {
-          const c = await fetchCardDetails(routeId);
-          setSelectedCard(c);
-        } catch (_) {}
-      }
-    } else if (['documents', 'activity', 'agents'].includes(route)) {
-      setActiveTab(route as any);
-      setSelectedCard(null);
-    }
-  };
-
-  // Listen to browser Back/Forward (popstate)
-  useEffect(() => {
-    const handlePopState = () => {
-      parseAndApplyRoute();
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  // Load project workspace data whenever active project changes
-  const refreshProjectData = async () => {
-    if (!activeProject) return;
     try {
-      const [sum, bList, dList, aList, eList] = await Promise.all([
-        fetchProjectSummary(activeProject.id).catch(() => null),
-        fetchBoards(activeProject.id),
-        fetchDocuments(activeProject.id),
-        fetchAgents(activeProject.id),
-        fetchEvents(activeProject.id),
+      const [sumData, boardsData, agentsData, docsData, eventsData] = await Promise.all([
+        api.getProjectSummary(selectedProjectId),
+        api.getBoards(selectedProjectId),
+        api.getAgents(selectedProjectId),
+        api.getDocuments(selectedProjectId),
+        api.getEvents(selectedProjectId, 40),
       ]);
 
-      if (sum) setProjectSummary(sum);
-      setBoards(bList);
-      setDocuments(dList);
-      setAgents(aList);
-      setEvents(eList);
+      setSummary(sumData);
+      setAgents(agentsData);
+      setDocuments(docsData);
+      setEvents(eventsData);
 
-      if (bList.length > 0) {
-        const targetBoardId = activeBoard && bList.some(b => b.id === activeBoard.id)
-          ? activeBoard.id
-          : bList[0].id;
-        const fullBoard = await fetchBoardDetails(targetBoardId);
-        setActiveBoard(fullBoard);
+      if (boardsData.length > 0) {
+        const boardDetails = await api.getBoardDetails(boardsData[0].id);
+        setBoard(boardDetails);
+        setColumns(boardDetails.columns || []);
+        setCards(boardDetails.cards || []);
       } else {
-        setActiveBoard(null);
+        setBoard(null);
+        setColumns([]);
+        setCards([]);
       }
-
-      // Apply initial route on load
-      await parseAndApplyRoute();
     } catch (err) {
       console.error('Error loading project data:', err);
     }
-  };
+  }, [selectedProjectId]);
 
   useEffect(() => {
-    refreshProjectData();
-  }, [activeProject]);
+    loadProjects();
+  }, [loadProjects]);
 
-  // Subscribe to SSE event stream for live updates without page refresh
   useEffect(() => {
-    if (!activeProject) return;
-    setIsSseConnected(true);
+    loadProjectData();
+  }, [loadProjectData]);
 
-    const unsubscribe = subscribeEvents(activeProject.id, (newEvent) => {
-      setEvents((prev) => [newEvent, ...prev]);
-      refreshProjectData();
-      if (selectedCard && (newEvent.entity_type === 'card' || newEvent.entity_type === 'comment')) {
-        fetchCardDetails(selectedCard.id).then(setSelectedCard).catch(console.error);
+  // Real-Time SSE Event Stream + Polling Fallback Hook
+  useEffect(() => {
+    if (!selectedProjectId) return;
+
+    // 1. Real-Time SSE EventSource
+    const sseUrl = `/api/v1/projects/${selectedProjectId}/events/stream`;
+    const eventSource = new EventSource(sseUrl);
+
+    const handleEvent = (e: MessageEvent) => {
+      try {
+        const newEvt: Event = JSON.parse(e.data);
+        setEvents((prev) => [newEvt, ...prev.slice(0, 49)]);
+        loadProjectData();
+      } catch (err) {
+        console.error('Error parsing SSE event:', err);
       }
-    });
+    };
+
+    eventSource.onmessage = handleEvent;
+    eventSource.onerror = (err) => {
+      console.warn('SSE connection error, falling back to polling:', err);
+    };
+
+    // 2. Continuous 3-second background polling fallback
+    const pollInterval = setInterval(() => {
+      loadProjectData();
+    }, 3000);
 
     return () => {
-      setIsSseConnected(false);
-      unsubscribe();
+      eventSource.close();
+      clearInterval(pollInterval);
     };
-  }, [activeProject, selectedCard]);
+  }, [selectedProjectId, loadProjectData]);
 
-  const handleTabChange = (tab: 'dashboard' | 'board' | 'documents' | 'activity' | 'agents') => {
-    setActiveTab(tab);
-    setSelectedCard(null);
-    updateUrl(tab, activeBoard?.id, null);
-  };
-
-  const handleSelectBoard = async (board: Board) => {
+  const handleMoveCard = async (cardId: string, targetColumnId: string, position?: string) => {
     try {
-      const fullBoard = await fetchBoardDetails(board.id);
-      setActiveBoard(fullBoard);
-      updateUrl('board', board.id, null);
+      await api.moveCard(cardId, targetColumnId, position);
+      loadProjectData();
     } catch (err) {
-      console.error('Error selecting board:', err);
+      console.error('Failed to move card:', err);
     }
   };
 
-  const handleMoveCard = async (cardId: string, targetColumnId: string) => {
+  const handleAgentHeartbeat = async (agentId: string) => {
     try {
-      await moveCard(cardId, targetColumnId);
-      if (activeBoard) {
-        const fullBoard = await fetchBoardDetails(activeBoard.id);
-        setActiveBoard(fullBoard);
-      }
+      await api.agentHeartbeat(agentId);
+      loadProjectData();
     } catch (err) {
-      console.error('Error moving card:', err);
+      console.error('Failed to send heartbeat:', err);
     }
   };
 
-  const handleOpenCardDetails = async (card: Card) => {
+  const handleUnregisterAgent = async (agentId: string) => {
     try {
-      const fullCard = await fetchCardDetails(card.id);
-      setSelectedCard(fullCard);
-      updateUrl('board', activeBoard?.id, card.id);
-    } catch (_) {
-      setSelectedCard(card);
-      updateUrl('board', activeBoard?.id, card.id);
+      await api.unregisterAgent(agentId);
+      loadProjectData();
+    } catch (err) {
+      console.error('Failed to unregister agent:', err);
     }
   };
 
-  const handleCloseCardModal = () => {
-    setSelectedCard(null);
-    updateUrl(activeTab, activeBoard?.id, null);
-  };
-
-  const handleRefreshCardModal = async () => {
-    if (selectedCard) {
-      const fullCard = await fetchCardDetails(selectedCard.id);
-      setSelectedCard(fullCard);
-      refreshProjectData();
-    }
+  const handleOpenNewCardModal = (colId?: string) => {
+    setTargetColumnId(colId);
+    setShowNewCardModal(true);
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Header Bar */}
+    <div className="min-h-screen flex flex-col bg-command-bg text-zinc-100 font-sans w-full">
+      
+      {/* Platform Header */}
       <Header
         projects={projects}
-        activeProject={activeProject}
-        onSelectProject={(p) => {
-          setActiveBoard(null);
-          setActiveProject(p);
-        }}
-        onOpenNewProject={() => setShowProjectModal(true)}
+        selectedProjectId={selectedProjectId}
+        onSelectProject={setSelectedProjectId}
+        summary={summary}
         activeTab={activeTab}
-        onTabChange={handleTabChange}
-        isSseConnected={isSseConnected}
+        onSelectTab={setActiveTab}
+        onOpenNewProject={() => setShowNewProjectModal(true)}
+        onOpenNewBoard={() => setShowNewBoardModal(true)}
+        onOpenRegisterAgent={() => setShowRegisterAgentModal(true)}
+        onOpenNewCard={() => handleOpenNewCardModal()}
+        onOpenNewDoc={() => setShowNewDocModal(true)}
       />
 
-      {/* Main Workspace Body */}
-      <main style={{ flex: 1 }}>
-        {activeTab === 'dashboard' && (
-          <Dashboard
-            project={activeProject}
-            summary={projectSummary}
+      {/* Main Full-Width View Area */}
+      <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-6">
+        {activeTab === 'agents' && (
+          <AgentGrid
             agents={agents}
-            events={events}
-            boards={boards}
-            documents={documents}
-            onNavigate={(tab) => setActiveTab(tab)}
-            onOpenNewCard={() => {
-              if (activeBoard?.columns && activeBoard.columns.length > 0) {
-                setShowCardModal(activeBoard.columns[0].id);
-              } else {
-                setActiveTab('board');
-              }
-            }}
-            onOpenNewDoc={() => setShowDocModal(true)}
+            cards={cards}
+            onHeartbeat={handleAgentHeartbeat}
+            onUnregisterAgent={handleUnregisterAgent}
             onOpenRegisterAgent={() => setShowRegisterAgentModal(true)}
           />
         )}
 
         {activeTab === 'board' && (
           <KanbanBoard
-            boards={boards}
-            activeBoard={activeBoard}
-            onSelectBoard={handleSelectBoard}
-            onOpenCreateBoard={() => setShowBoardModal(true)}
-            onOpenCreateCard={(colId) => setShowCardModal(colId)}
-            onOpenCardDetails={handleOpenCardDetails}
-            onMoveCard={handleMoveCard}
+            board={board}
+            columns={columns}
+            cards={cards}
             agents={agents}
+            onMoveCard={handleMoveCard}
+            onOpenNewCard={handleOpenNewCardModal}
+            onOpenNewColumn={() => setShowNewColumnModal(true)}
+            onRefresh={loadProjectData}
           />
         )}
 
-        {activeTab === 'documents' && (
-          <DocumentHub
+        {activeTab === 'docs' && (
+          <DocumentVault
             documents={documents}
-            agents={agents}
-            onOpenCreateDoc={() => setShowDocModal(true)}
-            onRefresh={refreshProjectData}
+            onOpenNewDoc={() => setShowNewDocModal(true)}
+            onRefresh={loadProjectData}
           />
         )}
 
         {activeTab === 'activity' && (
-          <ActivityFeed events={events} agents={agents} />
-        )}
-
-        {activeTab === 'agents' && (
-          <AgentsHub
-            agents={agents}
-            onOpenRegisterAgent={() => setShowRegisterAgentModal(true)}
+          <TacticalTerminal
+            events={events}
+            onRefresh={loadProjectData}
           />
         )}
       </main>
 
       {/* Modals */}
-      {showProjectModal && (
-        <CreateProjectModal
-          onClose={() => setShowProjectModal(false)}
-          onRefresh={loadProjects}
+      {showNewProjectModal && (
+        <NewProjectModal
+          onClose={() => setShowNewProjectModal(false)}
+          onSuccess={(newId) => loadProjects(newId)}
         />
       )}
 
-      {showBoardModal && activeProject && (
-        <CreateBoardModal
-          projectId={activeProject.id}
-          onClose={() => setShowBoardModal(false)}
-          onRefresh={refreshProjectData}
+      {showNewBoardModal && selectedProjectId && (
+        <NewBoardModal
+          projectId={selectedProjectId}
+          onClose={() => setShowNewBoardModal(false)}
+          onSuccess={loadProjectData}
         />
       )}
 
-      {showCardModal && (
-        <CreateCardModal
-          columnId={showCardModal}
-          onClose={() => setShowCardModal(null)}
-          onRefresh={refreshProjectData}
+      {showNewColumnModal && board && (
+        <NewColumnModal
+          boardId={board.id}
+          onClose={() => setShowNewColumnModal(false)}
+          onSuccess={loadProjectData}
         />
       )}
 
-      {showDocModal && activeProject && (
-        <CreateDocumentModal
-          projectId={activeProject.id}
-          onClose={() => setShowDocModal(false)}
-          onRefresh={refreshProjectData}
-        />
-      )}
-
-      {showRegisterAgentModal && activeProject && (
-        <RegisterAgentModal
-          projectId={activeProject.id}
+      {showRegisterAgentModal && selectedProjectId && (
+        <NewAgentModal
+          projectId={selectedProjectId}
           onClose={() => setShowRegisterAgentModal(false)}
-          onRefresh={refreshProjectData}
+          onSuccess={loadProjectData}
         />
       )}
 
-      {selectedCard && (
-        <CardModal
-          card={selectedCard}
-          agents={agents}
-          onClose={handleCloseCardModal}
-          onRefresh={handleRefreshCardModal}
+      {showNewCardModal && (
+        <NewCardModal
+          columns={columns}
+          defaultColumnId={targetColumnId}
+          onClose={() => setShowNewCardModal(false)}
+          onSuccess={loadProjectData}
         />
       )}
+
+      {showNewDocModal && selectedProjectId && (
+        <NewDocModal
+          projectId={selectedProjectId}
+          onClose={() => setShowNewDocModal(false)}
+          onSuccess={loadProjectData}
+        />
+      )}
+
     </div>
   );
 };

@@ -1,36 +1,63 @@
 // File: src/api/routes/project.routes.ts
-import { Router } from 'express';
-import { ProjectService } from '../../services/index.js';
+import { Router, Request, Response, NextFunction } from 'express';
+import { ProjectService } from '../../services/project.service.js';
 
-export function createProjectRoutes(projectService: ProjectService): Router {
+export function createProjectRouter(projectService: ProjectService): Router {
   const router = Router();
 
-  router.post('/', async (req, res, next) => {
+  router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await projectService.create(req.body);
-      res.status(201).json(result);
-    } catch (err) { next(err); }
+      const projects = await projectService.list();
+      res.json(projects);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.get('/', async (req, res, next) => {
+  router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await projectService.list();
-      res.json(result);
-    } catch (err) { next(err); }
+      const project = await projectService.create(req.body);
+      res.status(201).json(project);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.get('/:id', async (req, res, next) => {
+  router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await projectService.getById(req.params.id);
-      res.json(result);
-    } catch (err) { next(err); }
+      const project = await projectService.getById(req.params.id);
+      if (!project) return res.status(404).json({ error: 'Project not found' });
+      res.json(project);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.get('/:id/summary', async (req, res, next) => {
+  router.put('/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await projectService.getSummary(req.params.id);
-      res.json(result);
-    } catch (err) { next(err); }
+      const project = await projectService.update(req.params.id, req.body);
+      res.json(project);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await projectService.delete(req.params.id);
+      res.status(204).end();
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.get('/:id/summary', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const summary = await projectService.getSummary(req.params.id);
+      res.json(summary);
+    } catch (err) {
+      next(err);
+    }
   });
 
   return router;

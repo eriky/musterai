@@ -1,97 +1,60 @@
 // File: src/db/sqlite-adapter.ts
-import initSqlJs from 'sql.js';
-import { DatabaseAdapter } from './adapter.js';
+import Database from 'better-sqlite3';
 import path from 'node:path';
 import fs from 'node:fs';
+import { DatabaseAdapter, ExecutionResult } from './adapter.js';
 
 export class SQLiteAdapter implements DatabaseAdapter {
-  private db: any = null;
-  private initialized = false;
-  private dbPath: string;
-  private transactionDepth = 0;
+  private db: Database.Database;
 
   constructor(filepath: string) {
-    this.dbPath = filepath;
-  }
-
-  private async init(): Promise<void> {
-    if (this.initialized) return;
-    const SQL = await initSqlJs();
-    if (fs.existsSync(this.dbPath)) {
-      const fileBuffer = fs.readFileSync(this.dbPath);
-      this.db = new SQL.Database(fileBuffer);
-    } else {
-      this.db = new SQL.Database();
+    if (filepath !== ':memory:') {
+      const dir = path.dirname(filepath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
     }
-    this.db.run('PRAGMA foreign_keys = ON;');
-    this.initialized = true;
-  }
-
-  private save(): void {
-    if (!this.db || this.transactionDepth > 0) return;
-    const data = this.db.export();
-    const buffer = Buffer.from(data);
-    const dir = path.dirname(this.dbPath);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(this.dbPath, buffer);
+    this.db = new Database(filepath);
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('foreign_keys = ON');
   }
 
   async query<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {
-    await this.init();
     const stmt = this.db.prepare(sql);
-    stmt.bind(params);
-    const results: T[] = [];
-    while (stmt.step()) {
-      results.push(stmt.getAsObject() as T);
-    }
-    stmt.free();
-    return results;
+    return stmt.all(...params) as T[];
   }
 
-  async execute(sql: string, params: unknown[] = []): Promise<{ changes: number; lastInsertRowid?: number | bigint }> {
-    await this.init();
-    this.db.run(sql, params);
-    this.save();
-    return { changes: this.db.getRowsModified() };
+  async execute(sql: string, params: unknown[] = []): Promise<ExecutionResult> {
+    const stmt = this.db.prepare(sql);
+    const info = stmt.run(...params);
+    return {
+      changes: info.changes,
+      lastInsertRowid: info.lastInsertRowid,
+    };
   }
 
   async transaction<T>(fn: (adapter: DatabaseAdapter) => Promise<T>): Promise<T> {
-    await this.init();
-    const isTopLevel = this.transactionDepth === 0;
-    if (isTopLevel) {
-      this.db.run('BEGIN');
-    }
-    this.transactionDepth++;
+    // Execute inside a synchronous SQLite transaction wrapper while accommodating async callbacks
+    this.db.exec('BEGIN IMMEDIATE');
     try {
       const result = await fn(this);
-      if (isTopLevel) {
-        this.db.run('COMMIT');
-      }
+      this.db.exec('COMMIT');
       return result;
     } catch (error) {
-      if (isTopLevel) {
-        try { this.db.run('ROLLBACK'); } catch (_) { /* ignore rollback errors */ }
+      try {
+        this.db.exec('ROLLBACK');
+      } catch {
+        // Ignore rollback failure if already rolled back
       }
       throw error;
-    } finally {
-      this.transactionDepth--;
-      if (isTopLevel) {
-        this.save();
-      }
     }
   }
 
   async migrate(sql: string): Promise<void> {
-    await this.init();
     this.db.exec(sql);
-    this.save();
   }
 
-  close(): void {
-    if (this.db) {
-      this.save();
-      this.db.close();
-      this.db = null;
-    }
+  async close(): Promise<void> {
+    this.db.close();
   }
 }

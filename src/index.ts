@@ -1,6 +1,6 @@
 // File: src/index.ts
 import express, { Request, Response } from 'express';
-import path from 'path';
+import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createDatabaseAdapter } from './db/factory.js';
@@ -26,10 +26,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function main() {
-  // Initialize database
   const db = createDatabaseAdapter();
   
-  // Run migrations
   const migrator = new Migrator(db, path.join(__dirname, 'db/migrations'));
   await migrator.run();
 
@@ -39,34 +37,60 @@ async function main() {
   });
 
   const boardService = new BoardService(db, eventService);
+  const documentService = new DocumentService(db, eventService);
   const services: Services = {
-    projectService: new ProjectService(db, eventService, boardService),
+    projectService: new ProjectService(db, eventService, boardService, documentService),
     boardService,
     columnService: new ColumnService(db, eventService),
     cardService: new CardService(db, eventService),
     commentService: new CommentService(db, eventService),
-    documentService: new DocumentService(db, eventService),
+    documentService,
     agentService: new AgentService(db, eventService),
     eventService
   };
 
   const existingProjects = await services.projectService.list();
-  console.log(`Starting CAP... Found ${existingProjects.length} existing project(s).`);
+  if (existingProjects.length === 0) {
+    console.log('No existing projects found. Creating default project "Alpha Agent Project"...');
+    await services.projectService.create({
+      name: 'Alpha Agent Project',
+      description: 'Primary project for AI agent collaboration'
+    });
+  }
 
   const app = express();
   app.use(express.json());
   
-  // API routes
-  const apiRouter = createRouter(services, sseManager);
+  const apiRouter = createRouter(services, sseManager, db);
   app.use('/api', apiRouter);
   
-  // Serve static files from public directory
   const publicDir = config.publicDir;
   if (fs.existsSync(publicDir)) {
     app.use(express.static(publicDir));
   }
 
-  // SPA Fallback Handler: Serve index.html for root and client routes
+  // MCP Streamable HTTP Transport
+  app.post('/mcp', async (req: Request, res: Response) => {
+    const mcpServer = createMcpServer(services);
+    const mcpTransport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+    });
+    try {
+      await mcpServer.connect(mcpTransport);
+      await mcpTransport.handleRequest(req, res, req.body);
+    } catch (error) {
+      console.error('Error handling MCP request:', error);
+      if (!res.headersSent) {
+        res.status(500).json({
+          jsonrpc: '2.0',
+          error: { code: -32603, message: 'Internal server error' },
+          id: req.body?.id || null,
+        });
+      }
+    }
+  });
+
+  // SPA Fallback Handler
   app.get('*', (req: Request, res: Response, next) => {
     if (req.path.startsWith('/api') || req.path.startsWith('/mcp')) {
       return next();
@@ -79,57 +103,46 @@ async function main() {
     }
   });
 
-  // Error handling
   app.use(errorHandler);
-
-  // MCP Streamable HTTP endpoint (per-request transport, stateless)
-  const mcpServer = createMcpServer(services);
-  app.post('/mcp', async (req: Request, res: Response) => {
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-    });
-    try {
-      await mcpServer.connect(transport);
-      await transport.handleRequest(req, res, req.body);
-      res.on('close', () => {
-        transport.close();
-        mcpServer.close();
-      });
-    } catch (error) {
-      console.error('Error handling MCP request:', error);
-      if (!res.headersSent) {
-        res.status(500).json({
-          jsonrpc: '2.0',
-          error: {
-            code: -32603,
-            message: 'Internal server error',
-          },
-          id: null,
-        });
-      }
-    }
-  });
 
   const statusTimer = setInterval(() => services.agentService.updateStatus().catch(console.error), 60000);
 
-  const port = config.port;
-  const server = app.listen(port, () => {
-    console.log(`Server listening on http://${config.host}:${port}`);
-    console.log(`API: http://${config.host}:${port}/api`);
-    console.log(`MCP: POST http://${config.host}:${port}/mcp`);
-    console.log(`Web UI: http://${config.host}:${port}`);
-  });
+  const initialPort = config.port;
 
-  const shutdown = async () => {
-    console.log('Shutting down...');
-    clearInterval(statusTimer);
-    server.close();
-    await db.close();
-    process.exit(0);
+  const listenOnPort = (port: number) => {
+    const server = app.listen(port, () => {
+      console.log(`\n======================================================`);
+      console.log(`  Collaborative Agent Platform (CAP) v2.0 - ONLINE`);
+      console.log(`======================================================`);
+      console.log(`  • Web UI:   http://${config.host}:${port}`);
+      console.log(`  • REST API: http://${config.host}:${port}/api/v1`);
+      console.log(`  • MCP Tool: POST http://${config.host}:${port}/mcp`);
+      console.log(`======================================================\n`);
+    });
+
+    server.on('error', (err: any) => {
+      if (err.code === 'EADDRINUSE') {
+        console.warn(`[CAP] Port ${port} is currently in use. Trying port ${port + 1}...`);
+        listenOnPort(port + 1);
+      } else {
+        console.error('[CAP] Server error:', err);
+      }
+    });
+
+    const shutdown = async () => {
+      console.log('Shutting down CAP...');
+      clearInterval(statusTimer);
+      sseManager.close();
+      server.close();
+      await db.close();
+      process.exit(0);
+    };
+
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
   };
 
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+  listenOnPort(initialPort);
 }
 
 main().catch(console.error);

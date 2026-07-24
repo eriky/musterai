@@ -1,9 +1,7 @@
 // File: src/services/document.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Document, CreateDocument, UpdateDocument, DocumentVersion, CAPEvent, DocumentStatus } from '../shared/types.js';
-import { NotFoundError } from '../shared/errors.js';
-
+import { Document, DocumentVersion, CreateDocument, UpdateDocument } from '../shared/types.js';
 import { EventService } from './event.service.js';
 
 export class DocumentService {
@@ -12,126 +10,176 @@ export class DocumentService {
     private eventService?: EventService
   ) {}
 
-  async create(data: CreateDocument): Promise<Document> {
-    const now = new Date().toISOString();
-    const docId = ulid();
+  async create(data: CreateDocument, actorId?: string): Promise<Document> {
+    const id = ulid();
+    const created_at = new Date().toISOString();
+    const updated_at = created_at;
+
+    const parent_id = data.parent_id || null;
+    const author_id = data.author_id || actorId || null;
+    const status = 'draft';
+    const version = 1;
+
+    await this.db.execute(
+      `INSERT INTO document (id, project_id, parent_id, title, content, status, author_id, version, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, data.project_id, parent_id, data.title, data.content, status, author_id, version, created_at, updated_at]
+    );
+
+    // Initial version entry
+    const versionId = ulid();
+    await this.db.execute(
+      `INSERT INTO document_version (id, document_id, version, title, content, author_id, change_summary, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [versionId, id, 1, data.title, data.content, author_id, 'Initial document creation', created_at]
+    );
 
     const doc: Document = {
-      id: docId,
+      id,
       project_id: data.project_id,
-      parent_id: data.parent_id || null,
+      parent_id,
       title: data.title,
       content: data.content,
-      status: 'draft',
-      author_id: data.author_id,
+      status,
+      author_id,
       version: 1,
-      created_at: now,
-      updated_at: now
+      created_at,
+      updated_at,
     };
 
-    await this.db.transaction(async (tx) => {
-      await tx.execute(
-        `INSERT INTO documents (id, project_id, parent_id, title, content, status, author_id, version, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [doc.id, doc.project_id, doc.parent_id, doc.title, doc.content, doc.status, doc.author_id, doc.version, doc.created_at, doc.updated_at]
-      );
-
-      const verId = ulid();
-      await tx.execute(
-        `INSERT INTO document_versions (id, document_id, version, content, author_id, change_summary, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [verId, doc.id, doc.version, doc.content, doc.author_id, 'Initial creation', now]
-      );
-    });
-
-    await this.eventService?.emit(doc.project_id, 'document', doc.id, 'created', doc.author_id, { title: doc.title, version: doc.version });
+    if (this.eventService) {
+      await this.eventService.create({
+        project_id: data.project_id,
+        entity_type: 'document',
+        entity_id: id,
+        action: 'created',
+        actor_id: author_id || undefined,
+        payload: { title: doc.title, version: 1 },
+      });
+    }
 
     return doc;
   }
 
-  async list(projectId: string, filters?: { status?: DocumentStatus; parentId?: string }): Promise<Document[]> {
-    let sql = `SELECT * FROM documents WHERE project_id = ?`;
-    const params: any[] = [projectId];
+  async getById(id: string, versionNumber?: number): Promise<Document | null> {
+    if (versionNumber) {
+      const verRows = await this.db.query<DocumentVersion>(
+        'SELECT * FROM document_version WHERE document_id = ? AND version = ?',
+        [id, versionNumber]
+      );
+      if (!verRows[0]) return null;
 
-    if (filters?.status) {
-      sql += ` AND status = ?`;
+      const docRows = await this.db.query<Document>('SELECT * FROM document WHERE id = ?', [id]);
+      if (!docRows[0]) return null;
+
+      return {
+        ...docRows[0],
+        title: verRows[0].title,
+        content: verRows[0].content,
+        version: verRows[0].version,
+        updated_at: verRows[0].created_at,
+      };
+    }
+
+    const rows = await this.db.query<Document>('SELECT * FROM document WHERE id = ?', [id]);
+    return rows[0] || null;
+  }
+
+  async list(projectId: string, filters: { status?: string; parent_id?: string | null } = {}): Promise<Document[]> {
+    let sql = 'SELECT * FROM document WHERE project_id = ?';
+    const params: unknown[] = [projectId];
+
+    if (filters.status) {
+      sql += ' AND status = ?';
       params.push(filters.status);
     }
-    if (filters?.parentId !== undefined) {
-      if (filters.parentId === null) {
-        sql += ` AND parent_id IS NULL`;
+
+    if (filters.parent_id !== undefined) {
+      if (filters.parent_id === null) {
+        sql += ' AND parent_id IS NULL';
       } else {
-        sql += ` AND parent_id = ?`;
-        params.push(filters.parentId);
+        sql += ' AND parent_id = ?';
+        params.push(filters.parent_id);
       }
     }
 
-    sql += ` ORDER BY updated_at DESC`;
-
+    sql += ' ORDER BY title ASC';
     return this.db.query<Document>(sql, params);
   }
 
-  async getById(id: string, version?: number): Promise<Document> {
-    const rows = await this.db.query<Document>(`SELECT * FROM documents WHERE id = ?`, [id]);
-    if (rows.length === 0) {
-      throw new NotFoundError(`Document with ID ${id} not found`);
-    }
-    const doc = rows[0];
+  async update(id: string, data: UpdateDocument, actorId?: string): Promise<Document> {
+    const existing = await this.getById(id);
+    if (!existing) throw new Error(`Document with ID ${id} not found`);
 
-    if (version !== undefined) {
-      const verRows = await this.db.query<DocumentVersion>(
-        `SELECT * FROM document_versions WHERE document_id = ? AND version = ?`, [id, version]
-      );
-      if (verRows.length > 0) {
-        doc.content = verRows[0].content;
-        doc.version = verRows[0].version;
-      } else {
-        throw new NotFoundError(`Version ${version} of Document ${id} not found`);
-      }
+    const title = data.title !== undefined ? data.title : existing.title;
+    const content = data.content !== undefined ? data.content : existing.content;
+    const author_id = data.author_id || actorId || existing.author_id;
+    const change_summary = data.change_summary || 'Updated content';
+    const newVersion = existing.version + 1;
+    const updated_at = new Date().toISOString();
+
+    await this.db.execute(
+      `UPDATE document SET title = ?, content = ?, author_id = ?, version = ?, updated_at = ? WHERE id = ?`,
+      [title, content, author_id, newVersion, updated_at, id]
+    );
+
+    const versionId = ulid();
+    await this.db.execute(
+      `INSERT INTO document_version (id, document_id, version, title, content, author_id, change_summary, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [versionId, id, newVersion, title, content, author_id, change_summary, updated_at]
+    );
+
+    const updated: Document = {
+      ...existing,
+      title,
+      content,
+      author_id,
+      version: newVersion,
+      updated_at,
+    };
+
+    if (this.eventService) {
+      await this.eventService.create({
+        project_id: existing.project_id,
+        entity_type: 'document',
+        entity_id: id,
+        action: 'updated',
+        actor_id: author_id || undefined,
+        payload: { title, version: newVersion, change_summary },
+      });
     }
 
-    return doc;
+    return updated;
   }
 
-  async update(id: string, data: UpdateDocument): Promise<Document> {
-    const doc = await this.getById(id);
-    const now = new Date().toISOString();
-    const newVersion = doc.version + 1;
+  async setStatus(id: string, status: 'draft' | 'in_review' | 'approved' | 'archived', actorId?: string): Promise<Document> {
+    const existing = await this.getById(id);
+    if (!existing) throw new Error(`Document with ID ${id} not found`);
 
-    const updatedTitle = data.title !== undefined ? data.title : doc.title;
-    const updatedContent = data.content !== undefined ? data.content : doc.content;
-    const authorId = data.author_id || doc.author_id;
+    const updated_at = new Date().toISOString();
+    await this.db.execute('UPDATE document SET status = ?, updated_at = ? WHERE id = ?', [status, updated_at, id]);
 
-    await this.db.transaction(async (tx) => {
-      await tx.execute(
-        `UPDATE documents SET title = ?, content = ?, version = ?, updated_at = ? WHERE id = ?`,
-        [updatedTitle, updatedContent, newVersion, now, id]
-      );
+    const updated: Document = { ...existing, status, updated_at };
 
-      const verId = ulid();
-      await tx.execute(
-        `INSERT INTO document_versions (id, document_id, version, content, author_id, change_summary, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [verId, doc.id, newVersion, updatedContent, authorId, data.change_summary || null, now]
-      );
-    });
+    if (this.eventService) {
+      await this.eventService.create({
+        project_id: existing.project_id,
+        entity_type: 'document',
+        entity_id: id,
+        action: 'status_changed',
+        actor_id: actorId,
+        payload: { from: existing.status, to: status },
+      });
+    }
 
-    await this.eventService?.emit(doc.project_id, 'document', doc.id, 'updated', authorId, { title: updatedTitle, version: newVersion, change_summary: data.change_summary });
-
-    return this.getById(id);
-  }
-
-  async setStatus(id: string, status: DocumentStatus): Promise<Document> {
-    const doc = await this.getById(id);
-    const now = new Date().toISOString();
-    await this.db.execute(`UPDATE documents SET status = ?, updated_at = ? WHERE id = ?`, [status, now, id]);
-    await this.eventService?.emit(doc.project_id, 'document', id, 'status_changed', doc.author_id, { status });
-    return this.getById(id);
+    return updated;
   }
 
   async getHistory(id: string): Promise<DocumentVersion[]> {
     return this.db.query<DocumentVersion>(
-      `SELECT * FROM document_versions WHERE document_id = ? ORDER BY version DESC`, [id]
+      'SELECT * FROM document_version WHERE document_id = ? ORDER BY version DESC',
+      [id]
     );
   }
 }

@@ -1,10 +1,9 @@
 // File: src/services/board.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Board, CreateBoard, Column, Label, CAPEvent, Card } from '../shared/types.js';
-import { NotFoundError } from '../shared/errors.js';
-
+import { Board, CreateBoard, UpdateBoard, Label, CreateLabel } from '../shared/types.js';
 import { EventService } from './event.service.js';
+import { rankAfter } from '../shared/lexorank.js';
 
 export class BoardService {
   constructor(
@@ -12,131 +11,121 @@ export class BoardService {
     private eventService?: EventService
   ) {}
 
-  private async seedDefaultColumns(boardId: string): Promise<void> {
-    const now = new Date().toISOString();
-    const defaultCols = [
-      { name: 'Backlog', pos: 'm', wip: null },
-      { name: 'To Do', pos: 'n', wip: null },
-      { name: 'In Progress', pos: 'o', wip: 3 },
-      { name: 'In Review', pos: 'p', wip: 2 },
-      { name: 'Done', pos: 'q', wip: null }
-    ];
-
-    for (const col of defaultCols) {
-      const colId = ulid();
-      await this.db.execute(
-        `INSERT INTO columns (id, board_id, name, position, wip_limit, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [colId, boardId, col.name, col.pos, col.wip, now, now]
-      );
-    }
-  }
-
-  async create(data: CreateBoard): Promise<Board> {
-    const now = new Date().toISOString();
-    const board: Board = {
-      id: ulid(),
-      project_id: data.project_id,
-      name: data.name,
-      created_at: now,
-      updated_at: now
-    };
+  async create(data: CreateBoard, actorId?: string): Promise<Board> {
+    const id = ulid();
+    const created_at = new Date().toISOString();
+    const updated_at = created_at;
 
     await this.db.execute(
-      `INSERT INTO boards (id, project_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
-      [board.id, board.project_id, board.name, board.created_at, board.updated_at]
+      `INSERT INTO board (id, project_id, name, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, data.project_id, data.name, created_at, updated_at]
     );
 
-    // Auto-seed default Kanban columns for new board
-    await this.seedDefaultColumns(board.id);
+    const board: Board = {
+      id,
+      project_id: data.project_id,
+      name: data.name,
+      created_at,
+      updated_at,
+    };
 
-    await this.eventService?.emit(board.project_id, 'board', board.id, 'created', 'system', { name: board.name });
+    // Default columns
+    const defaultCols = [
+      { name: 'Backlog', wip_limit: null },
+      { name: 'To Do', wip_limit: null },
+      { name: 'In Progress', wip_limit: 3 },
+      { name: 'In Review', wip_limit: 2 },
+      { name: 'Done', wip_limit: null },
+    ];
+
+    let lastRank = '';
+    for (const col of defaultCols) {
+      const colId = ulid();
+      const pos = rankAfter(lastRank);
+      lastRank = pos;
+      await this.db.execute(
+        `INSERT INTO "column" (id, board_id, name, position, wip_limit) VALUES (?, ?, ?, ?, ?)`,
+        [colId, id, col.name, pos, col.wip_limit]
+      );
+    }
+
+    if (this.eventService) {
+      await this.eventService.create({
+        project_id: data.project_id,
+        entity_type: 'board',
+        entity_id: id,
+        action: 'created',
+        actor_id: actorId,
+        payload: { name: board.name },
+      });
+    }
 
     return board;
   }
 
-  async listAll(): Promise<Board[]> {
-    return this.db.query<Board>(`SELECT * FROM boards ORDER BY created_at ASC`);
+  async getById(id: string): Promise<Board | null> {
+    const rows = await this.db.query<Board>('SELECT * FROM board WHERE id = ?', [id]);
+    return rows[0] || null;
   }
 
   async list(projectId: string): Promise<Board[]> {
-    return this.db.query<Board>(`SELECT * FROM boards WHERE project_id = ? ORDER BY created_at ASC`, [projectId]);
+    return this.db.query<Board>('SELECT * FROM board WHERE project_id = ? ORDER BY created_at ASC', [projectId]);
   }
 
-  async getById(id: string): Promise<Board & { columns: any[] }> {
-    const rows = await this.db.query<Board>(`SELECT * FROM boards WHERE id = ?`, [id]);
-    if (rows.length === 0) {
-      throw new NotFoundError(`Board with ID ${id} not found`);
-    }
-    const board = rows[0];
+  async update(id: string, data: UpdateBoard, actorId?: string): Promise<Board> {
+    const existing = await this.getById(id);
+    if (!existing) throw new Error(`Board with ID ${id} not found`);
 
-    let columns = await this.db.query<any>(
-      `SELECT c.*, COUNT(cards.id) as card_count 
-       FROM columns c
-       LEFT JOIN cards ON cards.column_id = c.id AND cards.archived = 0
-       WHERE c.board_id = ?
-       GROUP BY c.id
-       ORDER BY c.position ASC`,
-      [id]
-    );
+    const name = data.name !== undefined ? data.name : existing.name;
+    const updated_at = new Date().toISOString();
 
-    if (columns.length === 0) {
-      await this.seedDefaultColumns(id);
-      columns = await this.db.query<any>(
-        `SELECT c.*, COUNT(cards.id) as card_count 
-         FROM columns c
-         LEFT JOIN cards ON cards.column_id = c.id AND cards.archived = 0
-         WHERE c.board_id = ?
-         GROUP BY c.id
-         ORDER BY c.position ASC`,
-        [id]
-      );
+    await this.db.execute('UPDATE board SET name = ?, updated_at = ? WHERE id = ?', [name, updated_at, id]);
+
+    const updated: Board = { ...existing, name, updated_at };
+
+    if (this.eventService) {
+      await this.eventService.create({
+        project_id: existing.project_id,
+        entity_type: 'board',
+        entity_id: id,
+        action: 'updated',
+        actor_id: actorId,
+        payload: { name },
+      });
     }
 
-    for (const col of columns) {
-      col.cards = await this.db.query<Card>(
-        `SELECT * FROM cards WHERE column_id = ? AND archived = 0 ORDER BY position ASC`,
-        [col.id]
-      );
-    }
-
-    return { ...board, columns };
+    return updated;
   }
 
-  async update(id: string, data: Partial<CreateBoard>): Promise<Board> {
-    const board = await this.getById(id);
-    const updatedName = data.name !== undefined ? data.name : board.name;
-    const updatedAt = new Date().toISOString();
+  async delete(id: string, actorId?: string): Promise<void> {
+    const existing = await this.getById(id);
+    if (!existing) throw new Error(`Board with ID ${id} not found`);
 
+    await this.db.execute('DELETE FROM board WHERE id = ?', [id]);
+
+    if (this.eventService) {
+      await this.eventService.create({
+        project_id: existing.project_id,
+        entity_type: 'board',
+        entity_id: id,
+        action: 'deleted',
+        actor_id: actorId,
+      });
+    }
+  }
+
+  // Label management
+  async createLabel(data: CreateLabel): Promise<Label> {
+    const id = ulid();
     await this.db.execute(
-      `UPDATE boards SET name = ?, updated_at = ? WHERE id = ?`,
-      [updatedName, updatedAt, id]
+      'INSERT INTO label (id, board_id, name, color) VALUES (?, ?, ?, ?)',
+      [id, data.board_id, data.name, data.color]
     );
-
-    return this.getById(id);
-  }
-
-  async delete(id: string): Promise<void> {
-    await this.getById(id);
-    await this.db.execute(`DELETE FROM boards WHERE id = ?`, [id]);
-  }
-
-  async createLabel(data: { board_id: string; name: string; color: string }): Promise<Label> {
-    const label: Label = {
-      id: ulid(),
-      board_id: data.board_id,
-      name: data.name,
-      color: data.color
-    };
-
-    await this.db.execute(
-      `INSERT INTO labels (id, board_id, name, color) VALUES (?, ?, ?, ?)`,
-      [label.id, label.board_id, label.name, label.color]
-    );
-
-    return label;
+    return { id, board_id: data.board_id, name: data.name, color: data.color };
   }
 
   async listLabels(boardId: string): Promise<Label[]> {
-    return this.db.query<Label>(`SELECT * FROM labels WHERE board_id = ?`, [boardId]);
+    return this.db.query<Label>('SELECT * FROM label WHERE board_id = ?', [boardId]);
   }
 }

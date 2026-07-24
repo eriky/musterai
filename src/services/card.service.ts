@@ -1,11 +1,9 @@
 // File: src/services/card.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Card, CreateCard, CAPEvent, Label, CardAssignee } from '../shared/types.js';
-import { NotFoundError, ConflictError } from '../shared/errors.js';
-import { generateRank, rankAfter } from '../shared/lexorank.js';
-
+import { Card, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent } from '../shared/types.js';
 import { EventService } from './event.service.js';
+import { rankAfter } from '../shared/lexorank.js';
 
 export class CardService {
   constructor(
@@ -13,233 +11,279 @@ export class CardService {
     private eventService?: EventService
   ) {}
 
-  private async getProjectIdForColumn(columnId: string): Promise<string> {
-    const rows = await this.db.query<{project_id: string}>(
-      `SELECT b.project_id FROM columns c JOIN boards b ON c.board_id = b.id WHERE c.id = ?`,
-      [columnId]
-    );
-    return rows.length > 0 ? rows[0].project_id : '';
-  }
+  async create(data: CreateCard, actorId?: string): Promise<Card> {
+    const id = ulid();
+    const created_at = new Date().toISOString();
+    const updated_at = created_at;
 
-  async create(data: CreateCard): Promise<Card> {
-    const now = new Date().toISOString();
+    let position = data.position;
+    if (!position) {
+      const cards = await this.list({ column_id: data.column_id });
+      const lastPos = cards.length > 0 ? cards[cards.length - 1].position : '';
+      position = rankAfter(lastPos);
+    }
 
-    const cards = await this.db.query<Card>(
-      `SELECT position FROM cards WHERE column_id = ? AND archived = 0 ORDER BY position DESC LIMIT 1`, 
-      [data.column_id]
-    );
-
-    const position = cards.length > 0 ? rankAfter(cards[0].position) : generateRank();
-
-    const card: Card = {
-      id: ulid(),
-      column_id: data.column_id,
-      title: data.title,
-      description: data.description || null,
-      position,
-      priority: data.priority || 'medium',
-      due_date: data.due_date || null,
-      created_at: now,
-      updated_at: now,
-      archived: 0
-    };
+    const priority = data.priority || 'medium';
+    const description = data.description || null;
+    const due_date = data.due_date || null;
 
     await this.db.execute(
-      `INSERT INTO cards (id, column_id, title, description, position, priority, due_date, created_at, updated_at, archived)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [card.id, card.column_id, card.title, card.description, card.position, card.priority, card.due_date, card.created_at, card.updated_at, card.archived]
+      `INSERT INTO card (id, column_id, title, description, position, priority, due_date, created_at, updated_at, archived)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      [id, data.column_id, data.title, description, position, priority, due_date, created_at, updated_at]
     );
 
-    const projectId = await this.getProjectIdForColumn(card.column_id);
-    if (projectId) {
-      await this.eventService?.emit(projectId, 'card', card.id, 'created', 'system', { title: card.title, priority: card.priority });
+    if (data.labels && data.labels.length > 0) {
+      for (const labelId of data.labels) {
+        await this.addLabel(id, labelId, actorId);
+      }
+    }
+
+    if (data.assignees && data.assignees.length > 0) {
+      for (const agentId of data.assignees) {
+        await this.assign(id, agentId, actorId);
+      }
+    }
+
+    const card: Card = {
+      id,
+      column_id: data.column_id,
+      title: data.title,
+      description,
+      position,
+      priority,
+      due_date,
+      created_at,
+      updated_at,
+      archived: 0,
+    };
+
+    if (this.eventService) {
+      const projectId = await this.getProjectIdForColumn(data.column_id);
+      if (projectId) {
+        await this.eventService.create({
+          project_id: projectId,
+          entity_type: 'card',
+          entity_id: id,
+          action: 'created',
+          actor_id: actorId,
+          payload: { title: card.title, column_id: card.column_id },
+        });
+      }
     }
 
     return card;
   }
 
-  async list(filters?: { columnId?: string; boardId?: string; assigneeId?: string; labelId?: string; archived?: boolean }): Promise<Card[]> {
-    let sql = `
-      SELECT DISTINCT c.* 
-      FROM cards c
-      LEFT JOIN card_assignees ca ON c.id = ca.card_id
-      LEFT JOIN card_labels cl ON c.id = cl.card_id
-      WHERE 1=1
-    `;
-    const params: any[] = [];
+  async getById(id: string): Promise<CardDetails> {
+    const cardRows = await this.db.query<Card>('SELECT * FROM card WHERE id = ?', [id]);
+    const card = cardRows[0];
+    if (!card) throw new Error(`Card with ID ${id} not found`);
 
-    if (filters?.columnId) {
-      sql += ` AND c.column_id = ?`;
-      params.push(filters.columnId);
-    }
-    if (filters?.boardId) {
-      sql += ` AND c.column_id IN (SELECT id FROM columns WHERE board_id = ?)`;
-      params.push(filters.boardId);
-    }
-    if (filters?.assigneeId) {
-      sql += ` AND ca.agent_id = ?`;
-      params.push(filters.assigneeId);
-    }
-    if (filters?.labelId) {
-      sql += ` AND cl.label_id = ?`;
-      params.push(filters.labelId);
+    const assignees = await this.db.query<Agent>(
+      `SELECT a.* FROM agent_registration a
+       JOIN card_assignee ca ON a.id = ca.agent_id
+       WHERE ca.card_id = ?`,
+      [id]
+    );
+
+    const labels = await this.db.query<Label>(
+      `SELECT l.* FROM label l
+       JOIN card_label cl ON l.id = cl.label_id
+       WHERE cl.card_id = ?`,
+      [id]
+    );
+
+    const comments = await this.db.query<any>(
+      `SELECT c.*, a.name as author_name FROM comment c
+       LEFT JOIN agent_registration a ON c.author_id = a.id
+       WHERE c.card_id = ? ORDER BY c.created_at ASC`,
+      [id]
+    );
+
+    return {
+      ...card,
+      assignees: assignees.map(a => ({
+        ...a,
+        capabilities: typeof a.capabilities === 'string' ? JSON.parse(a.capabilities) : (a.capabilities || []),
+      })),
+      labels,
+      comments,
+    };
+  }
+
+  async list(filters: { column_id?: string; board_id?: string; assignee_id?: string; label?: string; archived?: boolean } = {}): Promise<Card[]> {
+    let sql = 'SELECT DISTINCT c.* FROM card c';
+    const joins: string[] = [];
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+
+    if (filters.board_id) {
+      joins.push('JOIN "column" col ON c.column_id = col.id');
+      conditions.push('col.board_id = ?');
+      params.push(filters.board_id);
     }
 
-    if (filters?.archived) {
-      sql += ` AND c.archived = 1`;
+    if (filters.column_id) {
+      conditions.push('c.column_id = ?');
+      params.push(filters.column_id);
+    }
+
+    if (filters.assignee_id) {
+      joins.push('JOIN card_assignee ca ON c.id = ca.card_id');
+      conditions.push('ca.agent_id = ?');
+      params.push(filters.assignee_id);
+    }
+
+    if (filters.label) {
+      joins.push('JOIN card_label cl ON c.id = cl.card_id JOIN label l ON cl.label_id = l.id');
+      conditions.push('(l.id = ? OR l.name = ?)');
+      params.push(filters.label, filters.label);
+    }
+
+    if (filters.archived !== undefined) {
+      conditions.push('c.archived = ?');
+      params.push(filters.archived ? 1 : 0);
     } else {
-      sql += ` AND c.archived = 0`;
+      conditions.push('c.archived = 0');
     }
 
-    sql += ` ORDER BY c.position ASC`;
+    if (joins.length > 0) {
+      sql += ' ' + joins.join(' ');
+    }
+
+    if (conditions.length > 0) {
+      sql += ' WHERE ' + conditions.join(' AND ');
+    }
+
+    sql += ' ORDER BY c.position ASC';
 
     return this.db.query<Card>(sql, params);
   }
 
-  async getById(id: string): Promise<Card & { labels: Label[], assignees: CardAssignee[], comments: any[] }> {
-    const rows = await this.db.query<Card>(`SELECT * FROM cards WHERE id = ?`, [id]);
-    if (rows.length === 0) {
-      throw new NotFoundError(`Card with ID ${id} not found`);
-    }
-    const card = rows[0];
+  async update(id: string, data: UpdateCard, actorId?: string): Promise<CardDetails> {
+    const existing = await this.getById(id);
 
-    const labels = await this.db.query<Label>(
-      `SELECT l.* FROM labels l JOIN card_labels cl ON l.id = cl.label_id WHERE cl.card_id = ?`, [id]
-    );
-    const assignees = await this.db.query<CardAssignee>(
-      `SELECT * FROM card_assignees WHERE card_id = ?`, [id]
-    );
-    const comments = await this.db.query<any>(
-      `SELECT * FROM comments WHERE card_id = ? ORDER BY created_at ASC`, [id]
-    );
-
-    return { ...card, labels, assignees, comments };
-  }
-
-  async update(id: string, data: Partial<CreateCard>): Promise<Card> {
-    const card = await this.getById(id);
-    const updatedTitle = data.title !== undefined ? data.title : card.title;
-    const updatedDesc = data.description !== undefined ? data.description : card.description;
-    const updatedPriority = data.priority !== undefined ? data.priority : card.priority;
-    const updatedDue = data.due_date !== undefined ? data.due_date : card.due_date;
-    const updatedAt = new Date().toISOString();
+    const title = data.title !== undefined ? data.title : existing.title;
+    const description = data.description !== undefined ? data.description : existing.description;
+    const priority = data.priority !== undefined ? data.priority : existing.priority;
+    const due_date = data.due_date !== undefined ? data.due_date : existing.due_date;
+    const updated_at = new Date().toISOString();
 
     await this.db.execute(
-      `UPDATE cards SET title = ?, description = ?, priority = ?, due_date = ?, updated_at = ? WHERE id = ?`,
-      [updatedTitle, updatedDesc, updatedPriority, updatedDue, updatedAt, id]
+      `UPDATE card SET title = ?, description = ?, priority = ?, due_date = ?, updated_at = ? WHERE id = ?`,
+      [title, description, priority, due_date, updated_at, id]
     );
 
-    const projectId = await this.getProjectIdForColumn(card.column_id);
-    if (projectId) {
-      await this.eventService?.emit(projectId, 'card', id, 'updated', 'system', data);
-    }
-
-    return this.getById(id);
-  }
-
-  async move(id: string, targetColumnId: string, position?: string): Promise<Card> {
-    const card = await this.getById(id);
-    const updatedAt = new Date().toISOString();
-
-    // Check WIP Limits if moving to a new column
-    if (card.column_id !== targetColumnId) {
-      const colRows = await this.db.query<{wip_limit: number | null}>(`SELECT wip_limit FROM columns WHERE id = ?`, [targetColumnId]);
-      if (colRows.length > 0 && colRows[0].wip_limit !== null) {
-        const countRows = await this.db.query<{count: number}>(`SELECT COUNT(*) as count FROM cards WHERE column_id = ? AND archived = 0`, [targetColumnId]);
-        if (countRows[0].count >= colRows[0].wip_limit) {
-          throw new ConflictError(`Cannot move card to column ${targetColumnId}, WIP limit exceeded`);
-        }
+    if (this.eventService) {
+      const projectId = await this.getProjectIdForColumn(existing.column_id);
+      if (projectId) {
+        await this.eventService.create({
+          project_id: projectId,
+          entity_type: 'card',
+          entity_id: id,
+          action: 'updated',
+          actor_id: actorId,
+          payload: data as Record<string, unknown>,
+        });
       }
     }
 
-    let finalPos = position;
-    if (!finalPos) {
-      const cards = await this.db.query<Card>(
-        `SELECT position FROM cards WHERE column_id = ? AND archived = 0 ORDER BY position DESC LIMIT 1`, 
-        [targetColumnId]
-      );
-      finalPos = cards.length > 0 ? rankAfter(cards[0].position) : generateRank();
+    return this.getById(id);
+  }
+
+  async move(id: string, data: MoveCard, actorId?: string): Promise<CardDetails> {
+    const existing = await this.getById(id);
+    const target_column_id = data.target_column_id || existing.column_id;
+
+    let position = data.position;
+    if (!position) {
+      const targetCards = await this.list({ column_id: target_column_id });
+      const lastPos = targetCards.length > 0 ? targetCards[targetCards.length - 1].position : '';
+      position = rankAfter(lastPos);
     }
 
+    const updated_at = new Date().toISOString();
+
     await this.db.execute(
-      `UPDATE cards SET column_id = ?, position = ?, updated_at = ? WHERE id = ?`,
-      [targetColumnId, finalPos, updatedAt, id]
+      `UPDATE card SET column_id = ?, position = ?, updated_at = ? WHERE id = ?`,
+      [target_column_id, position, updated_at, id]
     );
 
-    const projectId = await this.getProjectIdForColumn(targetColumnId);
-    if (projectId) {
-      await this.eventService?.emit(projectId, 'card', id, 'moved', 'system', { target_column_id: targetColumnId, position: finalPos });
+    if (this.eventService) {
+      const projectId = await this.getProjectIdForColumn(target_column_id);
+      if (projectId) {
+        await this.eventService.create({
+          project_id: projectId,
+          entity_type: 'card',
+          entity_id: id,
+          action: 'moved',
+          actor_id: actorId,
+          payload: {
+            from_column_id: existing.column_id,
+            to_column_id: target_column_id,
+            position,
+          },
+        });
+      }
     }
 
     return this.getById(id);
   }
 
-  async assign(cardId: string, agentId: string): Promise<void> {
+  async assign(cardId: string, agentId: string, actorId?: string): Promise<void> {
     await this.db.execute(
-      `INSERT INTO card_assignees (card_id, agent_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
+      `INSERT OR IGNORE INTO card_assignee (card_id, agent_id) VALUES (?, ?)`,
       [cardId, agentId]
     );
-    const card = await this.getById(cardId);
-    const projectId = await this.getProjectIdForColumn(card.column_id);
-    if (projectId) {
-      await this.eventService?.emit(projectId, 'card', cardId, 'assigned', agentId, { agent_id: agentId });
+
+    if (this.eventService) {
+      const card = await this.getById(cardId);
+      const projectId = await this.getProjectIdForColumn(card.column_id);
+      if (projectId) {
+        await this.eventService.create({
+          project_id: projectId,
+          entity_type: 'card',
+          entity_id: cardId,
+          action: 'assigned',
+          actor_id: actorId,
+          payload: { agent_id: agentId },
+        });
+      }
     }
   }
 
-  async unassign(cardId: string, agentId: string): Promise<void> {
+  async unassign(cardId: string, agentId: string, actorId?: string): Promise<void> {
     await this.db.execute(
-      `DELETE FROM card_assignees WHERE card_id = ? AND agent_id = ?`,
+      `DELETE FROM card_assignee WHERE card_id = ? AND agent_id = ?`,
       [cardId, agentId]
     );
-    const card = await this.getById(cardId);
-    const projectId = await this.getProjectIdForColumn(card.column_id);
-    if (projectId) {
-      await this.eventService?.emit(projectId, 'card', cardId, 'unassigned', agentId, { agent_id: agentId });
-    }
   }
 
-  async addLabel(cardId: string, labelId: string): Promise<void> {
+  async addLabel(cardId: string, labelId: string, actorId?: string): Promise<void> {
     await this.db.execute(
-      `INSERT INTO card_labels (card_id, label_id) VALUES (?, ?) ON CONFLICT DO NOTHING`,
+      `INSERT OR IGNORE INTO card_label (card_id, label_id) VALUES (?, ?)`,
       [cardId, labelId]
     );
   }
 
-  async removeLabel(cardId: string, labelId: string): Promise<void> {
+  async removeLabel(cardId: string, labelId: string, actorId?: string): Promise<void> {
     await this.db.execute(
-      `DELETE FROM card_labels WHERE card_id = ? AND label_id = ?`,
+      `DELETE FROM card_label WHERE card_id = ? AND label_id = ?`,
       [cardId, labelId]
     );
   }
 
-  async archive(id: string): Promise<Card> {
-    const card = await this.getById(id);
-    const now = new Date().toISOString();
-    
-    await this.db.execute(
-      `UPDATE cards SET archived = 1, updated_at = ? WHERE id = ?`,
-      [now, id]
-    );
-
-    const projectId = await this.getProjectIdForColumn(card.column_id);
-    if (projectId) {
-      await this.eventService?.emit(projectId, 'card', id, 'archived', 'system', {});
-    }
-
-    return this.getById(id);
+  async archive(cardId: string, actorId?: string): Promise<void> {
+    const updated_at = new Date().toISOString();
+    await this.db.execute(`UPDATE card SET archived = 1, updated_at = ? WHERE id = ?`, [updated_at, cardId]);
   }
 
-  async delete(id: string): Promise<void> {
-    const card = await this.getById(id);
-    const projectId = await this.getProjectIdForColumn(card.column_id);
-
-    await this.db.execute(`DELETE FROM card_assignees WHERE card_id = ?`, [id]);
-    await this.db.execute(`DELETE FROM card_labels WHERE card_id = ?`, [id]);
-    await this.db.execute(`DELETE FROM comments WHERE card_id = ?`, [id]);
-    await this.db.execute(`DELETE FROM cards WHERE id = ?`, [id]);
-
-    if (projectId) {
-      await this.eventService?.emit(projectId, 'card', id, 'deleted', 'system', { title: card.title });
-    }
+  private async getProjectIdForColumn(columnId: string): Promise<string | null> {
+    const rows = await this.db.query<{ project_id: string }>(
+      `SELECT b.project_id FROM "column" col JOIN board b ON col.board_id = b.id WHERE col.id = ?`,
+      [columnId]
+    );
+    return rows[0]?.project_id || null;
   }
 }

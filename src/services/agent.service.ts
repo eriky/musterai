@@ -1,9 +1,7 @@
 // File: src/services/agent.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { AgentRegistration, CreateAgentRegistration, CAPEvent } from '../shared/types.js';
-import { NotFoundError } from '../shared/errors.js';
-
+import { Agent, RegisterAgent, UpdateAgentStatus } from '../shared/types.js';
 import { EventService } from './event.service.js';
 
 export class AgentService {
@@ -12,114 +10,130 @@ export class AgentService {
     private eventService?: EventService
   ) {}
 
-  private parseCapabilities(raw: any): any {
-    if (typeof raw !== 'string') return raw || [];
-    try {
-      return JSON.parse(raw);
-    } catch (_) {
-      return raw.split(',').filter(Boolean);
-    }
-  }
+  async register(data: RegisterAgent): Promise<Agent> {
+    const id = ulid();
+    const created_at = new Date().toISOString();
+    const last_seen_at = created_at;
+    const status = data.status || 'active';
 
-  async register(data: CreateAgentRegistration): Promise<AgentRegistration> {
-    const now = new Date().toISOString();
-    
-    const existing = await this.db.query<AgentRegistration>(
-      `SELECT * FROM agent_registrations WHERE project_id = ? AND name = ? AND type = ? AND status != 'offline' LIMIT 1`,
-      [data.project_id, data.name, data.type]
+    let capabilitiesStr: string | null = null;
+    if (data.capabilities) {
+      if (typeof data.capabilities === 'string') {
+        capabilitiesStr = JSON.stringify(data.capabilities.split(',').map(s => s.trim()));
+      } else if (Array.isArray(data.capabilities)) {
+        capabilitiesStr = JSON.stringify(data.capabilities);
+      }
+    }
+
+    await this.db.execute(
+      `INSERT INTO agent_registration (id, project_id, name, type, role, capabilities, status, last_seen_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, data.project_id, data.name, data.type, data.role, capabilitiesStr, status, last_seen_at, created_at]
     );
 
-    if (existing.length > 0) {
-      return this.heartbeat(existing[0].id);
-    }
-
-    const capabilitiesStr = typeof data.capabilities === 'string'
-      ? (data.capabilities.startsWith('[') || data.capabilities.startsWith('{') ? data.capabilities : JSON.stringify(data.capabilities.split(',').filter(Boolean)))
-      : JSON.stringify(data.capabilities || []);
-
-    const registration: AgentRegistration = {
-      id: ulid(),
+    const agent: Agent = {
+      id,
       project_id: data.project_id,
       name: data.name,
       type: data.type,
       role: data.role,
-      capabilities: capabilitiesStr,
-      status: 'active',
-      last_seen_at: now,
-      created_at: now
+      capabilities: capabilitiesStr ? JSON.parse(capabilitiesStr) : [],
+      status,
+      last_seen_at,
+      created_at,
     };
 
-    await this.db.execute(
-      `INSERT INTO agent_registrations (id, project_id, name, type, role, capabilities, status, last_seen_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [registration.id, registration.project_id, registration.name, registration.type, registration.role, registration.capabilities, registration.status, registration.last_seen_at, registration.created_at]
-    );
+    if (this.eventService) {
+      await this.eventService.create({
+        project_id: data.project_id,
+        entity_type: 'agent',
+        entity_id: id,
+        action: 'registered',
+        actor_id: id,
+        payload: { name: agent.name, role: agent.role },
+      });
+    }
 
-    await this.eventService?.emit(registration.project_id, 'agent', registration.id, 'registered', registration.name, { type: registration.type, role: registration.role });
-
-    return this.getById(registration.id);
+    return agent;
   }
 
-  async list(projectId?: string): Promise<AgentRegistration[]> {
-    await this.updateStatus();
-    let rows: any[] = [];
-    if (projectId) {
-      rows = await this.db.query<any>(
-        `SELECT * FROM agent_registrations WHERE project_id = ? ORDER BY last_seen_at DESC`,
-        [projectId]
-      );
+  async unregister(id: string, actorId?: string): Promise<void> {
+    const existing = await this.getById(id);
+    if (!existing) throw new Error(`Agent with ID ${id} not found`);
+
+    await this.db.execute('DELETE FROM agent_registration WHERE id = ?', [id]);
+
+    if (this.eventService) {
+      await this.eventService.create({
+        project_id: existing.project_id,
+        entity_type: 'agent',
+        entity_id: id,
+        action: 'unregistered',
+        actor_id: actorId,
+        payload: { name: existing.name },
+      });
     }
-    if (rows.length === 0) {
-      rows = await this.db.query<any>(
-        `SELECT * FROM agent_registrations ORDER BY last_seen_at DESC`
-      );
-    }
+  }
+
+  async getById(id: string): Promise<Agent | null> {
+    const rows = await this.db.query<any>('SELECT * FROM agent_registration WHERE id = ?', [id]);
+    const row = rows[0];
+    if (!row) return null;
+
+    return {
+      ...row,
+      capabilities: row.capabilities ? JSON.parse(row.capabilities) : [],
+    };
+  }
+
+  async list(projectId: string): Promise<Agent[]> {
+    const rows = await this.db.query<any>('SELECT * FROM agent_registration WHERE project_id = ? ORDER BY created_at ASC', [projectId]);
     return rows.map(row => ({
       ...row,
-      capabilities: this.parseCapabilities(row.capabilities)
+      capabilities: row.capabilities ? JSON.parse(row.capabilities) : [],
     }));
   }
 
-  async getById(id: string): Promise<AgentRegistration> {
-    await this.updateStatus();
-    const rows = await this.db.query<any>(`SELECT * FROM agent_registrations WHERE id = ?`, [id]);
-    if (rows.length === 0) {
-      throw new NotFoundError(`Agent registration with ID ${id} not found`);
+  async heartbeat(id: string): Promise<Agent> {
+    const existing = await this.getById(id);
+    if (!existing) throw new Error(`Agent with ID ${id} not found`);
+
+    const last_seen_at = new Date().toISOString();
+    const status = 'active';
+
+    await this.db.execute(
+      'UPDATE agent_registration SET last_seen_at = ?, status = ? WHERE id = ?',
+      [last_seen_at, status, id]
+    );
+
+    return { ...existing, last_seen_at, status };
+  }
+
+  async updateStatus(id?: string, status?: UpdateAgentStatus['status']): Promise<void> {
+    if (id && status) {
+      const last_seen_at = new Date().toISOString();
+      await this.db.execute('UPDATE agent_registration SET status = ?, last_seen_at = ? WHERE id = ?', [status, last_seen_at, id]);
+      return;
     }
-    const row = rows[0];
-    return {
-      ...row,
-      capabilities: this.parseCapabilities(row.capabilities)
-    };
-  }
 
-  async heartbeat(id: string): Promise<AgentRegistration> {
-    const now = new Date().toISOString();
-    await this.db.execute(
-      `UPDATE agent_registrations SET status = 'active', last_seen_at = ? WHERE id = ?`,
-      [now, id]
-    );
-    return this.getById(id);
-  }
+    // Passive update: set agents to 'idle' if > 5m, 'offline' if > 15m
+    const now = new Date().getTime();
+    const agents = await this.db.query<any>('SELECT id, status, last_seen_at FROM agent_registration');
 
-  async updateStatus(): Promise<void> {
-    const now = new Date();
-    
-    const idleTime = new Date(now.getTime() - 5 * 60000).toISOString();
-    const offlineTime = new Date(now.getTime() - 15 * 60000).toISOString();
+    for (const agent of agents) {
+      const lastSeen = new Date(agent.last_seen_at).getTime();
+      const diffMinutes = (now - lastSeen) / (1000 * 60);
 
-    await this.db.execute(
-      `UPDATE agent_registrations 
-       SET status = 'idle' 
-       WHERE status = 'active' AND last_seen_at < ? AND last_seen_at >= ?`,
-      [idleTime, offlineTime]
-    );
+      let newStatus = agent.status;
+      if (diffMinutes > 15 && agent.status !== 'offline') {
+        newStatus = 'offline';
+      } else if (diffMinutes > 5 && agent.status === 'active') {
+        newStatus = 'idle';
+      }
 
-    await this.db.execute(
-      `UPDATE agent_registrations 
-       SET status = 'offline' 
-       WHERE status != 'offline' AND last_seen_at < ?`,
-      [offlineTime]
-    );
+      if (newStatus !== agent.status) {
+        await this.db.execute('UPDATE agent_registration SET status = ? WHERE id = ?', [newStatus, agent.id]);
+      }
+    }
   }
 }

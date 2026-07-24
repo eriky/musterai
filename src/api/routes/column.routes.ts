@@ -1,36 +1,35 @@
 // File: src/api/routes/column.routes.ts
-import { Router } from 'express';
-import { ColumnService } from '../../services/index.js';
+import { Router, Request, Response, NextFunction } from 'express';
+import { ColumnService } from '../../services/column.service.js';
 
-export function createColumnRoutes(columnService: ColumnService): Router {
+export function createColumnRouter(columnService: ColumnService): Router {
   const router = Router();
 
-  router.post('/', async (req, res, next) => {
+  router.post('/boards/:boardId/columns', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await columnService.create(req.body);
-      res.status(201).json(result);
-    } catch (err) { next(err); }
+      const column = await columnService.create({ ...req.body, board_id: req.params.boardId });
+      res.status(201).json(column);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.patch('/:id', async (req, res, next) => {
+  router.put('/columns/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await columnService.update(req.params.id, req.body);
-      res.json(result);
-    } catch (err) { next(err); }
+      const column = await columnService.update(req.params.id, req.body);
+      res.json(column);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.post('/:id/move', async (req, res, next) => {
-    try {
-      const result = await columnService.move(req.params.id, req.body.position);
-      res.json(result);
-    } catch (err) { next(err); }
-  });
-
-  router.delete('/:id', async (req, res, next) => {
+  router.delete('/columns/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
       await columnService.delete(req.params.id);
       res.status(204).end();
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   });
 
   return router;

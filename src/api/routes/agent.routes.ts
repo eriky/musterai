@@ -1,29 +1,45 @@
 // File: src/api/routes/agent.routes.ts
-import { Router } from 'express';
-import { AgentService } from '../../services/index.js';
+import { Router, Request, Response, NextFunction } from 'express';
+import { AgentService } from '../../services/agent.service.js';
 
-export function createAgentRoutes(agentService: AgentService): Router {
+export function createAgentRouter(agentService: AgentService): Router {
   const router = Router();
 
-  router.post('/', async (req, res, next) => {
+  router.get('/projects/:projectId/agents', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await agentService.register(req.body);
-      res.status(201).json(result);
-    } catch (err) { next(err); }
+      const agents = await agentService.list(req.params.projectId);
+      res.json(agents);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.post('/:id/heartbeat', async (req, res, next) => {
+  router.post('/projects/:projectId/agents', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await agentService.heartbeat(req.params.id);
-      res.status(204).end();
-    } catch (err) { next(err); }
+      const agent = await agentService.register({ ...req.body, project_id: req.params.projectId });
+      res.status(201).json(agent);
+    } catch (err) {
+      next(err);
+    }
   });
 
-  router.get('/', async (req, res, next) => {
+  router.post('/agents/:id/heartbeat', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await agentService.list(req.query.projectId as string);
-      res.json(result);
-    } catch (err) { next(err); }
+      const agent = await agentService.heartbeat(req.params.id);
+      res.json(agent);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete('/agents/:id', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const actorId = req.headers['x-actor-id'] as string | undefined;
+      await agentService.unregister(req.params.id, actorId);
+      res.status(204).send();
+    } catch (err) {
+      next(err);
+    }
   });
 
   return router;

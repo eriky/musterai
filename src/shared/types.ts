@@ -10,12 +10,12 @@ export interface Project {
 
 export interface CreateProject {
   name: string;
-  description?: string | null;
+  description?: string;
 }
 
 export interface UpdateProject {
   name?: string;
-  description?: string | null;
+  description?: string;
 }
 
 export interface Board {
@@ -41,21 +41,19 @@ export interface Column {
   name: string;
   position: string;
   wip_limit: number | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface CreateColumn {
   board_id: string;
   name: string;
   position?: string;
-  wip_limit?: number | null;
+  wip_limit?: number;
 }
 
 export interface UpdateColumn {
   name?: string;
-  position?: string;
   wip_limit?: number | null;
+  position?: string;
 }
 
 export interface Card {
@@ -68,28 +66,31 @@ export interface Card {
   due_date: string | null;
   created_at: string;
   updated_at: string;
-  archived: 0 | 1;
+  archived: number;
 }
 
 export interface CreateCard {
   column_id: string;
   title: string;
-  description?: string | null;
-  position: string;
+  description?: string;
   priority?: 'critical' | 'high' | 'medium' | 'low';
-  due_date?: string | null;
-  assignees?: string[];
+  position?: string;
+  due_date?: string;
   labels?: string[];
+  assignees?: string[];
 }
 
 export interface UpdateCard {
-  column_id?: string;
   title?: string;
-  description?: string | null;
-  position?: string;
+  description?: string;
   priority?: 'critical' | 'high' | 'medium' | 'low';
   due_date?: string | null;
-  archived?: 0 | 1;
+  archived?: number;
+}
+
+export interface MoveCard {
+  target_column_id?: string;
+  position?: string;
 }
 
 export interface Label {
@@ -105,19 +106,29 @@ export interface CreateLabel {
   color: string;
 }
 
-export interface UpdateLabel {
-  name?: string;
-  color?: string;
+export interface Agent {
+  id: string;
+  project_id: string;
+  name: string;
+  type: 'ai_agent' | 'human';
+  role: 'owner' | 'contributor' | 'observer';
+  capabilities: string[];
+  status: 'active' | 'idle' | 'offline';
+  last_seen_at: string;
+  created_at: string;
 }
 
-export interface CardLabel {
-  card_id: string;
-  label_id: string;
+export interface RegisterAgent {
+  project_id: string;
+  name: string;
+  type: 'ai_agent' | 'human';
+  role: 'owner' | 'contributor' | 'observer';
+  capabilities?: string | string[];
+  status?: 'active' | 'idle' | 'offline';
 }
 
-export interface CardAssignee {
-  card_id: string;
-  agent_id: string;
+export interface UpdateAgentStatus {
+  status: 'active' | 'idle' | 'offline';
 }
 
 export interface Comment {
@@ -126,31 +137,13 @@ export interface Comment {
   author_id: string;
   content: string;
   created_at: string;
-  updated_at: string;
+  author_name?: string;
 }
 
 export interface CreateComment {
   card_id: string;
   author_id: string;
   content: string;
-}
-
-export interface Attachment {
-  id: string;
-  card_id: string;
-  filename: string;
-  path: string;
-  mime_type: string;
-  size_bytes: number;
-  created_at: string;
-}
-
-export interface CreateAttachment {
-  card_id: string;
-  filename: string;
-  path: string;
-  mime_type: string;
-  size_bytes: number;
 }
 
 export interface Document {
@@ -160,7 +153,7 @@ export interface Document {
   title: string;
   content: string;
   status: 'draft' | 'in_review' | 'approved' | 'archived';
-  author_id: string;
+  author_id: string | null;
   version: number;
   created_at: string;
   updated_at: string;
@@ -168,23 +161,18 @@ export interface Document {
 
 export interface CreateDocument {
   project_id: string;
-  parent_id?: string | null;
+  parent_id?: string;
   title: string;
   content: string;
-  status?: 'draft' | 'in_review' | 'approved' | 'archived';
-  author_id: string;
+  author_id?: string;
 }
 
 export interface UpdateDocument {
-  parent_id?: string | null;
   title?: string;
   content?: string;
-  status?: 'draft' | 'in_review' | 'approved' | 'archived';
-  author_id?: string;
   change_summary?: string;
+  author_id?: string;
 }
-
-export type DocumentStatus = 'draft' | 'in_review' | 'approved' | 'archived';
 
 export interface DocumentVersion {
   id: string;
@@ -192,64 +180,44 @@ export interface DocumentVersion {
   version: number;
   title: string;
   content: string;
-  author_id: string;
+  author_id: string | null;
   change_summary: string | null;
   created_at: string;
 }
 
-export interface CreateDocumentVersion {
-  document_id: string;
-  version: number;
-  content: string;
-  author_id: string;
-  change_summary?: string | null;
-}
-
-export interface AgentRegistration {
+export interface Event {
   id: string;
   project_id: string;
-  name: string;
-  type: 'ai_agent' | 'human';
-  role: 'owner' | 'contributor' | 'observer';
-  capabilities: string;
-  status: 'active' | 'idle' | 'offline';
-  last_seen_at: string;
+  entity_type: 'project' | 'board' | 'column' | 'card' | 'document' | 'agent';
+  entity_id: string;
+  action: string;
+  actor_id: string | null;
+  payload: Record<string, unknown> | null;
   created_at: string;
 }
 
-export interface CreateAgentRegistration {
+export interface CreateEvent {
+  project_id: string;
+  entity_type: 'project' | 'board' | 'column' | 'card' | 'document' | 'agent';
+  entity_id: string;
+  action: string;
+  actor_id?: string;
+  payload?: Record<string, unknown>;
+}
+
+export interface CardDetails extends Card {
+  assignees: Agent[];
+  labels: Label[];
+  comments: Comment[];
+}
+
+export interface ProjectSummary {
   project_id: string;
   name: string;
-  type: 'ai_agent' | 'human';
-  role: 'owner' | 'contributor' | 'observer';
-  capabilities: string;
-  status: 'active' | 'idle' | 'offline';
-}
-
-export interface UpdateAgentRegistration {
-  name?: string;
-  role?: 'owner' | 'contributor' | 'observer';
-  capabilities?: string;
-  status?: 'active' | 'idle' | 'offline';
-  last_seen_at?: string;
-}
-
-export interface CAPEvent {
-  id: string;
-  project_id: string;
-  entity_type: string;
-  entity_id: string;
-  action: string;
-  actor_id: string;
-  payload: string;
-  created_at: string;
-}
-
-export interface CreateCAPEvent {
-  project_id: string;
-  entity_type: string;
-  entity_id: string;
-  action: string;
-  actor_id: string;
-  payload: string;
+  description: string | null;
+  board_count: number;
+  card_count: number;
+  agent_count: number;
+  active_agent_count: number;
+  document_count: number;
 }

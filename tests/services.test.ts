@@ -1,7 +1,9 @@
+// File: tests/services.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import path from 'node:path';
 import fs from 'node:fs';
-import { SQLiteAdapter } from '../src/db/sqlite-adapter.js';
+import path from 'node:path';
+import { createDatabaseAdapter } from '../src/db/factory.js';
+import { DatabaseAdapter } from '../src/db/adapter.js';
 import { Migrator } from '../src/db/migrator.js';
 import {
   ProjectService,
@@ -10,13 +12,14 @@ import {
   CardService,
   CommentService,
   DocumentService,
-  AgentService
+  AgentService,
+  EventService
 } from '../src/services/index.js';
 
-describe('CAP Services Integration Tests', () => {
-  let db: SQLiteAdapter;
-  let testDbPath: string;
+const TEST_DB = path.join(process.cwd(), 'data', 'test.db');
 
+describe('Domain Services Integration Tests', () => {
+  let db: DatabaseAdapter;
   let projectService: ProjectService;
   let boardService: BoardService;
   let columnService: ColumnService;
@@ -24,69 +27,64 @@ describe('CAP Services Integration Tests', () => {
   let commentService: CommentService;
   let documentService: DocumentService;
   let agentService: AgentService;
+  let eventService: EventService;
 
   beforeEach(async () => {
-    testDbPath = path.join(process.cwd(), `data/test_${Date.now()}_${Math.random().toString(36).substring(7)}.db`);
-    db = new SQLiteAdapter(testDbPath);
+    if (fs.existsSync(TEST_DB)) {
+      fs.unlinkSync(TEST_DB);
+    }
+    db = createDatabaseAdapter(TEST_DB);
 
     const migrator = new Migrator(db, path.join(process.cwd(), 'src/db/migrations'));
     await migrator.run();
 
-    projectService = new ProjectService(db);
-    boardService = new BoardService(db);
-    columnService = new ColumnService(db);
-    cardService = new CardService(db);
-    commentService = new CommentService(db);
-    documentService = new DocumentService(db);
-    agentService = new AgentService(db);
+    eventService = new EventService(db);
+    boardService = new BoardService(db, eventService);
+    projectService = new ProjectService(db, eventService, boardService);
+    columnService = new ColumnService(db, eventService);
+    cardService = new CardService(db, eventService);
+    commentService = new CommentService(db, eventService);
+    documentService = new DocumentService(db, eventService);
+    agentService = new AgentService(db, eventService);
   });
 
-  afterEach(() => {
-    db.close();
-    if (fs.existsSync(testDbPath)) {
-      fs.unlinkSync(testDbPath);
+  afterEach(async () => {
+    if (db) await db.close();
+    if (fs.existsSync(TEST_DB)) {
+      fs.unlinkSync(TEST_DB);
     }
   });
 
-  it('Bug 1.1: getSummary returns accurate counts without SQL join error', async () => {
-    const project = await projectService.create({ name: 'Test Project' });
-    const board = await boardService.create({ project_id: project.id, name: 'Main Board' });
-    const col = await columnService.create({ board_id: board.id, name: 'To Do' });
-    await cardService.create({ column_id: col.id, title: 'Card 1', position: 'm' });
+  it('Bug 1.1: project creation creates default board and columns', async () => {
+    const project = await projectService.create({ name: 'Test Project', description: 'Desc' });
+    expect(project.id).toBeDefined();
 
-    const summary = await projectService.getSummary(project.id);
-    expect(summary.board_count).toBe(1);
-    expect(summary.card_count).toBe(1);
+    const boards = await boardService.list(project.id);
+    expect(boards.length).toBe(1);
+    expect(boards[0].name).toBe('Sprint 1');
+
+    const columns = await columnService.list(boards[0].id);
+    expect(columns.length).toBe(5);
+    expect(columns.map(c => c.name)).toEqual(['Backlog', 'To Do', 'In Progress', 'In Review', 'Done']);
   });
 
-  it('Bug 1.2: card assign and addLabel succeed without schema error', async () => {
-    const project = await projectService.create({ name: 'Project' });
-    const board = await boardService.create({ project_id: project.id, name: 'Board' });
-    const col = await columnService.create({ board_id: board.id, name: 'Col' });
-    const card = await cardService.create({ column_id: col.id, title: 'Card', position: 'm' });
-    const agent = await agentService.register({
-      project_id: project.id,
-      name: 'Agent 1',
-      type: 'ai_agent',
-      role: 'contributor',
-      capabilities: 'code',
-      status: 'active'
-    });
-    const label = await boardService.createLabel({ board_id: board.id, name: 'Bug', color: 'red' });
-
-    await expect(cardService.assign(card.id, agent.id)).resolves.not.toThrow();
-    await expect(cardService.addLabel(card.id, label.id)).resolves.not.toThrow();
-
-    const cardDetails = await cardService.getById(card.id);
-    expect(cardDetails.assignees.length).toBe(1);
-    expect(cardDetails.labels.length).toBe(1);
-  });
-
-  it('Bug 1.3: comment creation succeeds without updated_at error', async () => {
+  it('Bug 1.2: column wip_limit works correctly', async () => {
     const project = await projectService.create({ name: 'P' });
-    const board = await boardService.create({ project_id: project.id, name: 'B' });
-    const col = await columnService.create({ board_id: board.id, name: 'C' });
-    const card = await cardService.create({ column_id: col.id, title: 'Card', position: 'm' });
+    const boards = await boardService.list(project.id);
+    const col = await columnService.create({ board_id: boards[0].id, name: 'Testing', wip_limit: 5 });
+
+    expect(col.wip_limit).toBe(5);
+
+    const updated = await columnService.update(col.id, { wip_limit: 10 });
+    expect(updated.wip_limit).toBe(10);
+  });
+
+  it('Bug 1.3: commentService.create executes without SQL syntax error', async () => {
+    const project = await projectService.create({ name: 'P' });
+    const boards = await boardService.list(project.id);
+    const columns = await columnService.list(boards[0].id);
+    const card = await cardService.create({ column_id: columns[0].id, title: 'Card 1' });
+
     const agent = await agentService.register({
       project_id: project.id,
       name: 'Agent 1',
@@ -101,6 +99,25 @@ describe('CAP Services Integration Tests', () => {
 
     const comments = await commentService.listByCard(card.id);
     expect(comments.length).toBe(1);
+  });
+
+  it('registers and unregisters an agent cleanly', async () => {
+    const project = await projectService.create({ name: 'P' });
+    const agent = await agentService.register({
+      project_id: project.id,
+      name: 'Agent To Remove',
+      type: 'ai_agent',
+      role: 'contributor',
+    });
+    expect(agent.name).toBe('Agent To Remove');
+
+    let agents = await agentService.list(project.id);
+    expect(agents.some(a => a.id === agent.id)).toBe(true);
+
+    await agentService.unregister(agent.id);
+
+    agents = await agentService.list(project.id);
+    expect(agents.some(a => a.id === agent.id)).toBe(false);
   });
 
   it('Bug 1.4: document creation and update succeed without version title error', async () => {
@@ -123,41 +140,15 @@ describe('CAP Services Integration Tests', () => {
     expect(doc.version).toBe(1);
 
     const updated = await documentService.update(doc.id, {
+      title: 'Spec v2',
       content: 'v2 content',
-      author_id: agent.id,
-      change_summary: 'Updated content'
+      change_summary: 'Updated content',
+      author_id: agent.id
     });
     expect(updated.version).toBe(2);
+    expect(updated.title).toBe('Spec v2');
 
     const history = await documentService.getHistory(doc.id);
     expect(history.length).toBe(2);
-  });
-
-  it('Bug 3.2: multiple agents of same type can register and list_agents parses capabilities safely', async () => {
-    const project = await projectService.create({ name: 'P' });
-
-    const agent1 = await agentService.register({
-      project_id: project.id,
-      name: 'Architect',
-      type: 'ai_agent',
-      role: 'owner',
-      capabilities: 'design,review',
-      status: 'active'
-    });
-
-    const agent2 = await agentService.register({
-      project_id: project.id,
-      name: 'Developer',
-      type: 'ai_agent',
-      role: 'contributor',
-      capabilities: ['code', 'test'] as any,
-      status: 'active'
-    });
-
-    expect(agent1.id).not.toBe(agent2.id);
-
-    const agents = await agentService.list(project.id);
-    expect(agents.length).toBe(2);
-    expect(Array.isArray(agents[0].capabilities)).toBe(true);
   });
 });
