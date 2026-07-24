@@ -60,9 +60,20 @@ export class AgentService {
     return this.getById(registration.id);
   }
 
-  async list(projectId: string): Promise<AgentRegistration[]> {
+  async list(projectId?: string): Promise<AgentRegistration[]> {
     await this.updateStatus();
-    const rows = await this.db.query<any>(`SELECT * FROM agent_registrations WHERE project_id = ? ORDER BY last_seen_at DESC`, [projectId]);
+    let rows: any[] = [];
+    if (projectId) {
+      rows = await this.db.query<any>(
+        `SELECT * FROM agent_registrations WHERE project_id = ? ORDER BY last_seen_at DESC`,
+        [projectId]
+      );
+    }
+    if (rows.length === 0) {
+      rows = await this.db.query<any>(
+        `SELECT * FROM agent_registrations ORDER BY last_seen_at DESC`
+      );
+    }
     return rows.map(row => ({
       ...row,
       capabilities: this.parseCapabilities(row.capabilities)
