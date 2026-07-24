@@ -258,7 +258,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({ documents, onOpenN
                   </div>
                 ) : (
                   <div
-                    className="prose prose-invert prose-amber max-w-none text-xs leading-relaxed text-zinc-200 bg-command-card p-5 rounded-lg border border-command-border overflow-y-auto max-h-[500px]"
+                    className="markdown-render max-w-none text-xs leading-relaxed bg-command-card p-6 rounded-lg border border-command-border overflow-y-auto max-h-[550px]"
                     dangerouslySetInnerHTML={{ __html: marked.parse(selectedDoc.content || '') as string }}
                   />
                 )}
