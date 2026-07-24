@@ -136,13 +136,22 @@ export class Migrator {
   }
 
   async run(): Promise<void> {
-    let sqlToRun = INITIAL_SQL;
-    if (fs.existsSync(this.migrationsDir)) {
-      const files = fs.readdirSync(this.migrationsDir).filter(f => f.endsWith('.sql')).sort();
-      if (files.length > 0) {
-        sqlToRun = files.map(file => fs.readFileSync(path.join(this.migrationsDir, file), 'utf-8')).join('\n;\n');
+    let targetDir = this.migrationsDir;
+    if (!fs.existsSync(targetDir) || fs.readdirSync(targetDir).filter(f => f.endsWith('.sql')).length === 0) {
+      const srcDir = path.join(process.cwd(), 'src/db/migrations');
+      if (fs.existsSync(srcDir)) {
+        targetDir = srcDir;
       }
     }
+
+    let sqlToRun = INITIAL_SQL;
+    if (fs.existsSync(targetDir)) {
+      const files = fs.readdirSync(targetDir).filter(f => f.endsWith('.sql')).sort();
+      if (files.length > 0) {
+        sqlToRun = files.map(file => fs.readFileSync(path.join(targetDir, file), 'utf-8')).join('\n;\n');
+      }
+    }
+
     await this.db.migrate(sqlToRun);
   }
 }

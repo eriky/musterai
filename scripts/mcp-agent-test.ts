@@ -1,8 +1,39 @@
 // File: scripts/mcp-agent-test.ts
-import fetch from 'node:fetch';
+import { fork, ChildProcess } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 
-const MCP_ENDPOINT = 'http://localhost:3000/mcp';
+const TEST_PORT = 3098;
+const TEST_DB_PATH = path.join(process.cwd(), 'data', `e2e-mcp-${Date.now()}.db`);
+const APP_URL = `http://localhost:${TEST_PORT}`;
+const MCP_ENDPOINT = `${APP_URL}/mcp`;
 let requestId = 1;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function removeDbFiles(dbPath: string) {
+  for (const f of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`]) {
+    if (fs.existsSync(f)) {
+      try {
+        fs.unlinkSync(f);
+      } catch {}
+    }
+  }
+}
+
+async function waitForServer(url: string, timeoutMs = 15000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return;
+    } catch {}
+    await sleep(300);
+  }
+  throw new Error(`Server failed to start at ${url} within ${timeoutMs}ms`);
+}
 
 async function callMCPTool(toolName: string, args: Record<string, any> = {}) {
   const payload = {
@@ -51,11 +82,28 @@ async function callMCPTool(toolName: string, args: Record<string, any> = {}) {
 
 async function runMcpAgentTestSuite() {
   console.log('===========================================================');
-  console.log('   STARTING MCP SERVER E2E TEST SUITE (External Agent Mode)');
+  console.log('   STARTING MCP E2E TEST SUITE (Isolated Temp DB Mode)');
   console.log('   Target Endpoint: ' + MCP_ENDPOINT);
+  console.log('   Test DB File: ' + TEST_DB_PATH);
   console.log('===========================================================\n');
 
-  let projectId: string | null = null;
+  removeDbFiles(TEST_DB_PATH);
+
+  // 1. Spawn Isolated Test Server
+  console.log('[Server Setup] Starting isolated CAP server process on port 3098...');
+  const serverProcess: ChildProcess = fork(path.join(process.cwd(), 'dist', 'index.js'), [], {
+    env: {
+      ...process.env,
+      CAP_PORT: String(TEST_PORT),
+      CAP_DB_PATH: TEST_DB_PATH,
+    },
+    stdio: 'ignore',
+  });
+
+  // Wait for server health endpoint
+  console.log('[Server Setup] Waiting for health endpoint readiness...');
+  await waitForServer(`${APP_URL}/api/v1/health`);
+  console.log('  ✓ Test server online and healthy!\n');
 
   try {
     // Step 1: Create Project
@@ -64,7 +112,6 @@ async function runMcpAgentTestSuite() {
       name: 'Autonomous MCP Test Project',
       description: 'Project created via external agent MCP protocol test',
     });
-    projectId = project.id;
     console.log(`  ✓ Project Created! ID: ${project.id}, Name: "${project.name}"`);
 
     // Step 2: Register Agent
@@ -193,15 +240,10 @@ async function runMcpAgentTestSuite() {
     console.log('   🎉 ALL 12 MCP PROTOCOL TESTS PASSED CLEANLY!');
     console.log('===========================================================\n');
   } finally {
-    // Cleanup temporary MCP test project
-    if (projectId) {
-      try {
-        await fetch(`http://localhost:3000/api/v1/projects/${projectId}`, { method: 'DELETE' });
-        console.log(`  🧹 Cleaned up temporary test project (${projectId}).`);
-      } catch (err) {
-        console.warn('  ⚠️ Failed to cleanup test project:', err);
-      }
-    }
+    serverProcess.kill('SIGTERM');
+    await sleep(500);
+    removeDbFiles(TEST_DB_PATH);
+    console.log(`  🧹 Deleted temporary MCP test database files (${path.basename(TEST_DB_PATH)}*).`);
   }
 }
 

@@ -9,7 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "dev:ui": "vite",
     "build:ui": "vite build",
-    "build": "vite build && tsc",
+    "build": "vite build && tsc && mkdir -p dist/db/migrations && cp src/db/migrations/* dist/db/migrations/",
     "seed": "tsx scripts/seed.ts",
     "test": "vitest run"
   },

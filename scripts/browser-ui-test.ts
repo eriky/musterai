@@ -1,18 +1,67 @@
 // File: scripts/browser-ui-test.ts
 import { chromium } from 'playwright';
+import { fork, ChildProcess } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 
-const APP_URL = 'http://localhost:3000';
+const TEST_PORT = 3099;
+const TEST_DB_PATH = path.join(process.cwd(), 'data', `e2e-browser-${Date.now()}.db`);
+const APP_URL = `http://localhost:${TEST_PORT}`;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function removeDbFiles(dbPath: string) {
+  for (const f of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`]) {
+    if (fs.existsSync(f)) {
+      try {
+        fs.unlinkSync(f);
+      } catch {}
+    }
+  }
+}
+
+async function waitForServer(url: string, timeoutMs = 15000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) return;
+    } catch {}
+    await sleep(300);
+  }
+  throw new Error(`Server failed to start at ${url} within ${timeoutMs}ms`);
+}
 
 async function runBrowserUiTest() {
   console.log('===========================================================');
-  console.log('   STARTING FULL BROWSER E2E USER TEST (Headless Chromium)');
+  console.log('   STARTING ISOLATED BROWSER E2E TEST (Temp DB File Mode)');
   console.log('   Target URL: ' + APP_URL);
+  console.log('   Test DB File: ' + TEST_DB_PATH);
   console.log('===========================================================\n');
+
+  removeDbFiles(TEST_DB_PATH);
+
+  // 1. Spawn Isolated Test Server
+  console.log('[Server Setup] Starting isolated CAP server process on port 3099...');
+  const serverProcess: ChildProcess = fork(path.join(process.cwd(), 'dist', 'index.js'), [], {
+    env: {
+      ...process.env,
+      CAP_PORT: String(TEST_PORT),
+      CAP_DB_PATH: TEST_DB_PATH,
+    },
+    stdio: 'inherit',
+  });
+
+  // Wait for server health endpoint
+  console.log('[Server Setup] Waiting for health endpoint readiness...');
+  await waitForServer(`${APP_URL}/api/v1/health`);
+  console.log('  ✓ Test server online and healthy!\n');
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
   const page = await context.newPage();
-  let testProjectId: string | null = null;
 
   // Handle dialogs automatically
   page.on('dialog', async (dialog) => {
@@ -40,7 +89,7 @@ async function runBrowserUiTest() {
     await page.click('button:has-text("+ Project")');
     await page.waitForSelector('text=Create New Project');
 
-    await page.fill('input[placeholder*="Collaborative Platform"]', 'E2E Browser Verification Project');
+    await page.fill('input[placeholder*="Collaborative Platform"]', 'E2E Isolated Test Project');
     await page.fill('textarea[placeholder*="Project goals"]', 'Automated test project created via Playwright');
     await page.click('button[type="submit"]:has-text("Create Project")');
     await page.waitForSelector('text=Create New Project', { state: 'detached' });
@@ -48,8 +97,8 @@ async function runBrowserUiTest() {
 
     // Verify dropdown updated
     await page.waitForTimeout(500);
-    testProjectId = await page.locator('select').first().inputValue();
-    console.log(`  ✓ Active Selected Project ID: ${testProjectId}`);
+    const selectedProject = await page.locator('select').first().inputValue();
+    console.log(`  ✓ Active Selected Project ID: ${selectedProject}`);
 
     // Step 3: Test Board View & Column Creation
     console.log('\n[3/8] Testing Kanban Board & Column Creation (+ Add Column)...');
@@ -157,18 +206,13 @@ async function runBrowserUiTest() {
     await page.screenshot({ path: 'scratch/ui-error-screenshot.png' }).catch(() => {});
     process.exit(1);
   } finally {
-    // Automated Cleanup of Test Project
-    if (testProjectId) {
-      try {
-        await page.evaluate(async (pid) => {
-          await fetch(`/api/v1/projects/${pid}`, { method: 'DELETE' });
-        }, testProjectId);
-        console.log(`  🧹 Cleaned up temporary test project (${testProjectId}).`);
-      } catch (err) {
-        console.warn('  ⚠️ Failed to cleanup test project:', err);
-      }
-    }
     await browser.close();
+    
+    // Stop server and delete temporary test database file
+    serverProcess.kill('SIGTERM');
+    await sleep(500);
+    removeDbFiles(TEST_DB_PATH);
+    console.log(`  🧹 Deleted temporary test database files (${path.basename(TEST_DB_PATH)}*).`);
   }
 }
 
