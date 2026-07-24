@@ -209,6 +209,7 @@ export interface CardDetails extends Card {
   assignees: Agent[];
   labels: Label[];
   comments: Comment[];
+  linked_documents: Document[];
 }
 
 export interface ProjectSummary {

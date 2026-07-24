@@ -115,5 +115,26 @@ export function createCardRouter(cardService: CardService, commentService: Comme
     }
   });
 
+  // Document links
+  router.post('/cards/:id/documents', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await cardService.linkDocument(req.params.id, req.body.document_id);
+      const card = await cardService.getById(req.params.id);
+      res.json(card);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete('/cards/:id/documents/:documentId', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await cardService.unlinkDocument(req.params.id, req.params.documentId);
+      const card = await cardService.getById(req.params.id);
+      res.json(card);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   return router;
 }

@@ -218,6 +218,18 @@ All AI agents and human operators collaborating within CAP must follow this prot
     return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
   });
 
+  server.tool('link_document_to_card', { card_id: z.string(), document_id: z.string() }, async ({ card_id, document_id }) => {
+    await services.cardService.linkDocument(card_id, document_id);
+    const details = await services.cardService.getById(card_id);
+    return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
+  });
+
+  server.tool('unlink_document_from_card', { card_id: z.string(), document_id: z.string() }, async ({ card_id, document_id }) => {
+    await services.cardService.unlinkDocument(card_id, document_id);
+    const details = await services.cardService.getById(card_id);
+    return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
+  });
+
   server.tool('create_label', { board_id: z.string(), name: z.string(), color: z.string() }, async (args) => {
     const result = await services.boardService.createLabel(args);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };

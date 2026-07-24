@@ -1,7 +1,6 @@
-// File: src/services/card.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Card, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent } from '../shared/types.js';
+import { Card, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document } from '../shared/types.js';
 import { EventService } from './event.service.js';
 import { rankAfter } from '../shared/lexorank.js';
 
@@ -101,6 +100,14 @@ export class CardService {
       [id]
     );
 
+    const linked_documents = await this.db.query<Document>(
+      `SELECT d.* FROM document d
+       JOIN card_document cd ON d.id = cd.document_id
+       WHERE cd.card_id = ?
+       ORDER BY cd.linked_at ASC`,
+      [id]
+    );
+
     return {
       ...card,
       assignees: assignees.map(a => ({
@@ -109,6 +116,7 @@ export class CardService {
       })),
       labels,
       comments,
+      linked_documents,
     };
   }
 
@@ -271,6 +279,36 @@ export class CardService {
     await this.db.execute(
       `DELETE FROM card_label WHERE card_id = ? AND label_id = ?`,
       [cardId, labelId]
+    );
+  }
+
+  async linkDocument(cardId: string, documentId: string, actorId?: string): Promise<void> {
+    const linked_at = new Date().toISOString();
+    await this.db.execute(
+      `INSERT OR IGNORE INTO card_document (card_id, document_id, linked_at) VALUES (?, ?, ?)`,
+      [cardId, documentId, linked_at]
+    );
+
+    if (this.eventService) {
+      const card = await this.getById(cardId);
+      const projectId = await this.getProjectIdForColumn(card.column_id);
+      if (projectId) {
+        await this.eventService.create({
+          project_id: projectId,
+          entity_type: 'card',
+          entity_id: cardId,
+          action: 'document_linked',
+          actor_id: actorId,
+          payload: { document_id: documentId },
+        });
+      }
+    }
+  }
+
+  async unlinkDocument(cardId: string, documentId: string, actorId?: string): Promise<void> {
+    await this.db.execute(
+      `DELETE FROM card_document WHERE card_id = ? AND document_id = ?`,
+      [cardId, documentId]
     );
   }
 

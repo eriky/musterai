@@ -1,8 +1,8 @@
 // File: src/web/components/KanbanBoard.tsx
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { Board, Column, Card, Agent, CardDetails } from '../types.js';
-import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2 } from 'lucide-react';
+import { Board, Column, Card, Agent, CardDetails, Document } from '../types.js';
+import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink } from 'lucide-react';
 import { api } from '../api.js';
 
 interface KanbanBoardProps {
@@ -10,6 +10,7 @@ interface KanbanBoardProps {
   columns: Column[];
   cards: Card[];
   agents: Agent[];
+  documents: Document[];
   onMoveCard: (cardId: string, targetColumnId: string, position?: string) => void;
   onOpenNewCard: (columnId?: string) => void;
   onOpenNewColumn: () => void;
@@ -21,6 +22,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   columns,
   cards,
   agents,
+  documents,
   onMoveCard,
   onOpenNewCard,
   onOpenNewColumn,
@@ -31,6 +33,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [commentText, setCommentText] = useState('');
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('');
   const [assignAgentId, setAssignAgentId] = useState<string>('');
+  const [linkDocumentId, setLinkDocumentId] = useState<string>('');
 
   const handleDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -75,6 +78,29 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       onRefresh();
     } catch (err) {
       console.error('Failed to assign agent:', err);
+    }
+  };
+
+  const handleLinkDocument = async () => {
+    if (!selectedCardId || !linkDocumentId) return;
+    try {
+      await api.linkDocument(selectedCardId, linkDocumentId);
+      const updated = await api.getCardDetails(selectedCardId);
+      setCardDetails(updated);
+      setLinkDocumentId('');
+    } catch (err) {
+      console.error('Failed to link document:', err);
+    }
+  };
+
+  const handleUnlinkDocument = async (documentId: string) => {
+    if (!selectedCardId) return;
+    try {
+      await api.unlinkDocument(selectedCardId, documentId);
+      const updated = await api.getCardDetails(selectedCardId);
+      setCardDetails(updated);
+    } catch (err) {
+      console.error('Failed to unlink document:', err);
     }
   };
 
@@ -328,6 +354,67 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     )}
                   </div>
                 </div>
+              </div>
+
+              {/* Linked Documents */}
+              <div>
+                <h4 className="text-xs font-bold text-zinc-300 uppercase mb-3 flex items-center">
+                  <FileText className="w-4 h-4 mr-1.5 text-amber-400" />
+                  Linked Documents ({(cardDetails.linked_documents || []).length})
+                </h4>
+
+                <div className="space-y-2 mb-3">
+                  {(cardDetails.linked_documents || []).length > 0 ? (
+                    cardDetails.linked_documents.map((doc) => (
+                      <div key={doc.id} className="flex items-center justify-between bg-command-card p-2.5 rounded-lg border border-amber-500/20 group">
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <FileText className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                          <span className="text-xs font-sans text-zinc-200 truncate">{doc.title}</span>
+                          <span className={`px-1.5 py-0.5 text-[10px] font-mono rounded flex-shrink-0 ${
+                            doc.status === 'approved' ? 'bg-emerald-950 text-emerald-400 border border-emerald-600/40' :
+                            doc.status === 'in_review' ? 'bg-amber-950 text-amber-400 border border-amber-600/40' :
+                            'bg-zinc-900 text-zinc-400 border border-zinc-700'
+                          }`}>{doc.status}</span>
+                        </div>
+                        <button
+                          onClick={() => handleUnlinkDocument(doc.id)}
+                          className="p-1 text-zinc-600 hover:text-rose-400 rounded transition-colors cursor-pointer flex-shrink-0 opacity-0 group-hover:opacity-100"
+                          title="Unlink document"
+                        >
+                          <Unlink className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-zinc-500 italic">No documents linked to this card.</p>
+                  )}
+                </div>
+
+                {/* Attach document picker */}
+                {documents.length > 0 && (
+                  <div className="flex space-x-1.5">
+                    <select
+                      value={linkDocumentId}
+                      onChange={(e) => setLinkDocumentId(e.target.value)}
+                      className="bg-command-card border border-command-border text-zinc-200 text-xs rounded px-2 py-1 flex-1"
+                    >
+                      <option value="">Link a document...</option>
+                      {documents
+                        .filter((d) => !(cardDetails.linked_documents || []).some((ld) => ld.id === d.id))
+                        .map((d) => (
+                          <option key={d.id} value={d.id}>{d.title}</option>
+                        ))}
+                    </select>
+                    <button
+                      onClick={handleLinkDocument}
+                      disabled={!linkDocumentId}
+                      className="px-2.5 py-1 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-800 text-zinc-950 text-xs font-bold rounded cursor-pointer flex items-center space-x-1"
+                    >
+                      <Link2 className="w-3 h-3" />
+                      <span>Link</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Comments Section */}

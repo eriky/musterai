@@ -210,6 +210,7 @@ export const App: React.FC = () => {
             columns={columns}
             cards={cards}
             agents={agents}
+            documents={documents}
             onMoveCard={handleMoveCard}
             onOpenNewCard={handleOpenNewCardModal}
             onOpenNewColumn={() => setShowNewColumnModal(true)}

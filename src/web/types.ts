@@ -59,6 +59,7 @@ export interface Agent {
 export interface CardDetails extends Card {
   assignees: Agent[];
   labels: Label[];
+  linked_documents: Document[];
   comments: {
     id: string;
     card_id: string;
