@@ -12,6 +12,7 @@ async function runBrowserUiTest() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext();
   const page = await context.newPage();
+  let testProjectId: string | null = null;
 
   // Handle dialogs automatically
   page.on('dialog', async (dialog) => {
@@ -20,7 +21,7 @@ async function runBrowserUiTest() {
   });
 
   try {
-    // Step 1: Load Web App
+    // Step 1: Load Web UI
     console.log('[1/8] Loading Web UI...');
     await page.goto(APP_URL, { waitUntil: 'domcontentloaded' });
     await page.waitForSelector('header', { timeout: 10000 });
@@ -47,8 +48,8 @@ async function runBrowserUiTest() {
 
     // Verify dropdown updated
     await page.waitForTimeout(500);
-    const selectedProject = await page.locator('select').first().inputValue();
-    console.log(`  ✓ Active Selected Project ID: ${selectedProject}`);
+    testProjectId = await page.locator('select').first().inputValue();
+    console.log(`  ✓ Active Selected Project ID: ${testProjectId}`);
 
     // Step 3: Test Board View & Column Creation
     console.log('\n[3/8] Testing Kanban Board & Column Creation (+ Add Column)...');
@@ -156,6 +157,17 @@ async function runBrowserUiTest() {
     await page.screenshot({ path: 'scratch/ui-error-screenshot.png' }).catch(() => {});
     process.exit(1);
   } finally {
+    // Automated Cleanup of Test Project
+    if (testProjectId) {
+      try {
+        await page.evaluate(async (pid) => {
+          await fetch(`/api/v1/projects/${pid}`, { method: 'DELETE' });
+        }, testProjectId);
+        console.log(`  🧹 Cleaned up temporary test project (${testProjectId}).`);
+      } catch (err) {
+        console.warn('  ⚠️ Failed to cleanup test project:', err);
+      }
+    }
     await browser.close();
   }
 }
