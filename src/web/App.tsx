@@ -16,19 +16,51 @@ import {
   NewDocModal,
 } from './components/Modals.js';
 
+type TabType = 'board' | 'agents' | 'docs' | 'activity';
+
+// ─── URL Routing Helpers (HTML5 History API — No Hash) ─────────────────────────
+
+function parseLocation(): { projectId: string | null; tab: TabType } {
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  // Expected pattern: /projects/:projectId/:tab
+  if (parts[0] === 'projects' && parts[1]) {
+    const projectId = parts[1];
+    const rawTab = parts[2];
+    const validTabs: TabType[] = ['board', 'agents', 'docs', 'activity'];
+    const tab = validTabs.includes(rawTab as TabType) ? (rawTab as TabType) : 'board';
+    return { projectId, tab };
+  }
+  return { projectId: null, tab: 'board' };
+}
+
+function updateLocation(projectId: string | null, tab: TabType, replace = false) {
+  if (!projectId) return;
+  const targetPath = `/projects/${projectId}/${tab}`;
+  if (window.location.pathname !== targetPath) {
+    if (replace) {
+      window.history.replaceState(null, '', targetPath);
+    } else {
+      window.history.pushState(null, '', targetPath);
+    }
+  }
+}
+
+// ─── Main App Component ────────────────────────────────────────────────────────
+
 export const App: React.FC = () => {
+  const initialNav = parseLocation();
+
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(initialNav.projectId);
+  const [activeTab, setActiveTab] = useState<TabType>(initialNav.tab);
   const [summary, setSummary] = useState<ProjectSummary | null>(null);
-  
+
   const [board, setBoard] = useState<Board | null>(null);
   const [columns, setColumns] = useState<Column[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
-
-  const [activeTab, setActiveTab] = useState<'agents' | 'board' | 'docs' | 'activity'>('board');
 
   // Modals visibility
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
@@ -44,15 +76,27 @@ export const App: React.FC = () => {
     try {
       const list = await api.getProjects();
       setProjects(list);
-      if (selectId) {
-        setSelectedProjectId(selectId);
-      } else if (list.length > 0 && !selectedProjectId) {
-        setSelectedProjectId(list[0].id);
+
+      const nav = parseLocation();
+      let targetId = selectId || nav.projectId;
+
+      // Validate URL project ID exists in projects list
+      if (targetId && !list.some((p) => p.id === targetId)) {
+        targetId = null;
+      }
+
+      if (!targetId && list.length > 0) {
+        targetId = list[0].id;
+      }
+
+      if (targetId) {
+        setSelectedProjectId(targetId);
+        updateLocation(targetId, activeTab, true);
       }
     } catch (err) {
       console.error('Error loading projects:', err);
     }
-  }, [selectedProjectId]);
+  }, [activeTab]);
 
   // Load Selected Project Data
   const loadProjectData = useCallback(async () => {
@@ -99,6 +143,33 @@ export const App: React.FC = () => {
       }
     }
   }, [selectedProjectId, loadProjects]);
+
+  // Sync state when selectedProjectId or activeTab changes
+  const handleSelectProject = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    updateLocation(projectId, activeTab);
+  };
+
+  const handleSelectTab = (tab: TabType) => {
+    setActiveTab(tab);
+    if (selectedProjectId) {
+      updateLocation(selectedProjectId, tab);
+    }
+  };
+
+  // Handle Browser Back / Forward buttons (popstate)
+  useEffect(() => {
+    const handlePopState = () => {
+      const { projectId, tab } = parseLocation();
+      if (projectId) {
+        setSelectedProjectId(projectId);
+      }
+      setActiveTab(tab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   useEffect(() => {
     loadProjects();
@@ -181,10 +252,10 @@ export const App: React.FC = () => {
       <Header
         projects={projects}
         selectedProjectId={selectedProjectId}
-        onSelectProject={setSelectedProjectId}
+        onSelectProject={handleSelectProject}
         summary={summary}
         activeTab={activeTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={handleSelectTab}
         onOpenNewProject={() => setShowNewProjectModal(true)}
         onOpenNewBoard={() => setShowNewBoardModal(true)}
         onOpenRegisterAgent={() => setShowRegisterAgentModal(true)}
@@ -241,7 +312,10 @@ export const App: React.FC = () => {
       {showNewProjectModal && (
         <NewProjectModal
           onClose={() => setShowNewProjectModal(false)}
-          onSuccess={(newId) => loadProjects(newId)}
+          onSuccess={(newId) => {
+            handleSelectProject(newId);
+            loadProjects(newId);
+          }}
         />
       )}
 
@@ -284,7 +358,6 @@ export const App: React.FC = () => {
           onSuccess={loadProjectData}
         />
       )}
-
     </div>
   );
 };
