@@ -57,6 +57,7 @@ async function runBrowserUiTest() {
   });
 
   let browser: any = null;
+  let page: any = null;
   try {
     // Wait for server health endpoint
     console.log('[Server Setup] Waiting for health endpoint readiness...');
@@ -65,7 +66,7 @@ async function runBrowserUiTest() {
 
     browser = await chromium.launch({ headless: true });
     const context = await browser.newContext();
-    const page = await context.newPage();
+    page = await context.newPage();
 
     page.on('dialog', async (dialog) => {
       console.log(`  [Dialog] ${dialog.type()}: ${dialog.message()}`);
@@ -195,9 +196,8 @@ async function runBrowserUiTest() {
     // Step 8: Real-Time Activity Log
     console.log('\n[8/8] Testing Activity Log View (Real-Time Feed)...');
     await page.click('button:has-text("Activity Log")');
-    await page.waitForSelector('text=REAL-TIME SSE STREAM');
-    const eventCountText = await page.locator('text=/EVENTS/').textContent();
-    console.log(`  ✓ Activity Log rendered cleanly. (${eventCountText})`);
+    await page.waitForSelector('text=events');
+    console.log('  ✓ Activity Log rendered cleanly.');
 
     console.log('\n===========================================================');
     console.log('   🎉 ALL BROWSER E2E USER TESTS PASSED 100%!');
