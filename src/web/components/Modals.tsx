@@ -34,19 +34,19 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({ onClose, onSuc
   };
 
   return (
-    <div className="cap-scrim">
-      <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-cap-border pb-3">
-          <h3 className="text-sm font-bold cap-text-primary flex items-center">
-            <FolderPlus className="w-4 h-4 mr-2 cap-accent" /> Create New Project
+    <div className="muster-scrim">
+      <div className="muster-dialog w-full max-w-md p-5 space-y-4 font-sans">
+        <div className="flex items-center justify-between border-b border-muster-border pb-3">
+          <h3 className="text-sm font-bold muster-text-primary flex items-center">
+            <FolderPlus className="w-4 h-4 mr-2 muster-accent" /> Create New Project
           </h3>
-          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
+          <button onClick={onClose} className="muster-btn muster-btn-icon muster-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+          <div className="muster-badge muster-badge-danger normal-case tracking-normal text-xs p-3 w-full">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -54,25 +54,25 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({ onClose, onSuc
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="cap-label">Project Name</label>
+            <label className="muster-label">Project Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Collaborative Platform v2"
-              className="cap-input cap-input-lg"
+              className="muster-input muster-input-lg"
             />
           </div>
 
           <div>
-            <label className="cap-label">Description</label>
+            <label className="muster-label">Description</label>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Project goals, scope, and target deliverables..."
-              className="cap-input"
+              className="muster-input"
             />
           </div>
 
@@ -80,14 +80,14 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({ onClose, onSuc
             <button
               type="button"
               onClick={onClose}
-              className="cap-btn cap-btn-secondary"
+              className="muster-btn muster-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim()}
-              className="cap-btn cap-btn-primary"
+              className="muster-btn muster-btn-primary"
             >
               {isSubmitting ? 'Creating...' : 'Create Project'}
             </button>
@@ -129,19 +129,19 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ project, onC
   };
 
   return (
-    <div className="cap-scrim">
-      <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-cap-border pb-3">
-          <h3 className="text-sm font-bold cap-text-primary flex items-center">
-            <Edit2 className="w-4 h-4 mr-2 cap-accent" /> Edit Project Details
+    <div className="muster-scrim">
+      <div className="muster-dialog w-full max-w-md p-5 space-y-4 font-sans">
+        <div className="flex items-center justify-between border-b border-muster-border pb-3">
+          <h3 className="text-sm font-bold muster-text-primary flex items-center">
+            <Edit2 className="w-4 h-4 mr-2 muster-accent" /> Edit Project Details
           </h3>
-          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
+          <button onClick={onClose} className="muster-btn muster-btn-icon muster-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+          <div className="muster-badge muster-badge-danger normal-case tracking-normal text-xs p-3 w-full">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -149,25 +149,25 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ project, onC
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="cap-label">Project Name</label>
+            <label className="muster-label">Project Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Collaborative Platform v2"
-              className="cap-input cap-input-lg"
+              className="muster-input muster-input-lg"
             />
           </div>
 
           <div>
-            <label className="cap-label">Description</label>
+            <label className="muster-label">Description</label>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Project goals, scope, and target deliverables..."
-              className="cap-input"
+              className="muster-input"
             />
           </div>
 
@@ -175,14 +175,14 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ project, onC
             <button
               type="button"
               onClick={onClose}
-              className="cap-btn cap-btn-secondary"
+              className="muster-btn muster-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim()}
-              className="cap-btn cap-btn-primary"
+              className="muster-btn muster-btn-primary"
             >
               {isSubmitting ? 'Saving...' : 'Save Changes'}
             </button>
@@ -224,19 +224,19 @@ export const NewBoardModal: React.FC<NewBoardModalProps> = ({ projectId, onClose
   };
 
   return (
-    <div className="cap-scrim">
-      <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-cap-border pb-3">
-          <h3 className="text-sm font-bold cap-text-primary flex items-center">
-            <Layers className="w-4 h-4 mr-2 cap-accent" /> Create New Board
+    <div className="muster-scrim">
+      <div className="muster-dialog w-full max-w-md p-5 space-y-4 font-sans">
+        <div className="flex items-center justify-between border-b border-muster-border pb-3">
+          <h3 className="text-sm font-bold muster-text-primary flex items-center">
+            <Layers className="w-4 h-4 mr-2 muster-accent" /> Create New Board
           </h3>
-          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
+          <button onClick={onClose} className="muster-btn muster-btn-icon muster-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+          <div className="muster-badge muster-badge-danger normal-case tracking-normal text-xs p-3 w-full">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -244,23 +244,23 @@ export const NewBoardModal: React.FC<NewBoardModalProps> = ({ projectId, onClose
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="cap-label">Board Name</label>
+            <label className="muster-label">Board Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Sprint 2, Feature Roadmap"
-              className="cap-input cap-input-lg"
+              className="muster-input muster-input-lg"
             />
           </div>
 
           <div>
-            <label className="cap-label">Board Structure / Lanes</label>
+            <label className="muster-label">Board Structure / Lanes</label>
             <select
               value={template}
               onChange={(e) => setTemplate(e.target.value as 'simple' | 'standard')}
-              className="cap-input"
+              className="muster-input"
             >
               <option value="simple">⚡ 3 Lanes (To Do → In Progress → Done)</option>
               <option value="standard">📋 5 Lanes (Backlog → To Do → In Progress → In Review → Done)</option>
@@ -271,14 +271,14 @@ export const NewBoardModal: React.FC<NewBoardModalProps> = ({ projectId, onClose
             <button
               type="button"
               onClick={onClose}
-              className="cap-btn cap-btn-secondary"
+              className="muster-btn muster-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim()}
-              className="cap-btn cap-btn-primary"
+              className="muster-btn muster-btn-primary"
             >
               {isSubmitting ? 'Creating...' : 'Create Board'}
             </button>
@@ -321,19 +321,19 @@ export const NewColumnModal: React.FC<NewColumnModalProps> = ({ boardId, onClose
   };
 
   return (
-    <div className="cap-scrim">
-      <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-cap-border pb-3">
-          <h3 className="text-sm font-bold cap-text-primary flex items-center">
-            <Plus className="w-4 h-4 mr-2 cap-accent" /> Add Column
+    <div className="muster-scrim">
+      <div className="muster-dialog w-full max-w-md p-5 space-y-4 font-sans">
+        <div className="flex items-center justify-between border-b border-muster-border pb-3">
+          <h3 className="text-sm font-bold muster-text-primary flex items-center">
+            <Plus className="w-4 h-4 mr-2 muster-accent" /> Add Column
           </h3>
-          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
+          <button onClick={onClose} className="muster-btn muster-btn-icon muster-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+          <div className="muster-badge muster-badge-danger normal-case tracking-normal text-xs p-3 w-full">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -341,26 +341,26 @@ export const NewColumnModal: React.FC<NewColumnModalProps> = ({ boardId, onClose
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="cap-label">Column Name</label>
+            <label className="muster-label">Column Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. In Testing, Blocked, Done"
-              className="cap-input cap-input-lg"
+              className="muster-input muster-input-lg"
             />
           </div>
 
           <div>
-            <label className="cap-label">WIP Limit (Optional)</label>
+            <label className="muster-label">WIP Limit (Optional)</label>
             <input
               type="number"
               min="1"
               value={wipLimit}
               onChange={(e) => setWipLimit(e.target.value)}
               placeholder="e.g. 3 (leave empty for unlimited)"
-              className="cap-input"
+              className="muster-input"
             />
           </div>
 
@@ -368,14 +368,14 @@ export const NewColumnModal: React.FC<NewColumnModalProps> = ({ boardId, onClose
             <button
               type="button"
               onClick={onClose}
-              className="cap-btn cap-btn-secondary"
+              className="muster-btn muster-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim()}
-              className="cap-btn cap-btn-primary"
+              className="muster-btn muster-btn-primary"
             >
               {isSubmitting ? 'Adding...' : 'Add Column'}
             </button>
@@ -418,19 +418,19 @@ export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClos
   };
 
   return (
-    <div className="cap-scrim">
-      <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-cap-border pb-3">
-          <h3 className="text-sm font-bold cap-text-primary flex items-center">
-            <Edit2 className="w-4 h-4 mr-2 cap-accent" /> Edit Column Settings
+    <div className="muster-scrim">
+      <div className="muster-dialog w-full max-w-md p-5 space-y-4 font-sans">
+        <div className="flex items-center justify-between border-b border-muster-border pb-3">
+          <h3 className="text-sm font-bold muster-text-primary flex items-center">
+            <Edit2 className="w-4 h-4 mr-2 muster-accent" /> Edit Column Settings
           </h3>
-          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
+          <button onClick={onClose} className="muster-btn muster-btn-icon muster-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+          <div className="muster-badge muster-badge-danger normal-case tracking-normal text-xs p-3 w-full">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -438,26 +438,26 @@ export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClos
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="cap-label">Column Name</label>
+            <label className="muster-label">Column Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. In Testing, Blocked, Done"
-              className="cap-input cap-input-lg"
+              className="muster-input muster-input-lg"
             />
           </div>
 
           <div>
-            <label className="cap-label">WIP Limit (Optional)</label>
+            <label className="muster-label">WIP Limit (Optional)</label>
             <input
               type="number"
               min="1"
               value={wipLimit}
               onChange={(e) => setWipLimit(e.target.value)}
               placeholder="e.g. 3 (leave empty for unlimited)"
-              className="cap-input"
+              className="muster-input"
             />
           </div>
 
@@ -465,14 +465,14 @@ export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClos
             <button
               type="button"
               onClick={onClose}
-              className="cap-btn cap-btn-secondary"
+              className="muster-btn muster-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim()}
-              className="cap-btn cap-btn-primary"
+              className="muster-btn muster-btn-primary"
             >
               {isSubmitting ? 'Saving...' : 'Save Column'}
             </button>
@@ -515,58 +515,58 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
   };
 
   return (
-    <div className="cap-scrim">
-      <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-cap-border pb-3">
-          <h3 className="text-sm font-bold cap-text-primary flex items-center">
-            <UserPlus className="w-4 h-4 mr-2 cap-accent" /> Add Human User / Operator
+    <div className="muster-scrim">
+      <div className="muster-dialog w-full max-w-md p-5 space-y-4 font-sans">
+        <div className="flex items-center justify-between border-b border-muster-border pb-3">
+          <h3 className="text-sm font-bold muster-text-primary flex items-center">
+            <UserPlus className="w-4 h-4 mr-2 muster-accent" /> Add Human User / Operator
           </h3>
-          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
+          <button onClick={onClose} className="muster-btn muster-btn-icon muster-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+          <div className="muster-badge muster-badge-danger normal-case tracking-normal text-xs p-3 w-full">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <div className="p-3 bg-cap-base border border-cap-border rounded-md text-[11px] cap-text-muted">
-          💡 <span className="font-semibold cap-text-primary">Note:</span> Manual registration is for human operators. AI agents (Claude, Cursor, Antigravity) register themselves programmatically over MCP using the Human Owner Secret Token.
+        <div className="p-3 bg-muster-base border border-muster-border rounded-md text-[11px] muster-text-muted">
+          💡 <span className="font-semibold muster-text-primary">Note:</span> Manual registration is for human operators. AI agents (Claude, Cursor, Antigravity) register themselves programmatically over MCP using the Human Owner Secret Token.
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="cap-label">User Name</label>
+            <label className="muster-label">User Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Erik, Alice"
-              className="cap-input cap-input-lg"
+              className="muster-input muster-input-lg"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="cap-label">Account Type</label>
+              <label className="muster-label">Account Type</label>
               <input
                 type="text"
                 disabled
                 value="Human Operator"
-                className="cap-input font-mono font-bold"
+                className="muster-input font-mono font-bold"
               />
             </div>
 
             <div>
-              <label className="cap-label">Role</label>
+              <label className="muster-label">Role</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as any)}
-                className="cap-input cursor-pointer"
+                className="muster-input cursor-pointer"
               >
                 <option value="owner">Owner</option>
                 <option value="contributor">Contributor</option>
@@ -576,13 +576,13 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
           </div>
 
           <div>
-            <label className="cap-label">Capabilities (comma-separated)</label>
+            <label className="muster-label">Capabilities (comma-separated)</label>
             <input
               type="text"
               value={capabilities}
               onChange={(e) => setCapabilities(e.target.value)}
               placeholder="e.g. management, architecture, review"
-              className="cap-input"
+              className="muster-input"
             />
           </div>
 
@@ -590,14 +590,14 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
             <button
               type="button"
               onClick={onClose}
-              className="cap-btn cap-btn-secondary"
+              className="muster-btn muster-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="cap-btn cap-btn-primary"
+              className="muster-btn muster-btn-primary"
             >
               {isSubmitting ? 'Adding...' : 'Add User'}
             </button>
@@ -639,19 +639,19 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ projectId, onClose, on
   };
 
   return (
-    <div className="cap-scrim">
-      <div className="cap-dialog w-full max-w-lg p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-cap-border pb-3">
-          <h3 className="text-sm font-bold cap-text-primary flex items-center">
-            <FileText className="w-4 h-4 mr-2 cap-accent" /> Create Design Document
+    <div className="muster-scrim">
+      <div className="muster-dialog w-full max-w-lg p-5 space-y-4 font-sans">
+        <div className="flex items-center justify-between border-b border-muster-border pb-3">
+          <h3 className="text-sm font-bold muster-text-primary flex items-center">
+            <FileText className="w-4 h-4 mr-2 muster-accent" /> Create Design Document
           </h3>
-          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
+          <button onClick={onClose} className="muster-btn muster-btn-icon muster-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+          <div className="muster-badge muster-badge-danger normal-case tracking-normal text-xs p-3 w-full">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -659,24 +659,24 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ projectId, onClose, on
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="cap-label">Document Title</label>
+            <label className="muster-label">Document Title</label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Architecture Overview & Schemas"
-              className="cap-input cap-input-lg"
+              className="muster-input muster-input-lg"
             />
           </div>
 
           <div>
-            <label className="cap-label">Markdown Content</label>
+            <label className="muster-label">Markdown Content</label>
             <textarea
               rows={8}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="cap-input font-mono"
+              className="muster-input font-mono"
             />
           </div>
 
@@ -684,14 +684,14 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ projectId, onClose, on
             <button
               type="button"
               onClick={onClose}
-              className="cap-btn cap-btn-secondary"
+              className="muster-btn muster-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !title.trim()}
-              className="cap-btn cap-btn-primary"
+              className="muster-btn muster-btn-primary"
             >
               {isSubmitting ? 'Creating...' : 'Create Document'}
             </button>

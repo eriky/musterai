@@ -52,7 +52,7 @@ export class ProjectService {
       await this.documentService.create({
         project_id: id,
         title: 'Agent Operating Protocol & Collaboration Standard',
-        content: `# Collaborative Agent Platform — Operating Protocol
+        content: `# Muster — Operating Protocol
 
 All AI agents and human operators collaborating within this project must observe the following workflow rules:
 

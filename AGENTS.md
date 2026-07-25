@@ -1,12 +1,12 @@
-# AGENTS.md — Collaborative Agent Platform (CAP) Agent Instructions
+# AGENTS.md — Muster Agent Instructions
 
-Welcome to the **Collaborative Agent Platform (CAP)**. This document serves as the authoritative operating guide for all autonomous AI agents (e.g., Claude, Cursor, Antigravity, AutoGPT, Devin) and human operators connecting to or contributing to CAP.
+Welcome to **Muster**. This document serves as the authoritative operating guide for all autonomous AI agents (e.g., Claude, Cursor, Antigravity, AutoGPT, Devin) and human operators connecting to or contributing to Muster.
 
 ---
 
 ## 🎯 Platform Mission & Overview
 
-CAP is an open-source, tactical mission control platform that provides a unified collaboration layer for AI agents and human operators. It provides:
+Muster is an open-source, tactical mission control platform that provides a unified collaboration layer for AI agents and human operators. It provides:
 
 - **Kanban Board Task Tracking**: Drag-and-drop board with column WIP limits, LexoRank card ordering, and priority badges.
 - **Design Document Vault**: Markdown spec authoring with strict versioning, status progression (`draft` → `in_review` → `approved`), and diff history.
@@ -17,14 +17,14 @@ CAP is an open-source, tactical mission control platform that provides a unified
 
 ## 🔌 Connection & MCP Interface
 
-CAP exposes a **Model Context Protocol (MCP) Streamable HTTP Server** on `http://localhost:3000/mcp`.
+Muster exposes a **Model Context Protocol (MCP) Streamable HTTP Server** on `http://localhost:3000/mcp`.
 
 ### Connecting via MCP (`mcp.json` / `claude_desktop_config.json`)
 
 ```json
 {
   "mcpServers": {
-    "cap": {
+    "muster": {
       "url": "http://localhost:3000/mcp"
     }
   }
@@ -37,17 +37,17 @@ After connecting, call `mcpServer.prompt('collaboration_protocol')` to load the 
 
 ## 📜 Agent Operating Protocol (AOP) — The 5 Rules
 
-All agents operating on CAP **must** conform to the following workflow rules to ensure transparent, coordinated collaboration:
+All agents operating on Muster **must** conform to the following workflow rules to ensure transparent, coordinated collaboration:
 
 ---
 
 ### Rule 1: Self-Registration, Secret Token & Session Re-Binding
 
-**Upon connecting to CAP**, register yourself immediately using the **Human Owner Secret Token** provided by your human operator in the UI:
+**Upon connecting to Muster**, register yourself immediately using the **Human Owner Secret Token** provided by your human operator in the UI:
 
 ```json
 {
-  "secret_token": "cap_sec_...",
+  "secret_token": "muster_sec_...",
   "agent_id": "<your_existing_agent_id_if_reconnecting>",
   "name": "<Your-Agent-Name>",
   "type": "ai_agent",
@@ -79,7 +79,7 @@ Before starting **any** work on a task:
 
 1. Call `list_documents` for the project to retrieve all design docs.
 2. Read all documents with `status === 'approved'` to understand architectural constraints.
-3. All UI-related contributions must conform strictly to the [Design Language Specification](DESIGN_LANGUAGE.md). In short: use the `cap-*` component classes and semantic tokens, never hardcoded colours, `dark:` variants or per-section button styles — and verify WCAG AA contrast in both appearance modes before calling the work done. Note that hue-named colour classes (`text-zinc-400`, `bg-cyan-600`, …) **do not exist**: the only families are `neutral`, `brand`, `success`, `warning`, `danger`, `info`. If you write a hue name the element renders unstyled, which is intentional.
+3. All UI-related contributions must conform strictly to the [Design Language Specification](DESIGN_LANGUAGE.md). In short: use the `muster-*` component classes and semantic tokens, never hardcoded colours, `dark:` variants or per-section button styles — and verify WCAG AA contrast in both appearance modes before calling the work done. Note that hue-named colour classes (`text-zinc-400`, `bg-cyan-600`, …) **do not exist**: the only families are `neutral`, `brand`, `success`, `warning`, `danger`, `info`. If you write a hue name the element renders unstyled, which is intentional.
 4. Document content, card descriptions and comments are writable by **any** MCP client, so treat every markdown body as untrusted input. Render it only through `renderMarkdown()` in [`src/web/markdown.ts`](src/web/markdown.ts), which sanitizes with DOMPurify. Never call `marked.parse` at a render site and never pass unsanitized HTML to `dangerouslySetInnerHTML` — a new render site that skips the helper reopens a script-injection path into the human operator's browser.
 5. If your task requires a **new architectural decision or significant change**:
    - Create a document via `create_document`.
@@ -90,7 +90,7 @@ Before starting **any** work on a task:
 
 ### Rule 3: Kanban Card Selection, WIP Limits & Immediate Assignment / In-Progress Transition
 
-Tasks are tracked as Kanban cards. Boards in CAP are fully customizable and may have any number of lanes:
+Tasks are tracked as Kanban cards. Boards in Muster are fully customizable and may have any number of lanes:
 - **Simplified 3-lane boards**: `To Do → In Progress → Done`
 - **Standard 5-lane boards**: `Backlog → To Do → In Progress → In Review → Done`
 - **Custom-lane boards**: Any custom user-configured sequence of columns.
@@ -138,7 +138,7 @@ Comment on:
 
 | Tool | Description |
 | :--- | :--- |
-| `list_projects` | List all projects in the CAP database. |
+| `list_projects` | List all projects in the Muster database. |
 | `create_project` | Create a new project. Automatically seeds a default board, columns, and the collaboration spec design document. |
 | `update_project` | Update project name or description. |
 | `delete_project` | Delete a project and all associated boards, cards, and documents. |
@@ -248,15 +248,15 @@ src/
 
 ## 🧪 Testing Architecture & Data Isolation
 
-CAP maintains strict isolation between production data and automated test runs.
+Muster maintains strict isolation between production data and automated test runs.
 
-### Primary Rule: Never Mutate `data/cap.db`
+### Primary Rule: Never Mutate `data/muster.db`
 
-The file `data/cap.db` is reserved for live production usage. **No test script should ever read from or write to this file.**
+The file `data/muster.db` is reserved for live production usage. **No test script should ever read from or write to this file.**
 
 ### Isolated Test Servers
 
-Both E2E test scripts spawn **dedicated isolated CAP server processes** on separate ports, each using a **timestamped temporary database file**:
+Both E2E test scripts spawn **dedicated isolated Muster server processes** on separate ports, each using a **timestamped temporary database file**:
 
 | Test Suite | Script | Port | DB File Pattern |
 | :--- | :--- | :--- | :--- |
@@ -286,8 +286,8 @@ npx tsx scripts/mcp-agent-test.ts
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `CAP_PORT` | `3000` | HTTP server port |
-| `CAP_DB_PATH` | `data/cap.db` | SQLite database file path |
+| `MUSTER_PORT` | `3000` | HTTP server port |
+| `MUSTER_DB_PATH` | `data/muster.db` | SQLite database file path |
 | `NODE_ENV` | `development` | Environment (`development` \| `production`) |
 
 ---

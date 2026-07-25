@@ -88,14 +88,14 @@ function describeEvent(
         case 'assigned': {
           const assignee = agentName(agents, p.agent_id);
           return {
-            icon: <UserPlus className="w-3.5 h-3.5 cap-text-success" />,
+            icon: <UserPlus className="w-3.5 h-3.5 muster-text-success" />,
             text: `${actor} assigned ${assignee} to card ${card}`,
           };
         }
         case 'unassigned': {
           const unassignee = agentName(agents, p.agent_id);
           return {
-            icon: <UserMinus className="w-3.5 h-3.5 cap-text-danger" />,
+            icon: <UserMinus className="w-3.5 h-3.5 muster-text-danger" />,
             text: `${actor} removed ${unassignee} from card ${card}`,
           };
         }
@@ -134,7 +134,7 @@ function describeEvent(
           };
         case 'status_changed':
           return {
-            icon: <CheckCircle className="w-3.5 h-3.5 cap-text-success" />,
+            icon: <CheckCircle className="w-3.5 h-3.5 muster-text-success" />,
             text: `${actor} set document ${doc} to ${p.status || 'new status'}`,
           };
         default:
@@ -150,12 +150,12 @@ function describeEvent(
       switch (evt.action) {
         case 'registered':
           return {
-            icon: <UserPlus className="w-3.5 h-3.5 cap-text-success" />,
+            icon: <UserPlus className="w-3.5 h-3.5 muster-text-success" />,
             text: `${agentN} registered as ${p.role || 'contributor'}`,
           };
         case 'unregistered':
           return {
-            icon: <UserMinus className="w-3.5 h-3.5 cap-text-danger" />,
+            icon: <UserMinus className="w-3.5 h-3.5 muster-text-danger" />,
             text: `${agentN} unregistered from project`,
           };
         default:
@@ -175,7 +175,7 @@ function describeEvent(
           };
         case 'deleted':
           return {
-            icon: <Trash2 className="w-3.5 h-3.5 cap-text-danger" />,
+            icon: <Trash2 className="w-3.5 h-3.5 muster-text-danger" />,
             text: `${actor} deleted column "${p.name || `#${evt.entity_id.slice(-6)}`}"`,
           };
         case 'updated':
@@ -217,7 +217,7 @@ function describeEvent(
           };
         case 'fact_added':
           return {
-            icon: <FileText className="w-3.5 h-3.5 cap-text-success" />,
+            icon: <FileText className="w-3.5 h-3.5 muster-text-success" />,
             text: `${actor} added gained knowledge "${p.title || 'fact'}"${p.entity_name ? ` → (${p.entity_name})` : ''}`,
           };
         case 'fact_updated':
@@ -227,7 +227,7 @@ function describeEvent(
           };
         case 'fact_deleted':
           return {
-            icon: <Trash2 className="w-3.5 h-3.5 cap-text-danger" />,
+            icon: <Trash2 className="w-3.5 h-3.5 muster-text-danger" />,
             text: `${actor} deleted gained knowledge fact`,
           };
         case 'entity_created':
@@ -255,7 +255,7 @@ function describeEvent(
 
     default:
       return {
-        icon: <Activity className="w-3.5 h-3.5 cap-text-muted" />,
+        icon: <Activity className="w-3.5 h-3.5 muster-text-muted" />,
         text: `${actor}: ${evt.entity_type} ${evt.action}`,
       };
   }
@@ -270,18 +270,18 @@ function describeEvent(
  * "success-coloured", and both must stay distinguishable under every profile.
  */
 const ENTITY_STYLE: Record<string, string> = {
-  card: 'cap-entity-card',
-  agent: 'cap-entity-agent',
-  document: 'cap-entity-document',
-  board: 'cap-entity-board',
-  column: 'cap-entity-board',
-  project: 'cap-entity-project',
-  knowledge_base: 'cap-entity-kb',
+  card: 'muster-entity-card',
+  agent: 'muster-entity-agent',
+  document: 'muster-entity-document',
+  board: 'muster-entity-board',
+  column: 'muster-entity-board',
+  project: 'muster-entity-project',
+  knowledge_base: 'muster-entity-kb',
 };
 
 /** Tint a bare icon to the entity it refers to. */
 const entityIcon = (type: string, Icon: React.ElementType, className = 'w-3.5 h-3.5') => (
-  <Icon className={`${className} cap-entity-icon ${ENTITY_STYLE[type] ?? ''}`} />
+  <Icon className={`${className} muster-entity-icon ${ENTITY_STYLE[type] ?? ''}`} />
 );
 
 const ENTITY_BADGES: Record<string, React.ReactNode> = Object.entries({
@@ -294,7 +294,7 @@ const ENTITY_BADGES: Record<string, React.ReactNode> = Object.entries({
   knowledge_base: [Database, 'KB'],
 } as Record<string, [React.ElementType, string]>).reduce((acc, [type, [Icon, label]]) => {
   acc[type] = (
-    <span className={`cap-badge cap-badge-entity ${ENTITY_STYLE[type]} font-mono text-[9px]`}>
+    <span className={`muster-badge muster-badge-entity ${ENTITY_STYLE[type]} font-mono text-[9px]`}>
       <Icon className="w-2.5 h-2.5" />{label}
     </span>
   );
@@ -321,13 +321,13 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
     <div className="flex flex-col flex-1 h-full min-h-0 font-sans space-y-4">
 
       {/* Header Bar */}
-      <div className="flex-none flex items-center justify-between border-b border-cap-border pb-3">
+      <div className="flex-none flex items-center justify-between border-b border-muster-border pb-3">
         <div className="flex items-center space-x-3">
-          <Activity className="w-5 h-5 cap-text-success animate-pulse" />
-          <h2 className="text-base font-bold cap-text-primary uppercase tracking-wide">
+          <Activity className="w-5 h-5 muster-text-success animate-pulse" />
+          <h2 className="text-base font-bold muster-text-primary uppercase tracking-wide">
             Activity Log
           </h2>
-          <span className="text-xs font-mono text-neutral-500 bg-cap-surface border border-cap-border px-2 py-0.5 rounded">
+          <span className="text-xs font-mono text-neutral-500 bg-muster-surface border border-muster-border px-2 py-0.5 rounded">
             {filteredEvents.length} events
           </span>
         </div>
@@ -338,7 +338,7 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
             <select
               value={filterEntity}
               onChange={(e) => setFilterEntity(e.target.value)}
-              className="bg-cap-surface border border-cap-border text-neutral-200 text-xs font-mono rounded px-2.5 py-1"
+              className="bg-muster-surface border border-muster-border text-neutral-200 text-xs font-mono rounded px-2.5 py-1"
             >
               <option value="all">All</option>
               <option value="card">Cards</option>
@@ -353,7 +353,7 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
 
           <button
             onClick={onRefresh}
-            className="p-1.5 bg-cap-surface hover:bg-neutral-800 cap-text-muted hover:text-success-400 border border-cap-border rounded transition-colors cursor-pointer"
+            className="p-1.5 bg-muster-surface hover:bg-neutral-800 muster-text-muted hover:text-success-400 border border-muster-border rounded transition-colors cursor-pointer"
             title="Refresh"
           >
             <RefreshCw className="w-4 h-4" />
@@ -365,10 +365,10 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
       <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1">
 
         {filteredEvents.length === 0 ? (
-          <div className="text-center py-16 bg-cap-surface rounded-lg tactical-border">
-            <Terminal className="w-8 h-8 mx-auto mb-3 cap-text-faint opacity-50" />
+          <div className="text-center py-16 bg-muster-surface rounded-lg tactical-border">
+            <Terminal className="w-8 h-8 mx-auto mb-3 muster-text-faint opacity-50" />
             <p className="text-sm text-neutral-500 font-sans">No activity logged yet.</p>
-            <p className="text-xs cap-text-faint mt-1">Events appear here as agents and users take actions.</p>
+            <p className="text-xs muster-text-faint mt-1">Events appear here as agents and users take actions.</p>
           </div>
         ) : (
           filteredEvents.map((evt) => {
@@ -378,10 +378,10 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
             return (
               <div
                 key={evt.id}
-                className="group flex items-start space-x-3 p-3 bg-cap-surface rounded-lg border border-cap-border hover:border-neutral-600 transition-all"
+                className="group flex items-start space-x-3 p-3 bg-muster-surface rounded-lg border border-muster-border hover:border-neutral-600 transition-all"
               >
                 {/* Icon */}
-                <div className="mt-0.5 w-7 h-7 flex items-center justify-center bg-cap-surface rounded-md border border-cap-border flex-shrink-0">
+                <div className="mt-0.5 w-7 h-7 flex items-center justify-center bg-muster-surface rounded-md border border-muster-border flex-shrink-0">
                   {icon}
                 </div>
 
@@ -389,14 +389,14 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     {badge}
-                    <span className="text-xs font-sans cap-text-primary">{text}</span>
+                    <span className="text-xs font-sans muster-text-primary">{text}</span>
                   </div>
 
                   <div className="flex items-center gap-3 mt-1.5">
                     <span className="text-[10px] font-mono text-neutral-500 flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5" />
                       {relativeTime(evt.created_at)}
-                      <span className="cap-divider w-0.5 h-0.5 rounded-full shrink-0 mx-1" aria-hidden="true" />
+                      <span className="muster-divider w-0.5 h-0.5 rounded-full shrink-0 mx-1" aria-hidden="true" />
                       {new Date(evt.created_at).toLocaleTimeString()}
                     </span>
                   </div>

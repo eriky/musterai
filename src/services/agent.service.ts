@@ -18,7 +18,7 @@ export class AgentService {
     }
 
     // Generate a default human owner secret token
-    const token = `cap_sec_${crypto.randomBytes(12).toString('hex')}`;
+    const token = `muster_sec_${crypto.randomBytes(12).toString('hex')}`;
     const created_at = new Date().toISOString();
     await this.db.execute(
       "INSERT OR REPLACE INTO system_settings (key, value, created_at) VALUES ('human_secret_token', ?, ?)",

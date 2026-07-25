@@ -1,6 +1,6 @@
-# Collaborative Agent Platform — Implementation Specification
+# Muster — Implementation Specification
 
-> This document contains complete, file-by-file implementation code for the Collaborative Agent Platform.
+> This document contains complete, file-by-file implementation code for the Muster.
 > For architecture and design decisions, see [System Design](file:///Users/erik/Code/Collaborative%20Agent%20Platform/docs/design/system-design.md).
 >
 > **Target audience**: AI coding agents. Every code block is complete and copy-pasteable.
@@ -13,8 +13,8 @@
 Run these shell commands to initialize the project structure:
 
 ```bash
-mkdir -p cap
-cd cap
+mkdir -p muster
+cd muster
 npm init -y
 mkdir -p src/config src/shared src/db/migrations data/attachments
 ```
@@ -23,7 +23,7 @@ mkdir -p src/config src/shared src/db/migrations data/attachments
 
 ```json
 {
-  "name": "collaborative-agent-platform",
+  "name": "muster",
   "version": "1.0.0",
   "description": "Project management system for AI agents",
   "type": "module",
@@ -87,13 +87,13 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '../../');
 
 export const config = {
-  port: parseInt(process.env.CAP_PORT || '3000', 10),
-  host: process.env.CAP_HOST || 'localhost',
+  port: parseInt(process.env.MUSTER_PORT || '3000', 10),
+  host: process.env.MUSTER_HOST || 'localhost',
   db: {
-    type: process.env.CAP_DB_TYPE || 'sqlite',
-    path: process.env.CAP_DB_PATH || path.join(projectRoot, 'data/cap.db'),
+    type: process.env.MUSTER_DB_TYPE || 'sqlite',
+    path: process.env.MUSTER_DB_PATH || path.join(projectRoot, 'data/muster.db'),
   },
-  attachmentsDir: process.env.CAP_ATTACHMENTS_DIR || path.join(projectRoot, 'data/attachments'),
+  attachmentsDir: process.env.MUSTER_ATTACHMENTS_DIR || path.join(projectRoot, 'data/attachments'),
   publicDir: path.join(projectRoot, 'public'),
 };
 ```
@@ -330,7 +330,7 @@ export interface UpdateAgentRegistration {
   last_seen_at?: string;
 }
 
-export interface CAPEvent {
+export interface Event {
   id: string;
   project_id: string;
   entity_type: string;
@@ -341,7 +341,7 @@ export interface CAPEvent {
   created_at: string;
 }
 
-export interface CreateCAPEvent {
+export interface CreateEvent {
   project_id: string;
   entity_type: string;
   entity_id: string;
@@ -783,12 +783,12 @@ All services follow the same pattern:
 // File: src/services/event.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { CAPEvent } from '../shared/types.js';
+import { Event } from '../shared/types.js';
 
 export class EventService {
   constructor(
     private db: DatabaseAdapter,
-    private onEvent?: (event: CAPEvent) => void
+    private onEvent?: (event: Event) => void
   ) {}
 
   async emit(
@@ -798,8 +798,8 @@ export class EventService {
     action: string,
     actorId: string,
     payload: any
-  ): Promise<CAPEvent> {
-    const event: CAPEvent = {
+  ): Promise<Event> {
+    const event: Event = {
       id: ulid(),
       project_id: projectId,
       entity_type: entityType,
@@ -828,7 +828,7 @@ export class EventService {
   async list(
     projectId: string,
     options?: { entityType?: string; entityId?: string; since?: string; limit?: number }
-  ): Promise<CAPEvent[]> {
+  ): Promise<Event[]> {
     let sql = `SELECT * FROM events WHERE project_id = ?`;
     const params: any[] = [projectId];
 
@@ -866,13 +866,13 @@ export class EventService {
 // File: src/services/project.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Project, CreateProject, CAPEvent } from '../shared/types.js';
+import { Project, CreateProject, Event } from '../shared/types.js';
 import { NotFoundError } from '../shared/errors.js';
 
 export class ProjectService {
   constructor(
     private db: DatabaseAdapter,
-    private onEvent?: (event: CAPEvent) => void
+    private onEvent?: (event: Event) => void
   ) {}
 
   async create(data: CreateProject): Promise<Project> {
@@ -955,14 +955,14 @@ export class ProjectService {
 // File: src/services/board.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Board, CreateBoard, Column, CAPEvent } from '../shared/types.js';
+import { Board, CreateBoard, Column, Event } from '../shared/types.js';
 import { NotFoundError } from '../shared/errors.js';
 import { generateRank, rankAfter } from '../shared/lexorank.js';
 
 export class BoardService {
   constructor(
     private db: DatabaseAdapter,
-    private onEvent?: (event: CAPEvent) => void
+    private onEvent?: (event: Event) => void
   ) {}
 
   async create(data: CreateBoard): Promise<Board> {
@@ -1056,14 +1056,14 @@ export class BoardService {
 // File: src/services/column.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Column, CreateColumn, CAPEvent } from '../shared/types.js';
+import { Column, CreateColumn, Event } from '../shared/types.js';
 import { NotFoundError, ConflictError } from '../shared/errors.js';
 import { generateRank, rankAfter } from '../shared/lexorank.js';
 
 export class ColumnService {
   constructor(
     private db: DatabaseAdapter,
-    private onEvent?: (event: CAPEvent) => void
+    private onEvent?: (event: Event) => void
   ) {}
 
   async create(data: CreateColumn): Promise<Column> {
@@ -1145,14 +1145,14 @@ export class ColumnService {
 // File: src/services/card.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Card, CreateCard, CAPEvent, Label, CardAssignee } from '../shared/types.js';
+import { Card, CreateCard, Event, Label, CardAssignee } from '../shared/types.js';
 import { NotFoundError, ConflictError } from '../shared/errors.js';
 import { generateRank, rankAfter } from '../shared/lexorank.js';
 
 export class CardService {
   constructor(
     private db: DatabaseAdapter,
-    private onEvent?: (event: CAPEvent) => void
+    private onEvent?: (event: Event) => void
   ) {}
 
   async create(data: CreateCard): Promise<Card> {
@@ -1344,12 +1344,12 @@ export class CardService {
 // File: src/services/comment.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Comment, CreateComment, CAPEvent } from '../shared/types.js';
+import { Comment, CreateComment, Event } from '../shared/types.js';
 
 export class CommentService {
   constructor(
     private db: DatabaseAdapter,
-    private onEvent?: (event: CAPEvent) => void
+    private onEvent?: (event: Event) => void
   ) {}
 
   async create(data: CreateComment): Promise<Comment> {
@@ -1382,13 +1382,13 @@ export class CommentService {
 // File: src/services/document.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Document, CreateDocument, UpdateDocument, DocumentVersion, CAPEvent, DocumentStatus } from '../shared/types.js';
+import { Document, CreateDocument, UpdateDocument, DocumentVersion, Event, DocumentStatus } from '../shared/types.js';
 import { NotFoundError } from '../shared/errors.js';
 
 export class DocumentService {
   constructor(
     private db: DatabaseAdapter,
-    private onEvent?: (event: CAPEvent) => void
+    private onEvent?: (event: Event) => void
   ) {}
 
   async create(data: CreateDocument): Promise<Document> {
@@ -1516,13 +1516,13 @@ export class DocumentService {
 // File: src/services/agent.service.ts
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { AgentRegistration, RegisterAgent, CAPEvent } from '../shared/types.js';
+import { AgentRegistration, RegisterAgent, Event } from '../shared/types.js';
 import { NotFoundError } from '../shared/errors.js';
 
 export class AgentService {
   constructor(
     private db: DatabaseAdapter,
-    private onEvent?: (event: CAPEvent) => void
+    private onEvent?: (event: Event) => void
   ) {}
 
   async register(data: RegisterAgent): Promise<AgentRegistration> {
@@ -1620,7 +1620,7 @@ export class AgentService {
 ```typescript
 // File: src/realtime/sse.ts
 import { Response } from 'express';
-import { CAPEvent } from '../types';
+import { Event } from '../types';
 
 export class SSEManager {
   private clients: Map<string, Set<Response>> = new Map();
@@ -1653,7 +1653,7 @@ export class SSEManager {
     }
   }
 
-  public broadcast = (projectId: string, event: CAPEvent): void => {
+  public broadcast = (projectId: string, event: Event): void => {
     const projectClients = this.clients.get(projectId);
     if (projectClients) {
       const data = `data: ${JSON.stringify(event)}\n\n`;
@@ -1696,7 +1696,7 @@ export interface Services {
 
 export function createMcpServer(services: Services): McpServer {
   const server = new McpServer({
-    name: 'Collaborative Agent Platform',
+    name: 'Muster',
     version: '1.0.0',
   });
 
@@ -2271,7 +2271,7 @@ export function createMcpServer(services: Services): McpServer {
   // --- Resources ---
   server.resource(
     'project-summary',
-    'cap://project/{id}/summary',
+    'muster://project/{id}/summary',
     async (uri, { id }) => {
       const summary = await services.projectService.getProjectSummary(id as string);
       return { contents: [{ uri: uri.href, text: JSON.stringify(summary) }] };
@@ -2280,7 +2280,7 @@ export function createMcpServer(services: Services): McpServer {
 
   server.resource(
     'board-details',
-    'cap://board/{id}',
+    'muster://board/{id}',
     async (uri, { id }) => {
       const board = await services.boardService.getBoard(id as string);
       return { contents: [{ uri: uri.href, text: JSON.stringify(board) }] };
@@ -2289,7 +2289,7 @@ export function createMcpServer(services: Services): McpServer {
 
   server.resource(
     'card-details',
-    'cap://card/{id}',
+    'muster://card/{id}',
     async (uri, { id }) => {
       const card = await services.cardService.getCard(id as string);
       return { contents: [{ uri: uri.href, text: JSON.stringify(card) }] };
@@ -2298,7 +2298,7 @@ export function createMcpServer(services: Services): McpServer {
 
   server.resource(
     'document-details',
-    'cap://document/{id}',
+    'muster://document/{id}',
     async (uri, { id }) => {
       const document = await services.documentService.getDocument(id as string);
       return { contents: [{ uri: uri.href, text: JSON.stringify(document) }] };
@@ -2307,7 +2307,7 @@ export function createMcpServer(services: Services): McpServer {
 
   server.resource(
     'project-activity',
-    'cap://project/{id}/activity',
+    'muster://project/{id}/activity',
     async (uri, { id }) => {
       const activity = await services.eventService.getEvents(id as string);
       return { contents: [{ uri: uri.href, text: JSON.stringify(activity) }] };
@@ -2775,7 +2775,7 @@ async function main() {
   };
 
   const existingProjects = await services.projectService.listProjects();
-  console.log(`Starting CAP... Found ${existingProjects.length} existing project(s).`);
+  console.log(`Starting Muster... Found ${existingProjects.length} existing project(s).`);
 
   const app = express();
   app.use(express.json());
@@ -2824,7 +2824,7 @@ The web UI is served as static files from the `public/` directory. It's vanilla 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Collaborative Agent Platform</title>
+    <title>Dashboard - Muster</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -2833,7 +2833,7 @@ The web UI is served as static files from the `public/` directory. It's vanilla 
 <body>
     <header class="app-header">
         <div class="header-brand">
-            <h1>Collaborative Agent Platform</h1>
+            <h1>Muster</h1>
         </div>
         <div class="header-controls">
             <select id="project-selector" class="select-input">
@@ -3687,7 +3687,7 @@ function createBadge(text, type) {
 }
 
 // Global project selection state
-let currentProjectId = localStorage.getItem('cap_current_project');
+let currentProjectId = localStorage.getItem('muster_current_project');
 
 async function loadProjects() {
     const selector = document.getElementById('project-selector');
@@ -3715,7 +3715,7 @@ async function loadProjects() {
         } else {
             currentProjectId = data.projects[0].id;
             selector.value = currentProjectId;
-            localStorage.setItem('cap_current_project', currentProjectId);
+            localStorage.setItem('muster_current_project', currentProjectId);
         }
 
         // Trigger custom event for pages to react
@@ -3723,7 +3723,7 @@ async function loadProjects() {
 
         selector.addEventListener('change', (e) => {
             currentProjectId = e.target.value;
-            localStorage.setItem('cap_current_project', currentProjectId);
+            localStorage.setItem('muster_current_project', currentProjectId);
             window.dispatchEvent(new CustomEvent('projectChanged', { detail: { projectId: currentProjectId } }));
         });
 
@@ -3963,14 +3963,14 @@ function prependActivity(event, truncate = true) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Boards - Collaborative Agent Platform</title>
+    <title>Boards - Muster</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <header class="app-header">
         <div class="header-brand">
-            <h1>Collaborative Agent Platform</h1>
+            <h1>Muster</h1>
         </div>
         <div class="header-controls">
             <select id="project-selector" class="select-input"></select>
@@ -4191,14 +4191,14 @@ elements.btnNewCard.addEventListener('click', () => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Documents - Collaborative Agent Platform</title>
+    <title>Documents - Muster</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <header class="app-header">
         <div class="header-brand">
-            <h1>Collaborative Agent Platform</h1>
+            <h1>Muster</h1>
         </div>
         <div class="header-controls">
             <select id="project-selector" class="select-input"></select>
@@ -4326,14 +4326,14 @@ async function loadDocumentContent(projectId, docId) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Activity - Collaborative Agent Platform</title>
+    <title>Activity - Muster</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <header class="app-header">
         <div class="header-brand">
-            <h1>Collaborative Agent Platform</h1>
+            <h1>Muster</h1>
         </div>
         <div class="header-controls">
             <select id="project-selector" class="select-input"></select>
@@ -4452,7 +4452,7 @@ elements.filterSource.addEventListener('change', renderEvents);
 
 ## 12. Build & Run Instructions
 
-To build and run the Collaborative Agent Platform locally:
+To build and run the Muster locally:
 
 1. **Install Dependencies:**
    ```bash

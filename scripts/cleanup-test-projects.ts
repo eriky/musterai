@@ -4,7 +4,7 @@ import { ProjectService } from '../src/services/project.service.js';
 
 async function cleanup() {
   console.log('===========================================================');
-  console.log('   CLEANING UP TEST PROJECTS FROM CAP DATABASE');
+  console.log('   CLEANING UP TEST PROJECTS FROM Muster DATABASE');
   console.log('===========================================================\n');
 
   const db = createDatabaseAdapter();

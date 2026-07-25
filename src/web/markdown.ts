@@ -3,7 +3,7 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
 /**
- * Markdown bodies in CAP are untrusted input, not authored copy: document
+ * Markdown bodies in Muster are untrusted input, not authored copy: document
  * content, card descriptions and comments are all writable by any MCP client
  * via `create_document` / `update_document` / `update_card` / `add_comment`.
  * A compromised or hostile agent can therefore put arbitrary HTML in front of

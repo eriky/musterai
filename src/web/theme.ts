@@ -1,5 +1,5 @@
 // File: src/web/theme.ts
-// Theme profiles and persistence for CAP UI Design Language
+// Theme profiles and persistence for Muster UI Design Language
 
 export type ColorProfile = 'cyber' | 'amber' | 'emerald' | 'violet';
 export type AppearanceMode = 'dark' | 'light';
@@ -44,7 +44,7 @@ export const COLOR_PROFILES: ColorProfileMeta[] = [
   },
 ];
 
-const STORAGE_KEY_PREFIX = 'cap_user_theme_';
+const STORAGE_KEY_PREFIX = 'muster_user_theme_';
 
 export function loadThemeForUser(userId: string | null): ThemePreference {
   if (!userId) return { profile: 'cyber', mode: 'dark' };

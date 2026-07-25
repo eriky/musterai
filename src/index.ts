@@ -117,7 +117,7 @@ async function main() {
   const listenOnPort = (port: number) => {
     const server = app.listen(port, '0.0.0.0', () => {
       console.log(`\n======================================================`);
-      console.log(`  Collaborative Agent Platform (CAP) v2.0 - ONLINE`);
+      console.log(`  Muster v2.0 - ONLINE`);
       console.log(`======================================================`);
       console.log(`  • Web UI:   http://${config.host}:${port}`);
       console.log(`  • REST API: http://${config.host}:${port}/api/v1`);
@@ -127,15 +127,15 @@ async function main() {
 
     server.on('error', (err: any) => {
       if (err.code === 'EADDRINUSE') {
-        console.warn(`[CAP] Port ${port} is currently in use. Trying port ${port + 1}...`);
+        console.warn(`[Muster] Port ${port} is currently in use. Trying port ${port + 1}...`);
         listenOnPort(port + 1);
       } else {
-        console.error('[CAP] Server error:', err);
+        console.error('[Muster] Server error:', err);
       }
     });
 
     const shutdown = async () => {
-      console.log('Shutting down CAP...');
+      console.log('Shutting down Muster...');
       clearInterval(statusTimer);
       sseManager.close();
       server.close();

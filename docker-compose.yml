@@ -1,22 +1,22 @@
-# docker-compose.yml - Collaborative Agent Platform (CAP)
+# docker-compose.yml - Muster
 version: '3.8'
 
 services:
-  cap-server:
+  muster-server:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: cap-platform
+    container_name: muster-platform
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      - CAP_PORT=3000
-      - CAP_HOST=0.0.0.0
-      - CAP_DB_PATH=/app/data/cap.db
+      - MUSTER_PORT=3000
+      - MUSTER_HOST=0.0.0.0
+      - MUSTER_DB_PATH=/app/data/muster.db
     volumes:
-      - cap-data:/app/data
+      - muster-data:/app/data
 
 volumes:
-  cap-data:
+  muster-data:
     driver: local

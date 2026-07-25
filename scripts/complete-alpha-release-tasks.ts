@@ -58,7 +58,7 @@ async function main() {
   }
 
   await db.close();
-  console.log('\n🎉 ALL RELEASE TASKS COMPLETED & LOGGED IN CAP SYSTEM!');
+  console.log('\n🎉 ALL RELEASE TASKS COMPLETED & LOGGED IN Muster SYSTEM!');
 }
 
 main().catch(console.error);

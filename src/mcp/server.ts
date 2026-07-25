@@ -34,7 +34,7 @@ let lastRegisteredAgentId: string | undefined;
 
 export function createMcpServer(services: Services, req?: Request): McpServer {
   const server = new McpServer({
-    name: 'collaborative-agent-platform',
+    name: 'muster',
     version: '2.0.0',
   });
 
@@ -58,9 +58,9 @@ export function createMcpServer(services: Services, req?: Request): McpServer {
         role: 'user',
         content: {
           type: 'text',
-          text: `# Collaborative Agent Platform (CAP) — Standard Operating Protocol
+          text: `# Muster — Standard Operating Protocol
 
-All AI agents and human operators collaborating within CAP must follow this protocol:
+All AI agents and human operators collaborating within Muster must follow this protocol:
 
 1. **Self-Registration & Status**:
    - Upon connecting, call \`register_agent\` to register your agent ID, name, role ('contributor' | 'owner' | 'observer'), and capabilities.
@@ -568,5 +568,4 @@ All AI agents and human operators collaborating within CAP must follow this prot
 
   return server;
 }
-
 

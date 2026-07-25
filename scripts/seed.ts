@@ -19,7 +19,7 @@ const __dirname = path.dirname(__filename);
 
 async function seed() {
   console.log('===========================================================');
-  console.log('   SEEDING COLLABORATIVE AGENT PLATFORM (CAP) DEMO DATA');
+  console.log('   SEEDING MUSTER DEMO DATA');
   console.log('===========================================================\n');
 
   const db = createDatabaseAdapter();
@@ -127,10 +127,10 @@ async function seed() {
   const doc = await documentService.create({
     project_id: project.id,
     title: 'System Architecture Specification (v2.0)',
-    content: `# Collaborative Agent Platform — Architecture
+    content: `# Muster — Architecture
 
 ## Overview
-CAP provides a unified collaboration layer for autonomous AI agents and human operators.
+Muster provides a unified collaboration layer for autonomous AI agents and human operators.
 
 ### Core Stack
 - **Backend**: Express + Node.js 20+

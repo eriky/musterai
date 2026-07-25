@@ -26,12 +26,12 @@ interface HeaderProps {
 
 /** Vertical rule between header groups. Decorative, so it carries no text. */
 const Divider: React.FC = () => (
-  <span className="cap-divider w-px h-4 shrink-0" aria-hidden="true" />
+  <span className="muster-divider w-px h-4 shrink-0" aria-hidden="true" />
 );
 
 /** Small dot separator in the telemetry strip. */
 const Dot: React.FC = () => (
-  <span className="cap-divider w-1 h-1 rounded-full shrink-0" aria-hidden="true" />
+  <span className="muster-divider w-1 h-1 rounded-full shrink-0" aria-hidden="true" />
 );
 
 export const Header: React.FC<HeaderProps> = ({
@@ -63,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   return (
-    <header className="bg-cap-surface border-b border-cap-border sticky top-0 z-40 backdrop-blur-md w-full">
+    <header className="bg-muster-surface border-b border-muster-border sticky top-0 z-40 backdrop-blur-md w-full">
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
 
@@ -72,25 +72,32 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Logo */}
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-md cap-accent-bg border cap-accent flex items-center justify-center font-mono font-bold text-xs">
-                CAP
+              <div
+                className="w-8 h-8 shrink-0 rounded-md muster-accent-bg border muster-accent flex items-center justify-center"
+              >
+                <svg viewBox="0 0 32 32" className="w-6 h-6 muster-accent" fill="none" role="img" aria-label="Muster logo">
+                  <title>Muster logo</title>
+                  <path d="M6 23V9l10 10L26 9v14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx="6" cy="23" r="2.5" fill="currentColor" />
+                  <circle cx="6" cy="9" r="2.5" fill="currentColor" />
+                  <circle cx="16" cy="19" r="2.5" fill="currentColor" />
+                  <circle cx="26" cy="9" r="2.5" fill="currentColor" />
+                  <circle cx="26" cy="23" r="2.5" fill="currentColor" />
+                </svg>
               </div>
-              <span className="font-sans font-bold text-sm cap-text-primary tracking-wider hidden md:inline">
-                MISSION CONTROL
-              </span>
             </div>
 
             {/* Human Operator Picker */}
             {humanAgents.length > 0 && onSelectHuman && (
-              <div className="flex items-center space-x-1.5 bg-cap-base border border-cap-border rounded-md px-2 py-1">
-                <span className="text-[11px] font-mono cap-text-muted font-semibold uppercase">I am:</span>
+              <div className="flex items-center space-x-1.5 bg-muster-base border border-muster-border rounded-md px-2 py-1">
+                <span className="text-[11px] font-mono muster-text-muted font-semibold uppercase">I am:</span>
                 <select
                   value={selectedHumanId || ''}
                   onChange={(e) => onSelectHuman(e.target.value)}
-                  className="bg-transparent cap-accent text-xs font-mono font-bold focus:outline-none cursor-pointer"
+                  className="bg-transparent muster-accent text-xs font-mono font-bold focus:outline-none cursor-pointer"
                 >
                   {humanAgents.map((h) => (
-                    <option key={h.id} value={h.id} className="bg-cap-surface cap-text-primary">
+                    <option key={h.id} value={h.id} className="bg-muster-surface muster-text-primary">
                       {h.name} ({h.role})
                     </option>
                   ))}
@@ -105,10 +112,10 @@ export const Header: React.FC<HeaderProps> = ({
               <select
                 value={selectedProjectId || ''}
                 onChange={(e) => onSelectProject(e.target.value)}
-                className="cap-input w-auto font-mono cursor-pointer"
+                className="muster-input w-auto font-mono cursor-pointer"
               >
                 {projects.map((p) => (
-                  <option key={p.id} value={p.id} className="bg-cap-surface cap-text-primary">
+                  <option key={p.id} value={p.id} className="bg-muster-surface muster-text-primary">
                     Project: {p.name}
                   </option>
                 ))}
@@ -117,7 +124,7 @@ export const Header: React.FC<HeaderProps> = ({
               {selectedProjectId && projects.length > 0 && onOpenEditProject && (
                 <button
                   onClick={onOpenEditProject}
-                  className="cap-btn cap-btn-icon cap-btn-ghost"
+                  className="muster-btn muster-btn-icon muster-btn-ghost"
                   title="Edit Selected Project Details"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
@@ -132,7 +139,7 @@ export const Header: React.FC<HeaderProps> = ({
                       onDeleteProject(selectedProjectId);
                     }
                   }}
-                  className="cap-btn cap-btn-icon cap-btn-ghost-danger"
+                  className="muster-btn muster-btn-icon muster-btn-ghost-danger"
                   title="Delete Selected Project"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -141,7 +148,7 @@ export const Header: React.FC<HeaderProps> = ({
 
               <button
                 onClick={onOpenNewProject}
-                className="cap-btn cap-btn-soft font-mono"
+                className="muster-btn muster-btn-soft font-mono"
                 title="Create New Project"
               >
                 <FolderPlus className="w-3.5 h-3.5" /> + Project
@@ -152,20 +159,20 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Entity Creation Buttons */}
             <div className="flex items-center space-x-2">
-              <button onClick={onOpenNewBoard} className="cap-btn cap-btn-secondary font-mono">
-                <Layers className="w-3.5 h-3.5 cap-accent" /> + Board
+              <button onClick={onOpenNewBoard} className="muster-btn muster-btn-secondary font-mono">
+                <Layers className="w-3.5 h-3.5 muster-accent" /> + Board
               </button>
 
-              <button onClick={onOpenRegisterAgent} className="cap-btn cap-btn-secondary font-mono">
-                <UserPlus className="w-3.5 h-3.5 cap-accent" /> + User
+              <button onClick={onOpenRegisterAgent} className="muster-btn muster-btn-secondary font-mono">
+                <UserPlus className="w-3.5 h-3.5 muster-accent" /> + User
               </button>
 
-              <button onClick={onOpenNewCard} className="cap-btn cap-btn-secondary font-mono">
-                <Plus className="w-3.5 h-3.5 cap-accent" /> + Card
+              <button onClick={onOpenNewCard} className="muster-btn muster-btn-secondary font-mono">
+                <Plus className="w-3.5 h-3.5 muster-accent" /> + Card
               </button>
 
-              <button onClick={onOpenNewDoc} className="cap-btn cap-btn-secondary font-mono">
-                <FileText className="w-3.5 h-3.5 cap-accent" /> + Doc
+              <button onClick={onOpenNewDoc} className="muster-btn muster-btn-secondary font-mono">
+                <FileText className="w-3.5 h-3.5 muster-accent" /> + Doc
               </button>
             </div>
 
@@ -179,15 +186,15 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Sub-Navigation & Summary Telemetry */}
-        <div className="flex items-center justify-between border-t border-cap-border/60 py-2">
+        <div className="flex items-center justify-between border-t border-muster-border/60 py-2">
           <nav className="flex space-x-2">
             {tabs.map(({ id, icon: Icon, label }) => (
               <button
                 key={id}
                 onClick={() => onSelectTab(id)}
                 aria-current={activeTab === id ? 'page' : undefined}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans font-medium cap-tab ${
-                  activeTab === id ? 'cap-tab-active' : ''
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans font-medium muster-tab ${
+                  activeTab === id ? 'muster-tab-active' : ''
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -200,18 +207,18 @@ export const Header: React.FC<HeaderProps> = ({
           {summary && (
             <div className="hidden md:flex items-center gap-3 text-xs font-sans">
               <div>
-                <span className="cap-text-muted">Active Agents: </span>
-                <span className="cap-text-success font-medium">{summary.active_agent_count}</span>
+                <span className="muster-text-muted">Active Agents: </span>
+                <span className="muster-text-success font-medium">{summary.active_agent_count}</span>
               </div>
               <Dot />
               <div>
-                <span className="cap-text-muted">Boards: </span>
-                <span className="cap-text-primary font-medium">{summary.board_count}</span>
+                <span className="muster-text-muted">Boards: </span>
+                <span className="muster-text-primary font-medium">{summary.board_count}</span>
               </div>
               <Dot />
               <div>
-                <span className="cap-text-muted">Total Cards: </span>
-                <span className="cap-accent font-medium">{summary.card_count}</span>
+                <span className="muster-text-muted">Total Cards: </span>
+                <span className="muster-accent font-medium">{summary.card_count}</span>
               </div>
             </div>
           )}

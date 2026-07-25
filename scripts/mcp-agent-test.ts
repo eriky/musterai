@@ -77,13 +77,13 @@ async function runMcpAgentTestSuite() {
   removeDbFiles(TEST_DB_PATH);
 
   // 1. Spawn Isolated Test Server
-  console.log(`[Server Setup] Starting isolated CAP server process on port ${TEST_PORT}...`);
+  console.log(`[Server Setup] Starting isolated Muster server process on port ${TEST_PORT}...`);
   const serverProcess: ChildProcess = fork(path.join(process.cwd(), 'dist', 'index.js'), [], {
     env: {
       ...process.env,
-      CAP_PORT: String(TEST_PORT),
-      CAP_HOST: '127.0.0.1',
-      CAP_DB_PATH: TEST_DB_PATH,
+      MUSTER_PORT: String(TEST_PORT),
+      MUSTER_HOST: '127.0.0.1',
+      MUSTER_DB_PATH: TEST_DB_PATH,
     },
     stdio: 'pipe',
   });
@@ -205,7 +205,7 @@ async function runMcpAgentTestSuite() {
     const doc = await callMCPTool('create_document', {
       project_id: project.id,
       title: 'MCP Streamable HTTP Transport Specification',
-      content: '# MCP Specification\n\nThis document describes the Streamable HTTP transport implementation for CAP.',
+      content: '# MCP Specification\n\nThis document describes the Streamable HTTP transport implementation for Muster.',
       author_id: agent.id,
     });
     console.log(`  ✓ Document Created! ID: ${doc.id}, Title: "${doc.title}", Version: ${doc.version}`);

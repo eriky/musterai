@@ -407,11 +407,11 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
   };
 
   return (
-    <div className="cap-panel relative w-full h-full min-h-[450px] overflow-hidden flex-1">
+    <div className="muster-panel relative w-full h-full min-h-[450px] overflow-hidden flex-1">
       {/* Empty State Overlay when no nodes exist */}
       {data.nodes.length === 0 && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-cap-surface cap-text-muted">
-          <Zap className="w-12 h-12 mb-3 cap-text-faint" />
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-muster-surface muster-text-muted">
+          <Zap className="w-12 h-12 mb-3 muster-text-faint" />
           <p className="text-base font-medium">No Graph Nodes Found</p>
           <p className="text-sm mt-1">Add entities and gained knowledge facts to populate the graph.</p>
         </div>
@@ -419,7 +419,7 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
 
       {/* Search Overlay Badge */}
       {isSearchActive && (
-        <div className="cap-badge cap-badge-warning absolute top-3 left-3 z-20 px-3 py-1.5 normal-case tracking-normal text-xs backdrop-blur-md">
+        <div className="muster-badge muster-badge-warning absolute top-3 left-3 z-20 px-3 py-1.5 normal-case tracking-normal text-xs backdrop-blur-md">
           <Search className="w-3.5 h-3.5" />
           <span>
             Search Active: {searchMatchedIds.size} {searchMatchedIds.size === 1 ? 'node' : 'nodes'} matched
@@ -428,21 +428,21 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
       )}
 
       {/* Control Overlay Buttons */}
-      <div className="cap-panel absolute top-3 right-3 z-20 flex items-center gap-1 p-1 backdrop-blur-md">
-        <button onClick={handleZoomIn} className="cap-btn cap-btn-icon cap-btn-ghost" title="Zoom In">
+      <div className="muster-panel absolute top-3 right-3 z-20 flex items-center gap-1 p-1 backdrop-blur-md">
+        <button onClick={handleZoomIn} className="muster-btn muster-btn-icon muster-btn-ghost" title="Zoom In">
           <ZoomIn className="w-4 h-4" />
         </button>
-        <button onClick={handleZoomOut} className="cap-btn cap-btn-icon cap-btn-ghost" title="Zoom Out">
+        <button onClick={handleZoomOut} className="muster-btn muster-btn-icon muster-btn-ghost" title="Zoom Out">
           <ZoomOut className="w-4 h-4" />
         </button>
-        <button onClick={handleResetView} className="cap-btn cap-btn-icon cap-btn-soft" title="Fit Graph to Screen">
+        <button onClick={handleResetView} className="muster-btn muster-btn-icon muster-btn-soft" title="Fit Graph to Screen">
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
 
       {/* Helper Legend */}
-      <div className="cap-panel absolute bottom-3 left-3 z-20 px-3 py-1.5 text-[11px] flex items-center gap-2 cap-text-muted backdrop-blur-md">
-        <Move className="w-3.5 h-3.5 cap-accent" />
+      <div className="muster-panel absolute bottom-3 left-3 z-20 px-3 py-1.5 text-[11px] flex items-center gap-2 muster-text-muted backdrop-blur-md">
+        <Move className="w-3.5 h-3.5 muster-accent" />
         <span>Drag nodes to rearrange • Smooth cursor zoom • Search highlights matching nodes in gold</span>
       </div>
 

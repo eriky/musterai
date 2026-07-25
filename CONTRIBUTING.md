@@ -1,13 +1,13 @@
-# Contributing to Collaborative Agent Platform (CAP)
+# Contributing to Muster
 
-Thank you for your interest in contributing to CAP!
+Thank you for your interest in contributing to Muster!
 
 ## Development Workflow
 
 1. **Fork & Clone**:
    ```bash
-   git clone https://github.com/your-org/collaborative-agent-platform.git
-   cd collaborative-agent-platform
+   git clone https://github.com/your-org/muster.git
+   cd muster
    ```
 
 2. **Install Dependencies**:

@@ -1,4 +1,4 @@
-name: CAP v2.0 CI
+name: Muster v2.0 CI
 
 on:
   push:

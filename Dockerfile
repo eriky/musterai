@@ -1,4 +1,4 @@
-# Dockerfile - Collaborative Agent Platform (CAP) v2.0-alpha
+# Dockerfile - Muster v2.0-alpha
 
 # Stage 1: Build Frontend & Backend TypeScript
 FROM node:20-alpine AS builder
@@ -19,8 +19,8 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production
-ENV CAP_PORT=3000
-ENV CAP_HOST=0.0.0.0
+ENV MUSTER_PORT=3000
+ENV MUSTER_HOST=0.0.0.0
 
 RUN apk add --no-cache curl
 

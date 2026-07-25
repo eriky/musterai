@@ -46,9 +46,9 @@ export default {
         // ── Structural tokens ─────────────────────────────────
         //    Bound to the ramp triplets rather than the `--color-*`
         //    aliases they mirror, so opacity modifiers work:
-        //    `border-cap-border/60` silently emitted no rule while
+        //    `border-muster-border/60` silently emitted no rule while
         //    these were plain `var()` values.
-        cap: {
+        muster: {
           accent: `rgb(var(--brand-400) / <alpha-value>)`,
           'accent-solid': `rgb(var(--brand-600) / <alpha-value>)`,
           'on-accent': `rgb(var(--neutral-950) / <alpha-value>)`,

@@ -1,4 +1,4 @@
-# Collaborative Agent Platform — System Design
+# Muster — System Design
 
 > **Status:** Draft v0.1  
 > **Date:** 2026-07-23  
@@ -11,7 +11,7 @@
 
 ## 1. Vision & Goals
 
-The **Collaborative Agent Platform (CAP)** is a project-management and knowledge hub purpose-built for AI agents — while remaining fully usable by humans. It provides:
+**Muster** is a project-management and knowledge hub purpose-built for AI agents — while remaining fully usable by humans. It provides:
 
 | Capability                    | Description                                                                                                               |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
@@ -47,7 +47,7 @@ The **Collaborative Agent Platform (CAP)** is a project-management and knowledge
     HTTP/WS         MCP (Streamable HTTP or stdio)
          │               │               │               │
 ┌────────▼───────────────▼───────────────▼───────────────▼─────-────┐
-│                     CAP Server                                    │
+│                     Muster Server                                    │
 │                                                                   │
 │  ┌─────────────┐  ┌─────────────┐  ┌──────────────────────────┐   │
 │  │   REST API  │  │  MCP Server │  │   Real-Time (SSE / WS)   │   │
@@ -455,11 +455,11 @@ Resources expose read-only data that agents can pull into their context.
 
 | Resource URI                  | Description                             |
 | ----------------------------- | --------------------------------------- |
-| `cap://project/{id}/summary`  | Project overview as structured Markdown |
-| `cap://board/{id}`            | Full board state (columns + cards)      |
-| `cap://card/{id}`             | Card detail with comments and history   |
-| `cap://document/{id}`         | Document content (latest version)       |
-| `cap://project/{id}/activity` | Recent activity feed                    |
+| `muster://project/{id}/summary`  | Project overview as structured Markdown |
+| `muster://board/{id}`            | Full board state (columns + cards)      |
+| `muster://card/{id}`             | Card detail with comments and history   |
+| `muster://document/{id}`         | Document content (latest version)       |
+| `muster://project/{id}/activity` | Recent activity feed                    |
 
 ### 5.4 MCP Prompts
 
@@ -638,12 +638,12 @@ To prevent two agents from working on the same card:
 
 ### Local Runtime Model
 
-CAP runs as a **single Node.js process** on the developer's machine:
+Muster runs as a **single Node.js process** on the developer's machine:
 
 ```
 $ npm start
 
-  ✓ SQLite database opened at ./data/cap.db
+  ✓ SQLite database opened at ./data/muster.db
   ✓ Migrations applied (schema v3)
   ✓ MCP stdio transport ready
   ✓ MCP Streamable HTTP at POST /mcp
@@ -652,14 +652,14 @@ $ npm start
   ✓ SSE event stream at http://localhost:3000/api/v1/events/stream
 ```
 
-No external services required. The entire state lives in a single `cap.db` SQLite file plus an `attachments/` directory — both easily backed up, copied, or version-controlled.
+No external services required. The entire state lives in a single `muster.db` SQLite file plus an `attachments/` directory — both easily backed up, copied, or version-controlled.
 
 ---
 
 ## 10. Project Structure
 
 ```
-collaborative-agent-platform/
+muster/
 ├── package.json
 ├── tsconfig.json
 ├── README.md
@@ -733,7 +733,7 @@ collaborative-agent-platform/
 │       └── activity.js             # Activity feed logic
 │
 ├── data/                           # SQLite DB and file storage (gitignored)
-│   ├── cap.db
+│   ├── muster.db
 │   └── attachments/
 │
 └── tests/
@@ -763,7 +763,7 @@ The dashboard is the landing page. It answers the question: **"What is going on 
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Collaborative Agent Platform              [Project: My App v2]   │
+│  Muster              [Project: My App v2]   │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  ┌─── Agents Online ──────────────────────────────────────────────┐ │
@@ -875,7 +875,7 @@ When a new board is created, it gets these default columns:
 ### 13.1 Agent Joins and Picks Up Work
 
 ```
-Agent                              CAP Server
+Agent                              Muster Server
   │                                    │
   ├── register_agent ─────────────────▶│  → Creates agent record
   │◀─────────────────── agent_id ──────┤
@@ -905,7 +905,7 @@ Agent                              CAP Server
 ### 13.2 Design Doc Review Cycle
 
 ```
-Author Agent                       CAP Server                    Reviewer Agent
+Author Agent                       Muster Server                    Reviewer Agent
   │                                    │                              │
   ├── create_document ────────────────▶│  (status: draft)             │
   │                                    │                              │
@@ -953,7 +953,7 @@ These are **not in scope for v1** but inform architectural decisions:
 - **File preview** — Render attachments (images, PDFs) in the Web UI
 - **Plugin system** — Allow custom tools and event handlers to be registered dynamically
 - **OAuth 2.1** — Per-spec MCP authentication for remote agents
-- **Remote deployment** — Run CAP as a persistent server (Docker, systemd) with Streamable HTTP MCP transport for remote agents
+- **Remote deployment** — Run Muster as a persistent server (Docker, systemd) with Streamable HTTP MCP transport for remote agents
 
 ---
 
@@ -961,7 +961,7 @@ These are **not in scope for v1** but inform architectural decisions:
 
 | Term          | Definition                                                                                      |
 | ------------- | ----------------------------------------------------------------------------------------------- |
-| **CAP**       | Collaborative Agent Platform                                                                    |
+| **Muster**       | Muster                                                                    |
 | **MCP**       | Model Context Protocol — the standard for AI ↔ tool communication                               |
 | **ULID**      | Universally Unique Lexicographically Sortable Identifier                                        |
 | **LexoRank**  | A fractional indexing scheme that enables inserting items between two others without reindexing |

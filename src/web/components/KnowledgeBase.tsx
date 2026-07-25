@@ -327,16 +327,16 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
     <div className={`flex flex-col h-full p-6 space-y-4 ${viewMode === 'facts' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
 
       {/* Header Bar */}
-      <div className="cap-panel flex flex-col md:flex-row md:items-center justify-between gap-4 p-4">
+      <div className="muster-panel flex flex-col md:flex-row md:items-center justify-between gap-4 p-4">
         <div className="flex items-center space-x-3">
-          <div className="p-2.5 rounded-md border cap-accent-bg cap-accent">
+          <div className="p-2.5 rounded-md border muster-accent-bg muster-accent">
             <BookOpen className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight cap-text-primary">
+            <h1 className="text-xl font-bold tracking-tight muster-text-primary">
               Knowledge Base &amp; Gained Knowledge Graph
             </h1>
-            <p className="text-xs cap-text-muted">
+            <p className="text-xs muster-text-muted">
               Operational learnings, hardware specs, network IPs, and agent-gained facts.
             </p>
           </div>
@@ -347,7 +347,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
           <select
             value={selectedKbId}
             onChange={(e) => setSelectedKbId(e.target.value)}
-            className="cap-input w-auto font-medium cursor-pointer"
+            className="muster-input w-auto font-medium cursor-pointer"
           >
             <option value="all">⚡ All Linked &amp; Global KBs</option>
             {kbs.map((kb: KBType) => (
@@ -357,12 +357,12 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
             ))}
           </select>
 
-          <button onClick={() => setShowCreateKbModal(true)} className="cap-btn cap-btn-secondary">
+          <button onClick={() => setShowCreateKbModal(true)} className="muster-btn muster-btn-secondary">
             <Plus className="w-3.5 h-3.5" />
             New KB
           </button>
 
-          <button onClick={() => setShowAddFactModal(true)} className="cap-btn cap-btn-primary">
+          <button onClick={() => setShowAddFactModal(true)} className="muster-btn muster-btn-primary">
             <PlusCircle className="w-3.5 h-3.5" />
             Add Gained Knowledge
           </button>
@@ -372,22 +372,22 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
       {/* Search & View Mode Controls */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="relative w-full sm:w-96">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 cap-text-muted" aria-hidden="true" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 muster-text-muted" aria-hidden="true" />
           <input
             type="text"
             placeholder="Search IPs, hostnames, emails, or gained facts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="cap-input pl-9 font-medium"
+            className="muster-input pl-9 font-medium"
           />
         </div>
 
-        <div className="cap-segmented" role="tablist" aria-label="Knowledge view">
+        <div className="muster-segmented" role="tablist" aria-label="Knowledge view">
           <button
             role="tab"
             aria-selected={viewMode === 'facts'}
             onClick={() => setViewMode('facts')}
-            className="cap-segmented-item"
+            className="muster-segmented-item"
           >
             Fact Stream ({facts.length})
           </button>
@@ -395,7 +395,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
             role="tab"
             aria-selected={viewMode === 'graph'}
             onClick={() => setViewMode('graph')}
-            className="cap-segmented-item"
+            className="muster-segmented-item"
           >
             Knowledge Graph ({graphTree.nodes.length} Nodes)
           </button>
@@ -406,41 +406,41 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
       {viewMode === 'facts' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {facts.length === 0 ? (
-            <div className="col-span-full py-16 text-center cap-panel">
-              <p className="text-sm font-medium cap-text-muted">No gained knowledge facts matching search.</p>
-              <p className="text-xs mt-1 cap-text-muted">Click "Add Gained Knowledge" above to log operational learnings.</p>
+            <div className="col-span-full py-16 text-center muster-panel">
+              <p className="text-sm font-medium muster-text-muted">No gained knowledge facts matching search.</p>
+              <p className="text-xs mt-1 muster-text-muted">Click "Add Gained Knowledge" above to log operational learnings.</p>
             </div>
           ) : (
             facts.map((fact: KBFact) => (
-              <div key={fact.id} className="cap-panel p-4 flex flex-col justify-between group">
+              <div key={fact.id} className="muster-panel p-4 flex flex-col justify-between group">
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="cap-badge cap-badge-accent">{fact.category}</span>
+                    <span className="muster-badge muster-badge-accent">{fact.category}</span>
                     <div className="flex items-center gap-1">
                       {fact.entity_name && (
-                        <span className="cap-chip">{fact.entity_name}</span>
+                        <span className="muster-chip">{fact.entity_name}</span>
                       )}
                       <button
                         onClick={() => handleOpenEditFact(fact)}
-                        className="cap-btn cap-btn-icon cap-btn-ghost opacity-60 group-hover:opacity-100"
+                        className="muster-btn muster-btn-icon muster-btn-ghost opacity-60 group-hover:opacity-100"
                         title="Edit Fact"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => handleDeleteFact(fact.id)}
-                        className="cap-btn cap-btn-icon cap-btn-ghost-danger opacity-60 group-hover:opacity-100"
+                        className="muster-btn muster-btn-icon muster-btn-ghost-danger opacity-60 group-hover:opacity-100"
                         title="Delete Fact"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
-                  <h3 className="text-sm font-semibold mb-1.5 cap-text-primary">{fact.title}</h3>
-                  <p className="text-xs whitespace-pre-wrap leading-relaxed cap-text-secondary">{fact.content}</p>
+                  <h3 className="text-sm font-semibold mb-1.5 muster-text-primary">{fact.title}</h3>
+                  <p className="text-xs whitespace-pre-wrap leading-relaxed muster-text-secondary">{fact.content}</p>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-cap-border flex items-center justify-between text-[11px] cap-text-muted">
+                <div className="mt-4 pt-3 border-t border-muster-border flex items-center justify-between text-[11px] muster-text-muted">
                   <span>Confidence: {Math.round(fact.confidence * 100)}%</span>
                   <span>{new Date(fact.created_at).toLocaleDateString()}</span>
                 </div>
@@ -463,34 +463,34 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
 
           {/* Entity Details Inspector */}
           {selectedEntity && (
-            <div className="cap-panel w-80 lg:w-[420px] h-full p-5 flex flex-col min-h-0 overflow-hidden z-30">
+            <div className="muster-panel w-80 lg:w-[420px] h-full p-5 flex flex-col min-h-0 overflow-hidden z-30">
               {/* Fixed Header */}
-              <div className="flex-none flex items-start justify-between gap-2 border-b border-cap-border pb-3 mb-4">
+              <div className="flex-none flex items-start justify-between gap-2 border-b border-muster-border pb-3 mb-4">
                 <div className="min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider cap-accent">
+                  <span className="text-[10px] font-bold uppercase tracking-wider muster-accent">
                     {selectedEntity.entity.type}
                   </span>
-                  <h2 className="text-base font-bold flex items-center gap-2 cap-text-primary">
+                  <h2 className="text-base font-bold flex items-center gap-2 muster-text-primary">
                     {selectedEntity.entity.name}
                     <button
                       onClick={() => handleOpenEditEntity(selectedEntity.entity)}
-                      className="cap-btn cap-btn-icon cap-btn-ghost"
+                      className="muster-btn muster-btn-icon muster-btn-ghost"
                       title="Edit Entity Node"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                   </h2>
                   {selectedEntity.entity.identifier && (
-                    <p className="text-xs font-mono mt-0.5 cap-text-muted">{selectedEntity.entity.identifier}</p>
+                    <p className="text-xs font-mono mt-0.5 muster-text-muted">{selectedEntity.entity.identifier}</p>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => setShowAddRelationModal(true)} className="cap-btn cap-btn-soft">
+                  <button onClick={() => setShowAddRelationModal(true)} className="muster-btn muster-btn-soft">
                     + Edge
                   </button>
                   <button
                     onClick={handleCloseInspector}
-                    className="cap-btn cap-btn-icon cap-btn-ghost"
+                    className="muster-btn muster-btn-icon muster-btn-ghost"
                     title="Close Panel"
                   >
                     <X className="w-4 h-4" />
@@ -501,12 +501,12 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
               {/* Gained Knowledge Facts List */}
               <div className="flex-1 flex flex-col min-h-0 min-w-0 mb-4">
                 <div className="flex-none flex items-center justify-between gap-2 mb-2">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider cap-text-muted">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider muster-text-muted">
                     Attached Gained Knowledge ({selectedEntity.facts.length})
                   </h4>
                   <button
                     onClick={() => handleOpenAddFactForEntity(selectedEntity.entity)}
-                    className="cap-btn cap-btn-soft"
+                    className="muster-btn muster-btn-soft"
                     title="Add Gained Knowledge Fact for this node"
                   >
                     + Add Fact
@@ -514,36 +514,36 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
                 </div>
 
                 {selectedEntity.facts.length === 0 ? (
-                  <div className="flex-1 flex items-center justify-center text-center p-4 rounded-md border border-cap-border">
-                    <p className="text-xs italic cap-text-muted">No specific facts attached directly.</p>
+                  <div className="flex-1 flex items-center justify-center text-center p-4 rounded-md border border-muster-border">
+                    <p className="text-xs italic muster-text-muted">No specific facts attached directly.</p>
                   </div>
                 ) : (
                   <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 min-h-0">
                     {selectedEntity.facts.map((f: KBFact) => (
-                      <div key={f.id} className="p-3 rounded-md border border-cap-border text-xs group flex flex-col justify-between">
+                      <div key={f.id} className="p-3 rounded-md border border-muster-border text-xs group flex flex-col justify-between">
                         <div>
                           <div className="flex items-center justify-between gap-2">
-                            <p className="font-semibold cap-text-primary">{f.title}</p>
+                            <p className="font-semibold muster-text-primary">{f.title}</p>
                             <div className="flex items-center opacity-60 group-hover:opacity-100">
                               <button
                                 onClick={() => handleOpenEditFact(f)}
-                                className="cap-btn cap-btn-icon cap-btn-ghost"
+                                className="muster-btn muster-btn-icon muster-btn-ghost"
                                 title="Edit Fact"
                               >
                                 <Pencil className="w-3 h-3" />
                               </button>
                               <button
                                 onClick={() => handleDeleteFact(f.id)}
-                                className="cap-btn cap-btn-icon cap-btn-ghost-danger"
+                                className="muster-btn muster-btn-icon muster-btn-ghost-danger"
                                 title="Delete Fact"
                               >
                                 <Trash2 className="w-3 h-3" />
                               </button>
                             </div>
                           </div>
-                          <p className="mt-1.5 whitespace-pre-wrap leading-relaxed cap-text-secondary">{f.content}</p>
+                          <p className="mt-1.5 whitespace-pre-wrap leading-relaxed muster-text-secondary">{f.content}</p>
                         </div>
-                        <div className="mt-2 pt-1.5 border-t border-cap-border flex items-center justify-between text-[10px] cap-text-muted">
+                        <div className="mt-2 pt-1.5 border-t border-muster-border flex items-center justify-between text-[10px] muster-text-muted">
                           <span>Category: {f.category}</span>
                           <span>Confidence: {Math.round(f.confidence * 100)}%</span>
                         </div>
@@ -554,25 +554,25 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
               </div>
 
               {/* Graph Relations */}
-              <div className="flex-none border-t border-cap-border pt-3">
-                <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 cap-text-muted">
+              <div className="flex-none border-t border-muster-border pt-3">
+                <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 muster-text-muted">
                   Graph Links ({selectedEntity.outgoing_relations.length + selectedEntity.incoming_relations.length})
                 </h4>
                 <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
                   {selectedEntity.outgoing_relations.map((r: KBRelation) => (
-                    <div key={r.id} className="text-xs p-2 rounded-md border border-cap-border bg-cap-base flex items-center justify-between gap-2">
-                      <span className="cap-text-secondary font-mono">--( {r.relation_type} )--&gt;</span>
-                      <span className="font-semibold cap-accent">{r.target_entity_name || 'Target'}</span>
+                    <div key={r.id} className="text-xs p-2 rounded-md border border-muster-border bg-muster-base flex items-center justify-between gap-2">
+                      <span className="muster-text-secondary font-mono">--( {r.relation_type} )--&gt;</span>
+                      <span className="font-semibold muster-accent">{r.target_entity_name || 'Target'}</span>
                     </div>
                   ))}
                   {selectedEntity.incoming_relations.map((r: KBRelation) => (
-                    <div key={r.id} className="text-xs p-2 rounded-md border border-cap-border bg-cap-base flex items-center justify-between gap-2">
-                      <span className="font-semibold cap-accent">{r.source_entity_name || 'Source'}</span>
-                      <span className="cap-text-secondary font-mono">--( {r.relation_type} )--&gt;</span>
+                    <div key={r.id} className="text-xs p-2 rounded-md border border-muster-border bg-muster-base flex items-center justify-between gap-2">
+                      <span className="font-semibold muster-accent">{r.source_entity_name || 'Source'}</span>
+                      <span className="muster-text-secondary font-mono">--( {r.relation_type} )--&gt;</span>
                     </div>
                   ))}
                   {selectedEntity.outgoing_relations.length === 0 && selectedEntity.incoming_relations.length === 0 && (
-                    <p className="text-xs italic cap-text-muted">No graph edges linked to this entity.</p>
+                    <p className="text-xs italic muster-text-muted">No graph edges linked to this entity.</p>
                   )}
                 </div>
               </div>
@@ -585,24 +585,24 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
 
       {/* Modal: Create Knowledge Base */}
       {showCreateKbModal && (
-        <div className="cap-scrim">
-          <form onSubmit={handleCreateKB} className="cap-dialog p-6 w-full max-w-md space-y-4">
-            <h3 className="text-lg font-bold cap-text-primary">Create New Knowledge Base</h3>
+        <div className="muster-scrim">
+          <form onSubmit={handleCreateKB} className="muster-dialog p-6 w-full max-w-md space-y-4">
+            <h3 className="text-lg font-bold muster-text-primary">Create New Knowledge Base</h3>
             <div>
-              <label className="cap-label">KB Name</label>
-              <input type="text" placeholder="e.g. Home KB, Work KB, Infra KB" value={newKbName} onChange={(e) => setNewKbName(e.target.value)} required className="cap-input cap-input-lg" />
+              <label className="muster-label">KB Name</label>
+              <input type="text" placeholder="e.g. Home KB, Work KB, Infra KB" value={newKbName} onChange={(e) => setNewKbName(e.target.value)} required className="muster-input muster-input-lg" />
             </div>
             <div>
-              <label className="cap-label">Description</label>
-              <textarea placeholder="Scope and purpose of this knowledge base..." value={newKbDesc} onChange={(e) => setNewKbDesc(e.target.value)} rows={3} className="cap-input cap-input-lg resize-none" />
+              <label className="muster-label">Description</label>
+              <textarea placeholder="Scope and purpose of this knowledge base..." value={newKbDesc} onChange={(e) => setNewKbDesc(e.target.value)} rows={3} className="muster-input muster-input-lg resize-none" />
             </div>
             <div className="flex items-center space-x-2 pt-1">
-              <input type="checkbox" id="is_global" checked={newKbIsGlobal} onChange={(e) => setNewKbIsGlobal(e.target.checked)} className="rounded-sm accent-cap-accent-solid" />
-              <label htmlFor="is_global" className="text-xs cap-text-secondary">Make Global (accessible by all projects)</label>
+              <input type="checkbox" id="is_global" checked={newKbIsGlobal} onChange={(e) => setNewKbIsGlobal(e.target.checked)} className="rounded-sm accent-muster-accent-solid" />
+              <label htmlFor="is_global" className="text-xs muster-text-secondary">Make Global (accessible by all projects)</label>
             </div>
             <div className="flex justify-end space-x-2 pt-2">
-              <button type="button" onClick={() => setShowCreateKbModal(false)} className="cap-btn cap-btn-lg cap-btn-secondary">Cancel</button>
-              <button type="submit" className="cap-btn cap-btn-lg cap-btn-primary">Create KB</button>
+              <button type="button" onClick={() => setShowCreateKbModal(false)} className="muster-btn muster-btn-lg muster-btn-secondary">Cancel</button>
+              <button type="submit" className="muster-btn muster-btn-lg muster-btn-primary">Create KB</button>
             </div>
           </form>
         </div>
@@ -610,19 +610,19 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
 
       {/* Modal: Add Gained Knowledge */}
       {showAddFactModal && (
-        <div className="cap-scrim">
-          <form onSubmit={handleAddFact} className="cap-dialog p-6 w-full max-w-lg space-y-4">
-            <h3 className="text-lg font-bold cap-text-primary">Add Gained Knowledge</h3>
-            <div><label className="cap-label">Title</label><input type="text" placeholder="e.g. Single CPU Constraint, Mail Server IP" value={newFactTitle} onChange={(e) => setNewFactTitle(e.target.value)} required className="cap-input cap-input-lg" /></div>
-            <div><label className="cap-label">Content / Learning</label><textarea placeholder="Detail what was learned..." value={newFactContent} onChange={(e) => setNewFactContent(e.target.value)} rows={4} required className="cap-input cap-input-lg resize-none" /></div>
+        <div className="muster-scrim">
+          <form onSubmit={handleAddFact} className="muster-dialog p-6 w-full max-w-lg space-y-4">
+            <h3 className="text-lg font-bold muster-text-primary">Add Gained Knowledge</h3>
+            <div><label className="muster-label">Title</label><input type="text" placeholder="e.g. Single CPU Constraint, Mail Server IP" value={newFactTitle} onChange={(e) => setNewFactTitle(e.target.value)} required className="muster-input muster-input-lg" /></div>
+            <div><label className="muster-label">Content / Learning</label><textarea placeholder="Detail what was learned..." value={newFactContent} onChange={(e) => setNewFactContent(e.target.value)} rows={4} required className="muster-input muster-input-lg resize-none" /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="cap-label">Category</label><select value={newFactCategory} onChange={(e) => setNewFactCategory(e.target.value)} className="cap-input">{categoryOptions}</select></div>
-              <div><label className="cap-label">Entity Name (Optional)</label><input type="text" placeholder="e.g. server-01" value={newFactEntityName} onChange={(e) => setNewFactEntityName(e.target.value)} className="cap-input" /></div>
+              <div><label className="muster-label">Category</label><select value={newFactCategory} onChange={(e) => setNewFactCategory(e.target.value)} className="muster-input">{categoryOptions}</select></div>
+              <div><label className="muster-label">Entity Name (Optional)</label><input type="text" placeholder="e.g. server-01" value={newFactEntityName} onChange={(e) => setNewFactEntityName(e.target.value)} className="muster-input" /></div>
             </div>
-            <div><label className="cap-label">Entity Identifier / IP / Email (Optional)</label><input type="text" placeholder="e.g. 192.168.1.50 or admin@work.com" value={newFactEntityIdent} onChange={(e) => setNewFactEntityIdent(e.target.value)} className="cap-input" /></div>
+            <div><label className="muster-label">Entity Identifier / IP / Email (Optional)</label><input type="text" placeholder="e.g. 192.168.1.50 or admin@work.com" value={newFactEntityIdent} onChange={(e) => setNewFactEntityIdent(e.target.value)} className="muster-input" /></div>
             <div className="flex justify-end space-x-2 pt-2">
-              <button type="button" onClick={() => setShowAddFactModal(false)} className="cap-btn cap-btn-lg cap-btn-secondary">Cancel</button>
-              <button type="submit" className="cap-btn cap-btn-lg cap-btn-primary">Save Knowledge</button>
+              <button type="button" onClick={() => setShowAddFactModal(false)} className="muster-btn muster-btn-lg muster-btn-secondary">Cancel</button>
+              <button type="submit" className="muster-btn muster-btn-lg muster-btn-primary">Save Knowledge</button>
             </div>
           </form>
         </div>
@@ -630,19 +630,19 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
 
       {/* Modal: Edit Fact */}
       {showEditFactModal && editingFact && (
-        <div className="cap-scrim">
-          <form onSubmit={handleUpdateFact} className="cap-dialog p-6 w-full max-w-lg space-y-4">
-            <h3 className="text-lg font-bold cap-text-primary">Edit Gained Knowledge Fact</h3>
-            <div><label className="cap-label">Title</label><input type="text" value={editFactTitle} onChange={(e) => setEditFactTitle(e.target.value)} required className="cap-input cap-input-lg" /></div>
-            <div><label className="cap-label">Content / Learning</label><textarea value={editFactContent} onChange={(e) => setEditFactContent(e.target.value)} rows={4} required className="cap-input cap-input-lg resize-none" /></div>
+        <div className="muster-scrim">
+          <form onSubmit={handleUpdateFact} className="muster-dialog p-6 w-full max-w-lg space-y-4">
+            <h3 className="text-lg font-bold muster-text-primary">Edit Gained Knowledge Fact</h3>
+            <div><label className="muster-label">Title</label><input type="text" value={editFactTitle} onChange={(e) => setEditFactTitle(e.target.value)} required className="muster-input muster-input-lg" /></div>
+            <div><label className="muster-label">Content / Learning</label><textarea value={editFactContent} onChange={(e) => setEditFactContent(e.target.value)} rows={4} required className="muster-input muster-input-lg resize-none" /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div><label className="cap-label">Category</label><select value={editFactCategory} onChange={(e) => setEditFactCategory(e.target.value)} className="cap-input">{categoryOptions}</select></div>
-              <div><label className="cap-label">Entity Name</label><input type="text" value={editFactEntityName} onChange={(e) => setEditFactEntityName(e.target.value)} className="cap-input" /></div>
+              <div><label className="muster-label">Category</label><select value={editFactCategory} onChange={(e) => setEditFactCategory(e.target.value)} className="muster-input">{categoryOptions}</select></div>
+              <div><label className="muster-label">Entity Name</label><input type="text" value={editFactEntityName} onChange={(e) => setEditFactEntityName(e.target.value)} className="muster-input" /></div>
             </div>
-            <div><label className="cap-label">Entity Identifier / IP / Email</label><input type="text" value={editFactEntityIdent} onChange={(e) => setEditFactEntityIdent(e.target.value)} className="cap-input" /></div>
+            <div><label className="muster-label">Entity Identifier / IP / Email</label><input type="text" value={editFactEntityIdent} onChange={(e) => setEditFactEntityIdent(e.target.value)} className="muster-input" /></div>
             <div className="flex justify-end space-x-2 pt-2">
-              <button type="button" onClick={() => { setShowEditFactModal(false); setEditingFact(null); }} className="cap-btn cap-btn-lg cap-btn-secondary">Cancel</button>
-              <button type="submit" className="cap-btn cap-btn-lg cap-btn-primary">Update Fact</button>
+              <button type="button" onClick={() => { setShowEditFactModal(false); setEditingFact(null); }} className="muster-btn muster-btn-lg muster-btn-secondary">Cancel</button>
+              <button type="submit" className="muster-btn muster-btn-lg muster-btn-primary">Update Fact</button>
             </div>
           </form>
         </div>
@@ -650,15 +650,15 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
 
       {/* Modal: Edit Entity */}
       {showEditEntityModal && editingEntity && (
-        <div className="cap-scrim">
-          <form onSubmit={handleUpdateEntity} className="cap-dialog p-6 w-full max-w-md space-y-4">
-            <h3 className="text-lg font-bold cap-text-primary">Edit Knowledge Graph Entity Node</h3>
-            <div><label className="cap-label">Entity Name</label><input type="text" value={editEntityName} onChange={(e) => setEditEntityName(e.target.value)} required className="cap-input cap-input-lg" /></div>
-            <div><label className="cap-label">Entity Type</label><input type="text" placeholder="e.g. server, ip_address, email, service, database" value={editEntityType} onChange={(e) => setEditEntityType(e.target.value)} required className="cap-input" /></div>
-            <div><label className="cap-label">Canonical Identifier (IP, Hostname, Email)</label><input type="text" value={editEntityIdent} onChange={(e) => setEditEntityIdent(e.target.value)} className="cap-input" /></div>
+        <div className="muster-scrim">
+          <form onSubmit={handleUpdateEntity} className="muster-dialog p-6 w-full max-w-md space-y-4">
+            <h3 className="text-lg font-bold muster-text-primary">Edit Knowledge Graph Entity Node</h3>
+            <div><label className="muster-label">Entity Name</label><input type="text" value={editEntityName} onChange={(e) => setEditEntityName(e.target.value)} required className="muster-input muster-input-lg" /></div>
+            <div><label className="muster-label">Entity Type</label><input type="text" placeholder="e.g. server, ip_address, email, service, database" value={editEntityType} onChange={(e) => setEditEntityType(e.target.value)} required className="muster-input" /></div>
+            <div><label className="muster-label">Canonical Identifier (IP, Hostname, Email)</label><input type="text" value={editEntityIdent} onChange={(e) => setEditEntityIdent(e.target.value)} className="muster-input" /></div>
             <div className="flex justify-end space-x-2 pt-2">
-              <button type="button" onClick={() => { setShowEditEntityModal(false); setEditingEntity(null); }} className="cap-btn cap-btn-lg cap-btn-secondary">Cancel</button>
-              <button type="submit" className="cap-btn cap-btn-lg cap-btn-primary">Update Entity Node</button>
+              <button type="button" onClick={() => { setShowEditEntityModal(false); setEditingEntity(null); }} className="muster-btn muster-btn-lg muster-btn-secondary">Cancel</button>
+              <button type="submit" className="muster-btn muster-btn-lg muster-btn-primary">Update Entity Node</button>
             </div>
           </form>
         </div>
@@ -666,18 +666,18 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
 
       {/* Modal: Add Relation */}
       {showAddRelationModal && selectedEntity && (
-        <div className="cap-scrim">
-          <form onSubmit={handleAddRelation} className="cap-dialog p-6 w-full max-w-md space-y-4">
-            <h3 className="text-lg font-bold cap-text-primary">Link Graph Relation</h3>
-            <p className="text-xs cap-text-muted">
-              Source: <span className="font-semibold cap-accent">{selectedEntity.entity.name}</span>
+        <div className="muster-scrim">
+          <form onSubmit={handleAddRelation} className="muster-dialog p-6 w-full max-w-md space-y-4">
+            <h3 className="text-lg font-bold muster-text-primary">Link Graph Relation</h3>
+            <p className="text-xs muster-text-muted">
+              Source: <span className="font-semibold muster-accent">{selectedEntity.entity.name}</span>
             </p>
-            <div><label className="cap-label">Relation Type</label><input type="text" placeholder="e.g. runs_on, has_ip, depends_on, owned_by" value={relType} onChange={(e) => setRelType(e.target.value)} required className="cap-input" /></div>
-            <div><label className="cap-label">Target Entity</label><select value={relTargetEntityId} onChange={(e) => setRelTargetEntityId(e.target.value)} required className="cap-input"><option value="">Select target entity...</option>{graphTree.nodes.filter((n: KBGraphNode) => n.id !== selectedEntity.entity.id).map((n: KBGraphNode) => (<option key={n.id} value={n.id}>{n.name} ({n.type})</option>))}</select></div>
-            <div><label className="cap-label">Description (Optional)</label><input type="text" placeholder="Additional notes about relation..." value={relDesc} onChange={(e) => setRelDesc(e.target.value)} className="cap-input" /></div>
+            <div><label className="muster-label">Relation Type</label><input type="text" placeholder="e.g. runs_on, has_ip, depends_on, owned_by" value={relType} onChange={(e) => setRelType(e.target.value)} required className="muster-input" /></div>
+            <div><label className="muster-label">Target Entity</label><select value={relTargetEntityId} onChange={(e) => setRelTargetEntityId(e.target.value)} required className="muster-input"><option value="">Select target entity...</option>{graphTree.nodes.filter((n: KBGraphNode) => n.id !== selectedEntity.entity.id).map((n: KBGraphNode) => (<option key={n.id} value={n.id}>{n.name} ({n.type})</option>))}</select></div>
+            <div><label className="muster-label">Description (Optional)</label><input type="text" placeholder="Additional notes about relation..." value={relDesc} onChange={(e) => setRelDesc(e.target.value)} className="muster-input" /></div>
             <div className="flex justify-end space-x-2 pt-2">
-              <button type="button" onClick={() => setShowAddRelationModal(false)} className="cap-btn cap-btn-lg cap-btn-secondary">Cancel</button>
-              <button type="submit" className="cap-btn cap-btn-lg cap-btn-primary">Save Relation</button>
+              <button type="button" onClick={() => setShowAddRelationModal(false)} className="muster-btn muster-btn-lg muster-btn-secondary">Cancel</button>
+              <button type="submit" className="muster-btn muster-btn-lg muster-btn-primary">Save Relation</button>
             </div>
           </form>
         </div>

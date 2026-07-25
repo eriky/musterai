@@ -261,7 +261,7 @@ describe('Domain Services Integration Tests', () => {
 
   it('Feature: secret token verification and agent session re-binding', async () => {
     const token = await agentService.getHumanSecretToken();
-    expect(token).toMatch(/^cap_sec_/);
+    expect(token).toMatch(/^muster_sec_/);
 
     // Rejects registration with invalid secret_token
     await expect(

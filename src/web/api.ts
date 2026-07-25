@@ -10,7 +10,7 @@ export class ApiError extends Error {
   }
 }
 
-let activeHumanId: string | null = typeof window !== 'undefined' ? localStorage.getItem('cap_active_human_id') : null;
+let activeHumanId: string | null = typeof window !== 'undefined' ? localStorage.getItem('muster_active_human_id') : null;
 
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
@@ -47,8 +47,8 @@ export const api = {
   setActiveHumanId: (id: string | null) => {
     activeHumanId = id;
     if (typeof window !== 'undefined') {
-      if (id) localStorage.setItem('cap_active_human_id', id);
-      else localStorage.removeItem('cap_active_human_id');
+      if (id) localStorage.setItem('muster_active_human_id', id);
+      else localStorage.removeItem('muster_active_human_id');
     }
   },
 

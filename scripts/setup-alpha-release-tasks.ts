@@ -24,7 +24,7 @@ async function main() {
   let project = (await projectService.list()).find(p => p.name.includes('v2.0-alpha'));
   if (!project) {
     project = await projectService.create({
-      name: 'Collaborative Agent Platform (v2.0-alpha)',
+      name: 'Muster (v2.0-alpha)',
       description: 'Open-Source v2.0-alpha Release Roadmap & Production Polish',
     });
   }
@@ -49,10 +49,10 @@ async function main() {
   const doc = await documentService.create({
     project_id: project.id,
     title: 'v2.0-alpha Open-Source Release Specification & Roadmap',
-    content: `# CAP v2.0-alpha Open-Source Release Roadmap
+    content: `# Muster v2.0-alpha Open-Source Release Roadmap
 
 ## Overview
-This specification details the required components and polish steps for releasing CAP v2.0 as a robust, open-source collaborative agent platform.
+This specification details the required components and polish steps for releasing Muster v2.0 as a robust, open-source collaborative agent platform.
 
 ## Release Tasks
 1. **Health Telemetry Endpoint (\`/api/v1/health\`)**: Expose system uptime, DB connection state, and active project/agent counts.
@@ -117,7 +117,7 @@ This specification details the required components and polish steps for releasin
   }
 
   await db.close();
-  console.log('\n✓ Release roadmap project initialized in CAP system successfully!');
+  console.log('\n✓ Release roadmap project initialized in Muster system successfully!');
 }
 
 main().catch(console.error);

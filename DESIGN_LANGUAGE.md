@@ -1,4 +1,4 @@
-# CAP UI Design Language
+# Muster UI Design Language
 
 Normative for every UI change in `src/web/`. If a rule here conflicts with
 existing markup, the rule wins and the markup is the bug.
@@ -12,7 +12,7 @@ existing markup, the rule wins and the markup is the bug.
 2. **Theming happens at the ramp, not at the call site.** No component ever
    branches on light vs. dark. No `dark:` variants. No `.light .foo` overrides.
 3. **Shared components before bespoke ones.** Buttons, inputs, panels, dialogs
-   and badges come from the `cap-*` vocabulary in `src/web/index.css`. A
+   and badges come from the `muster-*` vocabulary in `src/web/index.css`. A
    section that invents its own button is the defect this document exists to
    prevent.
 
@@ -45,8 +45,8 @@ Three things worth internalising:
   *role* across modes: `400` is always "readable text colour", `600` is always
   "solid fill that carries `--color-on-accent` text", `950` is always "faintest
   tinted panel". That is why light mode needs no `!important` anywhere.
-- **Structural `cap-*` colours are alpha-capable.** `bg-cap-surface`,
-  `border-cap-border/60` and friends resolve through the ramp triplets. Binding
+- **Structural `muster-*` colours are alpha-capable.** `bg-muster-surface`,
+  `border-muster-border/60` and friends resolve through the ramp triplets. Binding
   them to the `--color-*` aliases instead would make any opacity modifier
   silently emit nothing.
 
@@ -68,7 +68,7 @@ Specificity is deliberate: `html.light` (0,1,1) outranks `[data-profile]`
 | `emerald` | Emerald | System health & code execution |
 | `violet` | Violet | Agent coordination |
 
-Preference is per human operator, persisted at `cap_user_theme_<user_id>`, with
+Preference is per human operator, persisted at `muster_user_theme_<user_id>`, with
 colour profile and light/dark chosen independently.
 
 Two known consequences of profile theming, accepted deliberately:
@@ -106,8 +106,8 @@ Use these in inline styles and in new CSS. Never a literal hex.
 | `--color-info` / `-subtle` / `-border` | Neutral informational |
 | `--color-scrim` | Modal backdrop (dark in both modes, by design) |
 
-Each has a matching utility: `cap-text-primary`, `cap-text-muted`, `cap-accent`,
-`cap-text-{success,warning,danger,info}`, `bg-cap-surface`, `border-cap-border`,
+Each has a matching utility: `muster-text-primary`, `muster-text-muted`, `muster-accent`,
+`muster-text-{success,warning,danger,info}`, `bg-muster-surface`, `border-muster-border`,
 and so on. Prefer the utility at call sites; reach for the raw token only in CSS.
 
 ## 4. Component vocabulary
@@ -116,19 +116,19 @@ Defined in `src/web/index.css` under `@layer components`.
 
 ### Buttons
 
-Always `cap-btn` plus exactly one variant.
+Always `muster-btn` plus exactly one variant.
 
 | Variant | Use for |
 | :-- | :-- |
-| `cap-btn-primary` | The one main action in a view. Brand fill. |
-| `cap-btn-secondary` | Cancel, dismiss, back. Neutral raised face. |
-| `cap-btn-soft` | Secondary actions that should still read as "ours". Brand tint. |
-| `cap-btn-ghost` | Toolbar and inline icon actions. Chromeless until hover. |
-| `cap-btn-danger` | Confirming a destructive action. |
-| `cap-btn-danger-soft` | Triggering a destructive flow. |
-| `cap-btn-ghost-danger` | Row-level delete icons. |
+| `muster-btn-primary` | The one main action in a view. Brand fill. |
+| `muster-btn-secondary` | Cancel, dismiss, back. Neutral raised face. |
+| `muster-btn-soft` | Secondary actions that should still read as "ours". Brand tint. |
+| `muster-btn-ghost` | Toolbar and inline icon actions. Chromeless until hover. |
+| `muster-btn-danger` | Confirming a destructive action. |
+| `muster-btn-danger-soft` | Triggering a destructive flow. |
+| `muster-btn-ghost-danger` | Row-level delete icons. |
 
-Modifiers: `cap-btn-lg` (roomier, for modal footers), `cap-btn-icon`
+Modifiers: `muster-btn-lg` (roomier, for modal footers), `muster-btn-icon`
 (square, icon-only).
 
 **Primary buttons are brand-coloured everywhere.** A section does not get its
@@ -139,19 +139,19 @@ this codebase.
 
 | Class | Use for |
 | :-- | :-- |
-| `cap-input`, `cap-input-lg` | Every text input, textarea and select |
-| `cap-label` | The label above a form control |
-| `cap-panel` | Cards, side panels, floating overlays |
-| `cap-dialog` | Modal body |
-| `cap-scrim` | Modal backdrop; already handles fixed/centering/blur |
-| `cap-badge` + `cap-badge-{accent,success,warning,danger,info,neutral}` | Status pills |
-| `cap-chip` | Mono identity chips — entity names, agent handles, IDs |
-| `cap-segmented` + `cap-segmented-item` | View switchers (`aria-selected` drives the active style) |
-| `cap-tab` / `cap-tab-active` | Top-level navigation |
-| `cap-divider` | Rules and dot separators |
+| `muster-input`, `muster-input-lg` | Every text input, textarea and select |
+| `muster-label` | The label above a form control |
+| `muster-panel` | Cards, side panels, floating overlays |
+| `muster-dialog` | Modal body |
+| `muster-scrim` | Modal backdrop; already handles fixed/centering/blur |
+| `muster-badge` + `muster-badge-{accent,success,warning,danger,info,neutral}` | Status pills |
+| `muster-chip` | Mono identity chips — entity names, agent handles, IDs |
+| `muster-segmented` + `muster-segmented-item` | View switchers (`aria-selected` drives the active style) |
+| `muster-tab` / `muster-tab-active` | Top-level navigation |
+| `muster-divider` | Rules and dot separators |
 
-Text helpers: `cap-text-primary`, `cap-text-secondary`, `cap-text-muted`,
-`cap-text-faint`, `cap-accent`, `cap-text-{success,warning,danger,info}`.
+Text helpers: `muster-text-primary`, `muster-text-secondary`, `muster-text-muted`,
+`muster-text-faint`, `muster-accent`, `muster-text-{success,warning,danger,info}`.
 
 ## 5. Categorical scales
 
@@ -167,11 +167,11 @@ There are exactly two:
 role class:
 
 ```jsx
-<span className="cap-badge cap-badge-entity cap-entity-document">DOC</span>
-<FileText className="cap-entity-icon cap-entity-document" />
+<span className="muster-badge muster-badge-entity muster-entity-document">DOC</span>
+<FileText className="muster-entity-icon muster-entity-document" />
 ```
 
-Available: `cap-entity-{card,agent,document,board,project,kb}`. The selector
+Available: `muster-entity-{card,agent,document,board,project,kb}`. The selector
 class only picks a foreground/background pair; the role class consumes it.
 
 **Knowledge-graph nodes** (`TYPE_COLORS_DARK` / `TYPE_COLORS_LIGHT` in
@@ -195,7 +195,7 @@ Radius comes from tokens; `rounded` and `rounded-md` are the same 6px value.
 
 Spacing:
 
-- Button padding: compact `px-3 py-1.5` (`cap-btn`), standard `px-4 py-2` (`cap-btn-lg`)
+- Button padding: compact `px-3 py-1.5` (`muster-btn`), standard `px-4 py-2` (`muster-btn-lg`)
 - Card padding: compact `p-3`, standard `p-4`
 - Grid gaps: `gap-4` or `gap-6`
 
@@ -212,21 +212,21 @@ real contrast ratio — not by eyeballing screenshots. Re-run that check after
 touching ramps or adding a profile.
 
 Decorative glyphs (rules, dot separators) are exempt, and are therefore marked
-`aria-hidden` and drawn with `cap-divider` rather than being coloured text.
+`aria-hidden` and drawn with `muster-divider` rather than being coloured text.
 
 ## 8. Rules for agents
 
-1. Reach for a `cap-*` component class first. Only write bespoke styling when
+1. Reach for a `muster-*` component class first. Only write bespoke styling when
    no primitive fits — and then add the primitive instead of inlining it.
 2. Never hardcode a colour: no `#rrggbb`, no `rgb(...)`, no arbitrary
    `rounded-[11px]`. Use tokens and the radius scale.
 3. Never write `dark:` variants or `.light` overrides. If something looks wrong
    in one mode, the ramp is wrong — fix `index.css`, not the component.
 4. The only colour families are `neutral`, `brand`, `success`, `warning`,
-   `danger`, `info`, plus the `cap-*` structural tokens and the categorical
+   `danger`, `info`, plus the `muster-*` structural tokens and the categorical
    scales in §5. Hue names do not resolve; if you reach for `text-zinc-400` the
    element renders unstyled.
-5. One `cap-btn-primary` per view. Everything else is secondary, soft or ghost.
+5. One `muster-btn-primary` per view. Everything else is secondary, soft or ghost.
 6. Before picking a colour, ask whether it means *status* (use a semantic
    family) or *kind* (use a categorical scale from §5). Getting this backwards
    is how a card badge ends up claiming to be a success state.

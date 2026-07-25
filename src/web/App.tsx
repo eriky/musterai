@@ -316,7 +316,7 @@ export const App: React.FC = () => {
 
   return (
     <ThemeProvider userId={selectedHumanId}>
-    <div className="h-screen flex flex-col bg-cap-base cap-text-primary font-sans w-full overflow-hidden">
+    <div className="h-screen flex flex-col bg-muster-base muster-text-primary font-sans w-full overflow-hidden">
       
       {/* Platform Header */}
       <Header

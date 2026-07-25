@@ -46,13 +46,13 @@ async function runBrowserUiTest() {
 
   removeDbFiles(TEST_DB_PATH);
 
-  console.log(`[Server Setup] Starting isolated CAP server process on port ${TEST_PORT}...`);
+  console.log(`[Server Setup] Starting isolated Muster server process on port ${TEST_PORT}...`);
   const serverProcess: ChildProcess = fork(path.join(process.cwd(), 'dist', 'index.js'), [], {
     env: {
       ...process.env,
-      CAP_PORT: String(TEST_PORT),
-      CAP_HOST: '127.0.0.1',
-      CAP_DB_PATH: TEST_DB_PATH,
+      MUSTER_PORT: String(TEST_PORT),
+      MUSTER_HOST: '127.0.0.1',
+      MUSTER_DB_PATH: TEST_DB_PATH,
     },
     stdio: 'ignore',
   });
@@ -82,7 +82,7 @@ async function runBrowserUiTest() {
 
     // Verify main brand heading
     const headerTitle = await page.locator('header').textContent();
-    if (!headerTitle?.includes('MISSION CONTROL') && !headerTitle?.includes('CAP')) {
+    if (!headerTitle?.includes('Muster')) {
       throw new Error('Header title not found');
     }
     console.log('  ✓ Header rendered correctly.');
@@ -119,12 +119,18 @@ async function runBrowserUiTest() {
     await page.click('button:has-text("+ Card")');
     await page.waitForSelector('text=Create Card');
 
-    await page.fill('input[placeholder*="OAuth 2.0"]', 'Implement Playwright E2E UI Tests');
-    await page.selectOption('select:has-text("Medium")', 'high');
-    await page.fill('textarea[placeholder*="Detailed instructions"]', 'Verify DOM interaction and full feature parity.');
-    await page.click('button[type="submit"]:has-text("Create Card")');
+    const cardForm = page.locator('form').filter({ hasText: 'Task Title' });
+    await cardForm.locator('input[type="text"]').fill('Implement Playwright E2E UI Tests');
+    await cardForm.locator('select').nth(1).selectOption('high');
+    await cardForm.locator('textarea').fill('Verify DOM interaction and full feature parity.');
+    await cardForm.locator('button[type="submit"]').click();
     await page.waitForSelector('h4:has-text("Implement Playwright E2E UI Tests")');
     console.log('  ✓ Card rendered on board with HIGH priority badge.');
+
+    // Card creation opens the new card's details modal; close it before reopening
+    // the card from the board for the detail-flow assertions below.
+    await page.click('button[title="Close Task"]', { force: true });
+    await page.waitForSelector('button[title="Close Task"]', { state: 'detached' });
 
     // Step 5: Card Modal, Assignment & Comments
     console.log('\n[5/8] Testing Card Details Modal, Assignment & Comments...');
@@ -146,7 +152,7 @@ async function runBrowserUiTest() {
 
     // Close card modal
     await page.click('button[title="Close Task"]', { force: true });
-    await page.waitForTimeout(300);
+    await page.waitForSelector('button[title="Close Task"]', { state: 'detached' });
     console.log('  ✓ Card details modal closed.');
 
     // Step 6: Agent Management View & Agent Removal
@@ -159,7 +165,7 @@ async function runBrowserUiTest() {
 
     await page.fill('input[placeholder*="Erik"]', 'Browser-Testing-Bot');
     await page.click('button[type="submit"]:has-text("Add User")');
-    await page.waitForSelector('text=Browser-Testing-Bot');
+    await page.locator('h3').filter({ hasText: 'Browser-Testing-Bot' }).waitFor();
     console.log('  ✓ New agent "Browser-Testing-Bot" registered and displayed in grid.');
 
     // Heartbeat test

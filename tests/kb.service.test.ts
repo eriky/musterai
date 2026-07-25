@@ -38,7 +38,7 @@ describe('KBService Knowledge Base & Graph Integration Tests', () => {
 
   it('creates Home KB and Work KB and links to projects', async () => {
     const projectHome = await projectService.create({ name: 'Home Automation' });
-    const projectWork = await projectService.create({ name: 'Work CAP' });
+    const projectWork = await projectService.create({ name: 'Work Muster' });
 
     const homeKb = await kbService.create({
       name: 'Home KB',
