@@ -8,6 +8,7 @@ import { KanbanBoard } from './components/KanbanBoard.js';
 import { DocumentVault } from './components/DocumentVault.js';
 import { TacticalTerminal } from './components/TacticalTerminal.js';
 import { KnowledgeBaseView } from './components/KnowledgeBase.js';
+import { ThemeProvider } from './ThemeContext.js';
 import {
   NewProjectModal,
   EditProjectModal,
@@ -312,6 +313,7 @@ export const App: React.FC = () => {
   };
 
   return (
+    <ThemeProvider userId={selectedHumanId}>
     <div className="h-screen flex flex-col bg-command-bg text-zinc-100 font-sans w-full overflow-hidden">
       
       {/* Platform Header */}
@@ -473,5 +475,6 @@ export const App: React.FC = () => {
         />
       )}
     </div>
+    </ThemeProvider>
   );
 };

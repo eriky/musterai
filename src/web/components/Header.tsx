@@ -1,6 +1,7 @@
 import React from 'react';
 import { Project, ProjectSummary, Agent } from '../types.js';
 import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, User, UserCheck, UserPlus, Trash2, Edit2 } from 'lucide-react';
+import { ThemePicker } from './ThemePicker.js';
 
 
 interface HeaderProps {
@@ -167,6 +168,10 @@ export const Header: React.FC<HeaderProps> = ({
 
           </div>
 
+          {/* Right Side: Theme Picker */}
+          <div className="flex items-center">
+            <ThemePicker />
+          </div>
 
         </div>
 
@@ -178,7 +183,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => onSelectTab('agents')}
               className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-medium transition-all ${
                 activeTab === 'agents'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                  ? 'cap-tab-active border shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-command-card'
               }`}
             >
@@ -190,7 +195,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => onSelectTab('board')}
               className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-medium transition-all ${
                 activeTab === 'board'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                  ? 'cap-tab-active border shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-command-card'
               }`}
             >
@@ -202,7 +207,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => onSelectTab('docs')}
               className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-medium transition-all ${
                 activeTab === 'docs'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                  ? 'cap-tab-active border shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-command-card'
               }`}
             >
@@ -214,7 +219,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => onSelectTab('kb')}
               className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-medium transition-all ${
                 activeTab === 'kb'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                  ? 'cap-tab-active border shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-command-card'
               }`}
             >
@@ -226,7 +231,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={() => onSelectTab('activity')}
               className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-medium transition-all ${
                 activeTab === 'activity'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                  ? 'cap-tab-active border shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-command-card'
               }`}
             >

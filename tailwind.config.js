@@ -7,17 +7,29 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Backward-compatible command-* tokens (still used throughout existing components)
         command: {
-          bg: '#09090b',
-          surface: '#121215',
-          card: '#18181b',
-          border: '#27272a',
-          muted: '#71717a',
-          cyan: '#06b6d4',
+          bg:      'var(--color-surface-base)',
+          surface: 'var(--color-surface-elevated)',
+          card:    'var(--color-surface-elevated)',
+          border:  'var(--color-border-subtle)',
+          muted:   'var(--color-text-muted)',
+          // Legacy named colours kept for gradual migration
+          cyan:    '#06b6d4',
           emerald: '#10b981',
-          amber: '#f59e0b',
-          rose: '#f43f5e',
-          indigo: '#6366f1',
+          amber:   '#f59e0b',
+          rose:    '#f43f5e',
+          indigo:  '#6366f1',
+        },
+        // New semantic profile-aware tokens (use these going forward)
+        cap: {
+          accent:  'var(--color-accent)',
+          surface: 'var(--color-surface-elevated)',
+          base:    'var(--color-surface-base)',
+          hover:   'var(--color-surface-hover)',
+          border:  'var(--color-border-subtle)',
+          text:    'var(--color-text-primary)',
+          muted:   'var(--color-text-muted)',
         },
       },
       fontFamily: {
