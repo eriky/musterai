@@ -440,7 +440,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
                   <p className="text-xs whitespace-pre-wrap leading-relaxed cap-text-secondary">{fact.content}</p>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-command-border flex items-center justify-between text-[11px] cap-text-muted">
+                <div className="mt-4 pt-3 border-t border-cap-border flex items-center justify-between text-[11px] cap-text-muted">
                   <span>Confidence: {Math.round(fact.confidence * 100)}%</span>
                   <span>{new Date(fact.created_at).toLocaleDateString()}</span>
                 </div>
@@ -465,7 +465,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
           {selectedEntity && (
             <div className="cap-panel w-80 lg:w-[420px] h-full p-5 flex flex-col min-h-0 overflow-hidden z-30">
               {/* Fixed Header */}
-              <div className="flex-none flex items-start justify-between gap-2 border-b border-command-border pb-3 mb-4">
+              <div className="flex-none flex items-start justify-between gap-2 border-b border-cap-border pb-3 mb-4">
                 <div className="min-w-0">
                   <span className="text-[10px] font-bold uppercase tracking-wider cap-accent">
                     {selectedEntity.entity.type}
@@ -514,13 +514,13 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
                 </div>
 
                 {selectedEntity.facts.length === 0 ? (
-                  <div className="flex-1 flex items-center justify-center text-center p-4 rounded-md border border-command-border">
+                  <div className="flex-1 flex items-center justify-center text-center p-4 rounded-md border border-cap-border">
                     <p className="text-xs italic cap-text-muted">No specific facts attached directly.</p>
                   </div>
                 ) : (
                   <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 min-h-0">
                     {selectedEntity.facts.map((f: KBFact) => (
-                      <div key={f.id} className="p-3 rounded-md border border-command-border text-xs group flex flex-col justify-between">
+                      <div key={f.id} className="p-3 rounded-md border border-cap-border text-xs group flex flex-col justify-between">
                         <div>
                           <div className="flex items-center justify-between gap-2">
                             <p className="font-semibold cap-text-primary">{f.title}</p>
@@ -543,7 +543,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
                           </div>
                           <p className="mt-1.5 whitespace-pre-wrap leading-relaxed cap-text-secondary">{f.content}</p>
                         </div>
-                        <div className="mt-2 pt-1.5 border-t border-command-border flex items-center justify-between text-[10px] cap-text-muted">
+                        <div className="mt-2 pt-1.5 border-t border-cap-border flex items-center justify-between text-[10px] cap-text-muted">
                           <span>Category: {f.category}</span>
                           <span>Confidence: {Math.round(f.confidence * 100)}%</span>
                         </div>
@@ -554,19 +554,19 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
               </div>
 
               {/* Graph Relations */}
-              <div className="flex-none border-t border-command-border pt-3">
+              <div className="flex-none border-t border-cap-border pt-3">
                 <h4 className="text-xs font-semibold uppercase tracking-wider mb-2 cap-text-muted">
                   Graph Links ({selectedEntity.outgoing_relations.length + selectedEntity.incoming_relations.length})
                 </h4>
                 <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
                   {selectedEntity.outgoing_relations.map((r: KBRelation) => (
-                    <div key={r.id} className="text-xs p-2 rounded-md border border-command-border bg-command-bg flex items-center justify-between gap-2">
+                    <div key={r.id} className="text-xs p-2 rounded-md border border-cap-border bg-cap-base flex items-center justify-between gap-2">
                       <span className="cap-text-secondary font-mono">--( {r.relation_type} )--&gt;</span>
                       <span className="font-semibold cap-accent">{r.target_entity_name || 'Target'}</span>
                     </div>
                   ))}
                   {selectedEntity.incoming_relations.map((r: KBRelation) => (
-                    <div key={r.id} className="text-xs p-2 rounded-md border border-command-border bg-command-bg flex items-center justify-between gap-2">
+                    <div key={r.id} className="text-xs p-2 rounded-md border border-cap-border bg-cap-base flex items-center justify-between gap-2">
                       <span className="font-semibold cap-accent">{r.source_entity_name || 'Source'}</span>
                       <span className="cap-text-secondary font-mono">--( {r.relation_type} )--&gt;</span>
                     </div>

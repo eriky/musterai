@@ -410,7 +410,7 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
     <div className="cap-panel relative w-full h-full min-h-[450px] overflow-hidden flex-1">
       {/* Empty State Overlay when no nodes exist */}
       {data.nodes.length === 0 && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-command-surface cap-text-muted">
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-cap-surface cap-text-muted">
           <Zap className="w-12 h-12 mb-3 cap-text-faint" />
           <p className="text-base font-medium">No Graph Nodes Found</p>
           <p className="text-sm mt-1">Add entities and gained knowledge facts to populate the graph.</p>

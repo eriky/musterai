@@ -36,7 +36,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({ onClose, onSuc
   return (
     <div className="cap-scrim">
       <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-command-border pb-3">
+        <div className="flex items-center justify-between border-b border-cap-border pb-3">
           <h3 className="text-sm font-bold cap-text-primary flex items-center">
             <FolderPlus className="w-4 h-4 mr-2 cap-accent" /> Create New Project
           </h3>
@@ -131,7 +131,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ project, onC
   return (
     <div className="cap-scrim">
       <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-command-border pb-3">
+        <div className="flex items-center justify-between border-b border-cap-border pb-3">
           <h3 className="text-sm font-bold cap-text-primary flex items-center">
             <Edit2 className="w-4 h-4 mr-2 cap-accent" /> Edit Project Details
           </h3>
@@ -226,7 +226,7 @@ export const NewBoardModal: React.FC<NewBoardModalProps> = ({ projectId, onClose
   return (
     <div className="cap-scrim">
       <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-command-border pb-3">
+        <div className="flex items-center justify-between border-b border-cap-border pb-3">
           <h3 className="text-sm font-bold cap-text-primary flex items-center">
             <Layers className="w-4 h-4 mr-2 cap-accent" /> Create New Board
           </h3>
@@ -323,7 +323,7 @@ export const NewColumnModal: React.FC<NewColumnModalProps> = ({ boardId, onClose
   return (
     <div className="cap-scrim">
       <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-command-border pb-3">
+        <div className="flex items-center justify-between border-b border-cap-border pb-3">
           <h3 className="text-sm font-bold cap-text-primary flex items-center">
             <Plus className="w-4 h-4 mr-2 cap-accent" /> Add Column
           </h3>
@@ -420,7 +420,7 @@ export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClos
   return (
     <div className="cap-scrim">
       <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-command-border pb-3">
+        <div className="flex items-center justify-between border-b border-cap-border pb-3">
           <h3 className="text-sm font-bold cap-text-primary flex items-center">
             <Edit2 className="w-4 h-4 mr-2 cap-accent" /> Edit Column Settings
           </h3>
@@ -517,7 +517,7 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
   return (
     <div className="cap-scrim">
       <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-command-border pb-3">
+        <div className="flex items-center justify-between border-b border-cap-border pb-3">
           <h3 className="text-sm font-bold cap-text-primary flex items-center">
             <UserPlus className="w-4 h-4 mr-2 cap-accent" /> Add Human User / Operator
           </h3>
@@ -533,7 +533,7 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
           </div>
         )}
 
-        <div className="p-3 bg-command-bg border border-command-border rounded-md text-[11px] cap-text-muted">
+        <div className="p-3 bg-cap-base border border-cap-border rounded-md text-[11px] cap-text-muted">
           💡 <span className="font-semibold cap-text-primary">Note:</span> Manual registration is for human operators. AI agents (Claude, Cursor, Antigravity) register themselves programmatically over MCP using the Human Owner Secret Token.
         </div>
 
@@ -652,7 +652,7 @@ export const NewCardModal: React.FC<NewCardModalProps> = ({ columns, defaultColu
   return (
     <div className="cap-scrim">
       <div className="cap-dialog w-full max-w-lg p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-command-border pb-3">
+        <div className="flex items-center justify-between border-b border-cap-border pb-3">
           <h3 className="text-sm font-bold cap-text-primary flex items-center">
             <Plus className="w-4 h-4 mr-2 cap-accent" /> Create Card
           </h3>
@@ -804,7 +804,7 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ projectId, onClose, on
   return (
     <div className="cap-scrim">
       <div className="cap-dialog w-full max-w-lg p-5 space-y-4 font-sans">
-        <div className="flex items-center justify-between border-b border-command-border pb-3">
+        <div className="flex items-center justify-between border-b border-cap-border pb-3">
           <h3 className="text-sm font-bold cap-text-primary flex items-center">
             <FileText className="w-4 h-4 mr-2 cap-accent" /> Create Design Document
           </h3>

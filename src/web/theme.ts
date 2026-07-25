@@ -12,8 +12,8 @@ export interface ThemePreference {
 export interface ColorProfileMeta {
   id: ColorProfile;
   name: string;
-  accent: string;       // CSS hex for swatch display
-  accentClass: string;  // Tailwind bg class for preview swatch
+  /** Literal hue for the swatch: it previews a profile rather than being themed by one. */
+  accent: string;
   description: string;
 }
 
@@ -22,28 +22,24 @@ export const COLOR_PROFILES: ColorProfileMeta[] = [
     id: 'cyber',
     name: 'Tactical Cyber',
     accent: '#06b6d4',
-    accentClass: 'bg-cyan-400',
     description: 'High-tech tactical mission control',
   },
   {
     id: 'amber',
     name: 'Amber Command',
     accent: '#f59e0b',
-    accentClass: 'bg-amber-400',
     description: 'Command console & priority alerts',
   },
   {
     id: 'emerald',
     name: 'Emerald Matrix',
     accent: '#10b981',
-    accentClass: 'bg-emerald-400',
     description: 'System health & code execution',
   },
   {
     id: 'violet',
     name: 'Deep Space',
     accent: '#8b5cf6',
-    accentClass: 'bg-violet-400',
     description: 'Agent coordination suite',
   },
 ];

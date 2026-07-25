@@ -215,23 +215,26 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const getPriorityBadge = (priority: Card['priority']) => {
     switch (priority) {
       case 'critical':
-        return <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-rose-950 text-rose-400 border border-rose-600/50 rounded">CRITICAL</span>;
+        return <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-danger-950 cap-text-danger border border-danger-600/50 rounded">CRITICAL</span>;
       case 'high':
-        return <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-amber-950 text-amber-400 border border-amber-600/50 rounded">HIGH</span>;
+        return <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-warning-950 cap-text-warning border border-warning-600/50 rounded">HIGH</span>;
       case 'medium':
-        return <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium bg-cyan-950 text-cyan-400 border border-cyan-600/40 rounded">MEDIUM</span>;
+        // `info`, not `brand`: priority is a severity scale, and the other
+        // four steps are profile-independent. On `brand` this step alone
+        // changed hue per profile — reading as "success" under Emerald.
+        return <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium bg-info-950 cap-text-info border border-info-600/40 rounded">MEDIUM</span>;
       case 'low':
       default:
-        return <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium bg-zinc-900 text-zinc-400 border border-zinc-700 rounded">LOW</span>;
+        return <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium bg-neutral-900 cap-text-muted border border-neutral-700 rounded">LOW</span>;
     }
   };
 
   if (!board) {
     return (
-      <div className="text-center py-16 bg-command-surface rounded-lg tactical-border">
-        <Layout className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-        <h3 className="text-sm font-sans text-zinc-300 font-semibold">No Board Available</h3>
-        <p className="text-xs font-sans text-zinc-500 mt-1">Select or create a board to manage cards.</p>
+      <div className="text-center py-16 bg-cap-surface rounded-lg tactical-border">
+        <Layout className="w-12 h-12 cap-text-faint mx-auto mb-3" />
+        <h3 className="text-sm font-sans cap-text-secondary font-semibold">No Board Available</h3>
+        <p className="text-xs font-sans text-neutral-500 mt-1">Select or create a board to manage cards.</p>
       </div>
     );
   }
@@ -240,7 +243,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     <div className="flex flex-col flex-1 h-full min-h-0 font-sans space-y-4">
       
       {/* Board Controls */}
-      <div className="flex-none flex items-center justify-between border-b border-command-border pb-3">
+      <div className="flex-none flex items-center justify-between border-b border-cap-border pb-3">
         {isEditingBoardName ? (
           <form
             onSubmit={(e) => {
@@ -249,8 +252,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             }}
             className="flex items-center space-x-2"
           >
-            <Layout className="w-5 h-5 text-cyan-400" />
-            <span className="text-base font-sans font-bold text-zinc-400 uppercase tracking-wide">
+            <Layout className="w-5 h-5 cap-accent" />
+            <span className="text-base font-sans font-bold cap-text-muted uppercase tracking-wide">
               Board:
             </span>
             <input
@@ -261,12 +264,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               onKeyDown={(e) => {
                 if (e.key === 'Escape') setIsEditingBoardName(false);
               }}
-              className="bg-command-card border border-cyan-500 text-zinc-100 text-sm font-sans font-bold px-2 py-1 rounded focus:outline-none focus:ring-1 focus:ring-cyan-500"
+              className="bg-cap-surface border border-brand-500 cap-text-primary text-sm font-sans font-bold px-2 py-1 rounded focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
             <button
               type="submit"
               disabled={!boardNameInput.trim()}
-              className="p-1.5 hover:bg-cyan-950 text-cyan-400 hover:text-cyan-300 rounded transition-colors cursor-pointer disabled:opacity-50"
+              className="p-1.5 hover:bg-brand-950 cap-accent hover:text-brand-300 rounded transition-colors cursor-pointer disabled:opacity-50"
               title="Save Board Name"
             >
               <Check className="w-4 h-4" />
@@ -274,7 +277,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             <button
               type="button"
               onClick={() => setIsEditingBoardName(false)}
-              className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 rounded transition-colors cursor-pointer"
+              className="p-1.5 hover:bg-neutral-800 cap-text-muted hover:text-neutral-200 rounded transition-colors cursor-pointer"
               title="Cancel"
             >
               <X className="w-4 h-4" />
@@ -282,8 +285,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           </form>
         ) : (
           <div className="flex items-center space-x-2">
-            <Layout className="w-5 h-5 text-cyan-400" />
-            <h2 className="text-base font-sans font-bold text-zinc-100 uppercase tracking-wide">
+            <Layout className="w-5 h-5 cap-accent" />
+            <h2 className="text-base font-sans font-bold cap-text-primary uppercase tracking-wide">
               Board: {board.name}
             </h2>
             <button
@@ -291,7 +294,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 setBoardNameInput(board.name);
                 setIsEditingBoardName(true);
               }}
-              className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-cyan-400 rounded transition-colors cursor-pointer"
+              className="p-1 hover:bg-neutral-800 text-neutral-500 hover:text-brand-400 rounded transition-colors cursor-pointer"
               title="Rename Board"
             >
               <Edit2 className="w-3.5 h-3.5" />
@@ -306,7 +309,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 onDeleteBoard(board.id);
               }
             }}
-            className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-semibold bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-500/40 transition-all cursor-pointer"
+            className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-semibold bg-danger-950/80 hover:bg-danger-900 text-danger-300 border border-danger-500/40 transition-all cursor-pointer"
             title="Delete Board"
           >
             <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete Board
@@ -314,7 +317,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
           <button
             onClick={onOpenNewColumn}
-            className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-all cursor-pointer"
+            className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-semibold bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 transition-all cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5 mr-1" /> Add Column
           </button>
@@ -340,32 +343,32 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             return (
               <div
                 key={column.id}
-                className="w-80 flex-shrink-0 bg-command-surface rounded-xl tactical-border flex flex-col h-full min-h-0"
+                className="w-80 flex-shrink-0 bg-cap-surface rounded-xl tactical-border flex flex-col h-full min-h-0"
               >
 
                 {/* Column Header */}
                 <div className={`p-3.5 border-b flex items-center justify-between ${
-                  isExceededWip ? 'bg-rose-950/40 border-rose-500/50 text-rose-300' :
-                  isAtWipLimit ? 'bg-amber-950/40 border-amber-500/50 text-amber-300' :
-                  'border-command-border text-zinc-200'
+                  isExceededWip ? 'bg-danger-950/40 border-danger-500/50 text-danger-300' :
+                  isAtWipLimit ? 'bg-warning-950/40 border-warning-500/50 text-warning-300' :
+                  'border-cap-border text-neutral-200'
                 }`}>
                   <div className="flex items-center space-x-2">
                     <h3 className="font-sans text-xs font-bold tracking-wide uppercase">{column.name}</h3>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-zinc-900 text-zinc-300 border border-zinc-700">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-neutral-900 cap-text-secondary border border-neutral-700">
                       {columnCards.length}
                     </span>
                   </div>
 
                   <div className="flex items-center space-x-1.5">
                     {column.wip_limit !== null && (
-                      <span className={`text-[10px] font-mono font-semibold ${isExceededWip ? 'text-rose-400' : isAtWipLimit ? 'text-amber-400' : 'text-zinc-500'}`}>
+                      <span className={`text-[10px] font-mono font-semibold ${isExceededWip ? 'cap-text-danger' : isAtWipLimit ? 'cap-text-warning' : 'text-neutral-500'}`}>
                         WIP Limit: {column.wip_limit}
                       </span>
                     )}
 
                     <button
                       onClick={() => onOpenNewCard(column.id)}
-                      className="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-cyan-400 rounded transition-colors cursor-pointer"
+                      className="p-1 hover:bg-neutral-800 cap-text-muted hover:text-brand-400 rounded transition-colors cursor-pointer"
                       title="Add card to column"
                     >
                       <Plus className="w-4 h-4" />
@@ -373,7 +376,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
                     <button
                       onClick={() => setEditingColumn(column)}
-                      className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-cyan-400 rounded transition-colors cursor-pointer"
+                      className="p-1 hover:bg-neutral-800 text-neutral-500 hover:text-brand-400 rounded transition-colors cursor-pointer"
                       title="Edit column settings"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
@@ -381,7 +384,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
                     <button
                       onClick={() => handleDeleteColumn(column.id)}
-                      className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-rose-400 rounded transition-colors cursor-pointer"
+                      className="p-1 hover:bg-neutral-800 text-neutral-500 hover:text-danger-400 rounded transition-colors cursor-pointer"
                       title="Delete column"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -396,7 +399,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       className={`p-3 flex-1 overflow-y-auto space-y-3 transition-colors ${
-                        snapshot.isDraggingOver ? 'bg-cyan-950/20' : ''
+                        snapshot.isDraggingOver ? 'bg-brand-950/20' : ''
                       }`}
                     >
                       {columnCards.map((card, index) => (
@@ -407,14 +410,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                               {...dragProvided.draggableProps}
                               {...dragProvided.dragHandleProps}
                               onClick={() => handleOpenCard(card.id)}
-                              className={`p-3.5 bg-command-card rounded-lg border transition-all cursor-pointer group ${
+                              className={`p-3.5 bg-cap-surface rounded-lg border transition-all cursor-pointer group ${
                                 dragSnapshot.isDragging
-                                  ? 'border-cyan-500 shadow-lg scale-102 z-50'
-                                  : 'border-command-border hover:border-cyan-500/40 hover:bg-zinc-900/90'
+                                  ? 'border-brand-500 shadow-lg scale-102 z-50'
+                                  : 'border-cap-border hover:border-brand-500/40 hover:bg-neutral-900/90'
                               }`}
                             >
                               <div className="flex items-center justify-between mb-2">
-                                <span className="font-mono text-[10px] text-zinc-500 group-hover:text-cyan-400">
+                                <span className="font-mono text-[10px] text-neutral-500 group-hover:text-brand-400">
                                   #{card.id.substring(card.id.length - 6)}
                                 </span>
                                 <div className="flex items-center space-x-1.5">
@@ -447,31 +450,31 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                               {(card.status === 'blocked' || card.status === 'in_review') && (
                                 <div className="mb-2">
                                   {card.status === 'blocked' && (
-                                    <div className="flex items-center space-x-1.5 px-2 py-1 rounded bg-rose-950/80 text-rose-300 border border-rose-500/50 text-[11px] font-medium">
-                                      <AlertTriangle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+                                    <div className="flex items-center space-x-1.5 px-2 py-1 rounded bg-danger-950/80 text-danger-300 border border-danger-500/50 text-[11px] font-medium">
+                                      <AlertTriangle className="w-3.5 h-3.5 cap-text-danger flex-shrink-0" />
                                       <span className="truncate">{card.blocked_reason ? `Blocked: ${card.blocked_reason}` : 'Blocked'}</span>
                                     </div>
                                   )}
                                   {card.status === 'in_review' && (
-                                    <div className="flex items-center space-x-1.5 px-2 py-1 rounded bg-amber-950/80 text-amber-300 border border-amber-500/50 text-[11px] font-medium">
-                                      <Eye className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                                    <div className="flex items-center space-x-1.5 px-2 py-1 rounded bg-warning-950/80 text-warning-300 border border-warning-500/50 text-[11px] font-medium">
+                                      <Eye className="w-3.5 h-3.5 cap-text-warning flex-shrink-0" />
                                       <span className="truncate">{card.blocked_reason || 'Waiting for Human Review'}</span>
                                     </div>
                                   )}
                                 </div>
                               )}
 
-                              <h4 className="text-xs font-sans font-semibold text-zinc-100 group-hover:text-cyan-200 line-clamp-2 mb-2">
+                              <h4 className="text-xs font-sans font-semibold cap-text-primary group-hover:text-brand-200 line-clamp-2 mb-2">
                                 {card.title}
                               </h4>
 
                               {card.description && (
-                                <p className="text-[11px] font-sans text-zinc-400 line-clamp-2 mb-3">
+                                <p className="text-[11px] font-sans cap-text-muted line-clamp-2 mb-3">
                                   {card.description}
                                 </p>
                               )}
 
-                              <div className="flex items-center justify-between pt-2 border-t border-command-border/50 text-[10px] font-mono text-zinc-500">
+                              <div className="flex items-center justify-between pt-2 border-t border-cap-border/50 text-[10px] font-mono text-neutral-500">
                                 <span>Updated {new Date(card.updated_at).toLocaleDateString()}</span>
                               </div>
                             </div>
@@ -508,39 +511,39 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             
-            <div className="p-4 border-b border-command-border flex items-center justify-between">
+            <div className="p-4 border-b border-cap-border flex items-center justify-between">
               <div className="flex items-center space-x-2 flex-wrap">
-                <span className="font-mono text-xs text-cyan-400 font-bold">Card #{cardDetails.id}</span>
+                <span className="font-mono text-xs cap-accent font-bold">Card #{cardDetails.id}</span>
                 {getPriorityBadge(cardDetails.priority)}
                 {cardDetails.status === 'blocked' && (
-                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-rose-950/80 text-rose-300 border border-rose-500/50 flex items-center">
-                    <AlertTriangle className="w-3 h-3 mr-1 text-rose-400" /> Blocked
+                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-danger-950/80 text-danger-300 border border-danger-500/50 flex items-center">
+                    <AlertTriangle className="w-3 h-3 mr-1 cap-text-danger" /> Blocked
                   </span>
                 )}
                 {cardDetails.status === 'in_review' && (
-                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-950/80 text-amber-300 border border-amber-500/50 flex items-center">
-                    <Eye className="w-3 h-3 mr-1 text-amber-400" /> Human Review
+                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-warning-950/80 text-warning-300 border border-warning-500/50 flex items-center">
+                    <Eye className="w-3 h-3 mr-1 cap-text-warning" /> Human Review
                   </span>
                 )}
               </div>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={handleStartEditingCard}
-                  className="inline-flex items-center px-2.5 py-1 bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/40 rounded text-xs font-semibold transition-all cursor-pointer"
+                  className="inline-flex items-center px-2.5 py-1 bg-brand-950/80 hover:bg-brand-900 text-brand-300 border border-brand-500/40 rounded text-xs font-semibold transition-all cursor-pointer"
                   title="Edit Task Text & Properties"
                 >
                   <Edit2 className="w-3.5 h-3.5 mr-1" /> Edit Task
                 </button>
                 <button
                   onClick={() => handleDeleteCard(cardDetails.id, cardDetails.title)}
-                  className="inline-flex items-center px-2.5 py-1 bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-500/40 rounded text-xs font-semibold transition-all cursor-pointer"
+                  className="inline-flex items-center px-2.5 py-1 bg-danger-950/80 hover:bg-danger-900 text-danger-300 border border-danger-500/40 rounded text-xs font-semibold transition-all cursor-pointer"
                   title="Delete Task"
                 >
                   <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete Task
                 </button>
                 <button
                   onClick={() => { setSelectedCardId(null); setCardDetails(null); setIsEditingCard(false); }}
-                  className="p-1 text-zinc-400 hover:text-zinc-100 rounded cursor-pointer"
+                  className="p-1 cap-text-muted hover:text-neutral-100 rounded cursor-pointer"
                   title="Close Task"
                 >
                   <X className="w-5 h-5" />
@@ -553,17 +556,17 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               
               {/* Prominent Card Status Banners */}
               {cardDetails.status === 'blocked' && !isEditingCard && (
-                <div className="p-3 bg-rose-950/70 border border-rose-500/60 rounded-lg flex items-center justify-between text-xs text-rose-200">
+                <div className="p-3 bg-danger-950/70 border border-danger-500/60 rounded-lg flex items-center justify-between text-xs text-danger-200">
                   <div className="flex items-start space-x-2">
-                    <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-4 h-4 cap-text-danger flex-shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold uppercase tracking-wider text-rose-400">Card Blocked:</span>{' '}
+                      <span className="font-bold uppercase tracking-wider cap-text-danger">Card Blocked:</span>{' '}
                       <span className="font-medium">{cardDetails.blocked_reason || 'Requires resolution before proceeding.'}</span>
                     </div>
                   </div>
                   <button
                     onClick={() => handleUpdateCardStatus('active', null)}
-                    className="ml-3 px-2.5 py-1 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/50 rounded text-xs font-semibold cursor-pointer transition-colors flex-shrink-0"
+                    className="ml-3 px-2.5 py-1 bg-success-950 hover:bg-success-900 text-success-300 border border-success-500/50 rounded text-xs font-semibold cursor-pointer transition-colors flex-shrink-0"
                   >
                     Unblock Card
                   </button>
@@ -571,17 +574,17 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               )}
 
               {cardDetails.status === 'in_review' && !isEditingCard && (
-                <div className="p-3 bg-amber-950/70 border border-amber-500/60 rounded-lg flex items-center justify-between text-xs text-amber-200">
+                <div className="p-3 bg-warning-950/70 border border-warning-500/60 rounded-lg flex items-center justify-between text-xs text-warning-200">
                   <div className="flex items-start space-x-2">
-                    <Eye className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <Eye className="w-4 h-4 cap-text-warning flex-shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold uppercase tracking-wider text-amber-400">Waiting for Human Review:</span>{' '}
+                      <span className="font-bold uppercase tracking-wider cap-text-warning">Waiting for Human Review:</span>{' '}
                       <span className="font-medium">{cardDetails.blocked_reason || 'Pending operator review and signoff.'}</span>
                     </div>
                   </div>
                   <button
                     onClick={() => handleUpdateCardStatus('active', null)}
-                    className="ml-3 px-2.5 py-1 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/50 rounded text-xs font-semibold cursor-pointer transition-colors flex-shrink-0"
+                    className="ml-3 px-2.5 py-1 bg-success-950 hover:bg-success-900 text-success-300 border border-success-500/50 rounded text-xs font-semibold cursor-pointer transition-colors flex-shrink-0"
                   >
                     Approve / Activate
                   </button>
@@ -589,7 +592,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               )}
 
               {isEditingCard ? (
-                <form onSubmit={handleSaveCard} className="space-y-3 bg-command-card p-4 rounded-lg border border-cyan-500/40">
+                <form onSubmit={handleSaveCard} className="space-y-3 bg-cap-surface p-4 rounded-lg border border-brand-500/40">
                   <div>
                     <label className="cap-label">Task Title</label>
                     <input
@@ -597,7 +600,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       required
                       value={editCardTitle}
                       onChange={(e) => setEditCardTitle(e.target.value)}
-                      className="w-full bg-command-bg border border-command-border text-zinc-100 font-sans font-semibold text-xs rounded p-2 focus:border-cyan-500 focus:outline-none"
+                      className="w-full bg-cap-base border border-cap-border cap-text-primary font-sans font-semibold text-xs rounded p-2 focus:border-brand-500 focus:outline-none"
                     />
                   </div>
 
@@ -607,7 +610,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       <select
                         value={editCardPriority}
                         onChange={(e) => setEditCardPriority(e.target.value as any)}
-                        className="w-full bg-command-bg border border-command-border text-zinc-100 text-xs rounded p-2"
+                        className="w-full bg-cap-base border border-cap-border cap-text-primary text-xs rounded p-2"
                       >
                         <option value="critical">Critical</option>
                         <option value="high">High</option>
@@ -621,7 +624,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       <select
                         value={editCardStatus}
                         onChange={(e) => setEditCardStatus(e.target.value as any)}
-                        className="w-full bg-command-bg border border-command-border text-zinc-100 text-xs rounded p-2"
+                        className="w-full bg-cap-base border border-cap-border cap-text-primary text-xs rounded p-2"
                       >
                         <option value="active">Active (Normal)</option>
                         <option value="in_review">In Review (Waiting for Human)</option>
@@ -649,7 +652,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                               key={preset}
                               type="button"
                               onClick={() => setEditCardBlockedReason(preset)}
-                              className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-[10px] text-zinc-300 rounded border border-zinc-700 transition-colors cursor-pointer"
+                              className="px-2 py-0.5 bg-neutral-800 hover:bg-neutral-700 text-[10px] cap-text-secondary rounded border border-neutral-700 transition-colors cursor-pointer"
                             >
                               + {preset}
                             </button>
@@ -666,7 +669,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       value={editCardDescription}
                       onChange={(e) => setEditCardDescription(e.target.value)}
                       placeholder="Task description (markdown supported)..."
-                      className="w-full bg-command-bg border border-command-border text-zinc-100 font-sans text-xs rounded p-2.5 focus:border-cyan-500 focus:outline-none resize-y"
+                      className="w-full bg-cap-base border border-cap-border cap-text-primary font-sans text-xs rounded p-2.5 focus:border-brand-500 focus:outline-none resize-y"
                     />
                   </div>
 
@@ -674,7 +677,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <button
                       type="button"
                       onClick={() => setIsEditingCard(false)}
-                      className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-xs cursor-pointer"
+                      className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 cap-text-secondary rounded text-xs cursor-pointer"
                     >
                       Cancel
                     </button>
@@ -690,13 +693,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               ) : (
                 <div>
                   <div className="flex items-center justify-between">
-                    <h3 className="text-base font-bold text-zinc-100">{cardDetails.title}</h3>
+                    <h3 className="text-base font-bold cap-text-primary">{cardDetails.title}</h3>
                     <div className="flex items-center space-x-2">
                       {/* Direct status switcher pill */}
                       <select
                         value={cardDetails.status || 'active'}
                         onChange={(e) => handleUpdateCardStatus(e.target.value as any)}
-                        className="bg-command-card border border-command-border text-zinc-200 text-xs rounded px-2 py-1"
+                        className="bg-cap-surface border border-cap-border text-neutral-200 text-xs rounded px-2 py-1"
                       >
                         <option value="active">🟢 Active</option>
                         <option value="in_review">👁️ Waiting for Human Review</option>
@@ -704,7 +707,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       </select>
                       <button
                         onClick={handleStartEditingCard}
-                        className="p-1 text-zinc-500 hover:text-cyan-400 transition-colors cursor-pointer"
+                        className="p-1 text-neutral-500 hover:text-brand-400 transition-colors cursor-pointer"
                         title="Edit Title & Description"
                       >
                         <Edit2 className="w-4 h-4" />
@@ -712,7 +715,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     </div>
                   </div>
                   <div
-                    className="markdown-render text-xs text-zinc-300 mt-2 bg-command-card p-3 rounded-lg border border-command-border leading-relaxed overflow-x-auto [&>p:last-child]:mb-0"
+                    className="markdown-render text-xs cap-text-secondary mt-2 bg-cap-surface p-3 rounded-lg border border-cap-border leading-relaxed overflow-x-auto [&>p:last-child]:mb-0"
                     dangerouslySetInnerHTML={{ __html: marked.parse(cardDetails.description || 'No description provided.') as string }}
                   />
                 </div>
@@ -721,16 +724,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               {/* Assignees & Assign Control */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h4 className="text-xs font-semibold text-zinc-400 uppercase mb-2">Assignees</h4>
+                  <h4 className="text-xs font-semibold cap-text-muted uppercase mb-2">Assignees</h4>
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {cardDetails.assignees.length > 0 ? (
                       cardDetails.assignees.map((agent) => (
-                        <span key={agent.id} className="px-2 py-1 bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 text-xs font-mono rounded">
+                        <span key={agent.id} className="px-2 py-1 bg-brand-950/60 text-brand-300 border border-brand-500/30 text-xs font-mono rounded">
                           🤖 {agent.name}
                         </span>
                       ))
                     ) : (
-                      <span className="text-xs text-zinc-500 italic">Unassigned</span>
+                      <span className="text-xs text-neutral-500 italic">Unassigned</span>
                     )}
                   </div>
 
@@ -738,7 +741,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <select
                       value={assignAgentId}
                       onChange={(e) => setAssignAgentId(e.target.value)}
-                      className="bg-command-card border border-command-border text-zinc-200 text-xs rounded px-2 py-1 flex-1"
+                      className="bg-cap-surface border border-cap-border text-neutral-200 text-xs rounded px-2 py-1 flex-1"
                     >
                       <option value="">Select Agent...</option>
                       {agents.map((a) => (
@@ -756,16 +759,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 </div>
 
                 <div>
-                  <h4 className="text-xs font-semibold text-zinc-400 uppercase mb-2">Labels</h4>
+                  <h4 className="text-xs font-semibold cap-text-muted uppercase mb-2">Labels</h4>
                   <div className="flex flex-wrap gap-1.5">
                     {cardDetails.labels.length > 0 ? (
                       cardDetails.labels.map((label) => (
-                        <span key={label.id} className="px-2 py-1 bg-zinc-900 text-zinc-200 border border-zinc-700 text-xs rounded">
+                        <span key={label.id} className="px-2 py-1 bg-neutral-900 text-neutral-200 border border-neutral-700 text-xs rounded">
                           🏷️ {label.name}
                         </span>
                       ))
                     ) : (
-                      <span className="text-xs text-zinc-500 italic">No labels</span>
+                      <span className="text-xs text-neutral-500 italic">No labels</span>
                     )}
                   </div>
                 </div>
@@ -773,12 +776,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
               {/* Linked Documents */}
               <div>
-                <h4 className="text-xs font-bold text-zinc-300 uppercase mb-3 flex items-center justify-between">
+                <h4 className="text-xs font-bold cap-text-secondary uppercase mb-3 flex items-center justify-between">
                   <span className="flex items-center">
-                    <FileText className="w-4 h-4 mr-1.5 text-amber-400" />
+                    <FileText className="w-4 h-4 mr-1.5 cap-text-warning" />
                     Linked Documents ({(cardDetails.linked_documents || []).length})
                   </span>
-                  <span className="text-[10px] text-zinc-500 font-normal">Click document to read</span>
+                  <span className="text-[10px] text-neutral-500 font-normal">Click document to read</span>
                 </h4>
 
                 <div className="space-y-2 mb-3">
@@ -787,21 +790,21 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       <div
                         key={doc.id}
                         onClick={() => setReaderDocument(doc)}
-                        className="flex items-center justify-between bg-command-card p-2.5 rounded-lg border border-amber-500/20 hover:border-amber-500/60 hover:bg-zinc-900/90 group cursor-pointer transition-all"
+                        className="flex items-center justify-between bg-cap-surface p-2.5 rounded-lg border border-warning-500/20 hover:border-warning-500/60 hover:bg-neutral-900/90 group cursor-pointer transition-all"
                       >
                         <div className="flex items-center space-x-2 min-w-0">
-                          <FileText className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
-                          <span className="text-xs font-sans text-zinc-200 group-hover:text-amber-300 truncate font-semibold">
+                          <FileText className="w-3.5 h-3.5 cap-text-warning flex-shrink-0 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-sans text-neutral-200 group-hover:text-warning-300 truncate font-semibold">
                             {doc.title}
                           </span>
                           <span className={`px-1.5 py-0.5 text-[10px] font-mono rounded flex-shrink-0 ${
-                            doc.status === 'approved' ? 'bg-emerald-950 text-emerald-400 border border-emerald-600/40' :
-                            doc.status === 'in_review' ? 'bg-amber-950 text-amber-400 border border-amber-600/40' :
-                            'bg-zinc-900 text-zinc-400 border border-zinc-700'
+                            doc.status === 'approved' ? 'bg-success-950 cap-text-success border border-success-600/40' :
+                            doc.status === 'in_review' ? 'bg-warning-950 cap-text-warning border border-warning-600/40' :
+                            'bg-neutral-900 cap-text-muted border border-neutral-700'
                           }`}>{doc.status}</span>
                         </div>
                         <div className="flex items-center space-x-2 flex-shrink-0">
-                          <span className="text-[11px] text-amber-400 font-medium opacity-80 group-hover:opacity-100 flex items-center">
+                          <span className="text-[11px] cap-text-warning font-medium opacity-80 group-hover:opacity-100 flex items-center">
                             Read <Eye className="w-3 h-3 ml-1" />
                           </span>
                           <button
@@ -818,7 +821,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-zinc-500 italic">No documents linked to this card.</p>
+                    <p className="text-xs text-neutral-500 italic">No documents linked to this card.</p>
                   )}
                 </div>
 
@@ -828,7 +831,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <select
                       value={linkDocumentId}
                       onChange={(e) => setLinkDocumentId(e.target.value)}
-                      className="bg-command-card border border-command-border text-zinc-200 text-xs rounded px-2 py-1 flex-1"
+                      className="bg-cap-surface border border-cap-border text-neutral-200 text-xs rounded px-2 py-1 flex-1"
                     >
                       <option value="">Link a document...</option>
                       {documents
@@ -851,20 +854,20 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
               {/* Comments Section */}
               <div>
-                <h4 className="text-xs font-bold text-zinc-300 uppercase mb-3 flex items-center">
-                  <MessageSquare className="w-4 h-4 mr-1.5 text-cyan-400" />
+                <h4 className="text-xs font-bold cap-text-secondary uppercase mb-3 flex items-center">
+                  <MessageSquare className="w-4 h-4 mr-1.5 cap-accent" />
                   Comments ({cardDetails.comments.length})
                 </h4>
 
                 <div className="space-y-3 max-h-48 overflow-y-auto mb-4">
                   {cardDetails.comments.map((c) => (
-                    <div key={c.id} className="bg-command-card p-3 rounded-lg border border-command-border space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px] text-zinc-400">
-                        <span className="text-cyan-400 font-semibold">{c.author_name || 'Agent/User'}</span>
+                    <div key={c.id} className="bg-cap-surface p-3 rounded-lg border border-cap-border space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] cap-text-muted">
+                        <span className="cap-accent font-semibold">{c.author_name || 'Agent/User'}</span>
                         <span>{new Date(c.created_at).toLocaleString()}</span>
                       </div>
                       <div
-                        className="markdown-render text-xs text-zinc-200 leading-relaxed overflow-x-auto [&>p:last-child]:mb-0"
+                        className="markdown-render text-xs text-neutral-200 leading-relaxed overflow-x-auto [&>p:last-child]:mb-0"
                         dangerouslySetInnerHTML={{ __html: marked.parse(c.content || '') as string }}
                       />
                     </div>
@@ -876,7 +879,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <select
                       value={selectedAuthorId}
                       onChange={(e) => setSelectedAuthorId(e.target.value)}
-                      className="bg-command-card border border-command-border text-zinc-200 text-xs rounded px-2.5 py-1.5"
+                      className="bg-cap-surface border border-cap-border text-neutral-200 text-xs rounded px-2.5 py-1.5"
                     >
                       <option value="">Select Author...</option>
                       {agents.map((a) => (
@@ -890,7 +893,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
                       placeholder="Add comment (Markdown supported)..."
-                      className="flex-1 bg-command-card border border-command-border text-zinc-200 text-xs rounded px-3 py-2 focus:outline-none focus:border-cyan-500 resize-y"
+                      className="flex-1 bg-cap-surface border border-cap-border text-neutral-200 text-xs rounded px-3 py-2 focus:outline-none focus:border-brand-500 resize-y"
                     />
                     <button
                       type="submit"

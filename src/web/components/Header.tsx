@@ -63,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   return (
-    <header className="bg-command-surface border-b border-command-border sticky top-0 z-40 backdrop-blur-md w-full">
+    <header className="bg-cap-surface border-b border-cap-border sticky top-0 z-40 backdrop-blur-md w-full">
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
 
@@ -82,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Human Operator Picker */}
             {humanAgents.length > 0 && onSelectHuman && (
-              <div className="flex items-center space-x-1.5 bg-command-bg border border-command-border rounded-md px-2 py-1">
+              <div className="flex items-center space-x-1.5 bg-cap-base border border-cap-border rounded-md px-2 py-1">
                 <span className="text-[11px] font-mono cap-text-muted font-semibold uppercase">I am:</span>
                 <select
                   value={selectedHumanId || ''}
@@ -90,7 +90,7 @@ export const Header: React.FC<HeaderProps> = ({
                   className="bg-transparent cap-accent text-xs font-mono font-bold focus:outline-none cursor-pointer"
                 >
                   {humanAgents.map((h) => (
-                    <option key={h.id} value={h.id} className="bg-command-card cap-text-primary">
+                    <option key={h.id} value={h.id} className="bg-cap-surface cap-text-primary">
                       {h.name} ({h.role})
                     </option>
                   ))}
@@ -108,7 +108,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="cap-input w-auto font-mono cursor-pointer"
               >
                 {projects.map((p) => (
-                  <option key={p.id} value={p.id} className="bg-command-card cap-text-primary">
+                  <option key={p.id} value={p.id} className="bg-cap-surface cap-text-primary">
                     Project: {p.name}
                   </option>
                 ))}
@@ -179,7 +179,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Sub-Navigation & Summary Telemetry */}
-        <div className="flex items-center justify-between border-t border-command-border/60 py-2">
+        <div className="flex items-center justify-between border-t border-cap-border/60 py-2">
           <nav className="flex space-x-2">
             {tabs.map(({ id, icon: Icon, label }) => (
               <button

@@ -381,6 +381,42 @@ html.light[data-profile='violet'] {
   --radius-xl: 0.75rem;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   ENTITY TYPE SCALE — a categorical encoding, not a semantic one.
+
+   Activity-log badges and icons identify *which kind of thing* an
+   event touched. That is the same species of scale as the knowledge
+   graph's node palette (DESIGN_LANGUAGE.md §7 rule 6): the hues carry
+   no status meaning and must stay mutually distinguishable, so they
+   are fixed per mode rather than riding the brand/status ramps.
+
+   Previously these badges borrowed the semantic families, which said
+   "a card is brand-coloured" and "an agent is success-coloured", and
+   left board and project rendering identically once both hue aliases
+   pointed at the same ramp.
+
+   Each entity supplies a foreground and a tint background; borders
+   derive from the foreground.
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  --entity-card-fg:     34 211 238;   --entity-card-bg:      8 51 68;
+  --entity-agent-fg:    52 211 153;   --entity-agent-bg:     2 44 34;
+  --entity-document-fg: 251 191 36;   --entity-document-bg:  69 26 3;
+  --entity-board-fg:    129 140 248;  --entity-board-bg:     30 27 75;
+  --entity-project-fg:  167 139 250;  --entity-project-bg:   46 16 101;
+  --entity-kb-fg:       96 165 250;   --entity-kb-bg:        23 37 84;
+}
+
+html.light {
+  --entity-card-fg:     21 94 117;    --entity-card-bg:      236 254 255;
+  --entity-agent-fg:    6 95 70;      --entity-agent-bg:     236 253 245;
+  --entity-document-fg: 146 64 14;    --entity-document-bg:  255 251 235;
+  --entity-board-fg:    55 48 163;    --entity-board-bg:     238 242 255;
+  --entity-project-fg:  91 33 182;    --entity-project-bg:   245 243 255;
+  --entity-kb-fg:       30 64 175;    --entity-kb-bg:        239 246 255;
+}
+
 @layer base {
   body {
     background-color: var(--color-surface-base);
@@ -702,6 +738,29 @@ html.light[data-profile='violet'] {
     font-size: 0.6875rem;
     line-height: 1rem;
     white-space: nowrap;
+  }
+
+  /* ── Entity-type encoding ────────────────────────────────────
+     Pair a `cap-entity-<type>` selector (which only picks the pair of
+     ramp values) with a role class that consumes it. Keeps the scale
+     in one place instead of a hue class per call site. */
+  .cap-entity-card     { --entity-fg: var(--entity-card-fg);     --entity-bg: var(--entity-card-bg); }
+  .cap-entity-agent    { --entity-fg: var(--entity-agent-fg);    --entity-bg: var(--entity-agent-bg); }
+  .cap-entity-document { --entity-fg: var(--entity-document-fg); --entity-bg: var(--entity-document-bg); }
+  .cap-entity-board    { --entity-fg: var(--entity-board-fg);    --entity-bg: var(--entity-board-bg); }
+  .cap-entity-project  { --entity-fg: var(--entity-project-fg);  --entity-bg: var(--entity-project-bg); }
+  .cap-entity-kb       { --entity-fg: var(--entity-kb-fg);       --entity-bg: var(--entity-kb-bg); }
+
+  /* Role: the pill in the activity stream */
+  .cap-badge-entity {
+    background-color: rgb(var(--entity-bg));
+    border-color: rgb(var(--entity-fg) / 0.4);
+    color: rgb(var(--entity-fg));
+  }
+
+  /* Role: a bare icon tinted to its entity type */
+  .cap-entity-icon {
+    color: rgb(var(--entity-fg));
   }
 }
 

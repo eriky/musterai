@@ -88,14 +88,14 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
       case 'active':
         return (
           <span className="cap-badge cap-badge-success">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 mr-1.5 animate-ping"></span>
+            <span className="w-2 h-2 rounded-full bg-success-400 mr-1.5 animate-ping"></span>
             Active
           </span>
         );
       case 'idle':
         return (
           <span className="cap-badge cap-badge-warning">
-            <span className="w-2 h-2 rounded-full bg-amber-400 mr-1.5"></span>
+            <span className="w-2 h-2 rounded-full bg-warning-400 mr-1.5"></span>
             Idle
           </span>
         );
@@ -103,7 +103,7 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
       default:
         return (
           <span className="cap-badge cap-badge-neutral">
-            <span className="w-2 h-2 rounded-full bg-zinc-600 mr-1.5"></span>
+            <span className="w-2 h-2 rounded-full bg-neutral-600 mr-1.5"></span>
             Offline
           </span>
         );
@@ -125,24 +125,24 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
     <div className="flex flex-col flex-1 h-full min-h-0 font-sans space-y-6">
       
       {/* Human Owner Secret Token Banner */}
-      <div className="flex-none bg-command-surface border border-command-border rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+      <div className="flex-none bg-cap-surface border border-cap-border rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-start space-x-3">
-          <div className="p-2.5 bg-amber-950/60 border border-amber-500/40 rounded-lg text-amber-400 mt-0.5">
+          <div className="p-2.5 bg-warning-950/60 border border-warning-500/40 rounded-lg cap-text-warning mt-0.5">
             <Key className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h3 className="text-sm font-bold text-zinc-100 uppercase tracking-wide">Human Owner Secret Token</h3>
-              <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-amber-950 text-amber-400 border border-amber-700/50 rounded">SECURITY</span>
+              <h3 className="text-sm font-bold cap-text-primary uppercase tracking-wide">Human Owner Secret Token</h3>
+              <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-warning-950 cap-text-warning border border-warning-700/50 rounded">SECURITY</span>
             </div>
-            <p className="text-xs text-zinc-400 mt-1 max-w-2xl">
-              Provide this secret token to your AI agents (Claude, Cursor, Antigravity). Agents pass this secret token during <code className="text-amber-300 font-mono bg-zinc-900 px-1 py-0.5 rounded">register_agent</code> to link ownership to you and re-bind their session across runs.
+            <p className="text-xs cap-text-muted mt-1 max-w-2xl">
+              Provide this secret token to your AI agents (Claude, Cursor, Antigravity). Agents pass this secret token during <code className="text-warning-300 font-mono bg-neutral-900 px-1 py-0.5 rounded">register_agent</code> to link ownership to you and re-bind their session across runs.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 bg-command-card border border-command-border p-1.5 rounded-lg w-full md:w-auto justify-between md:justify-start">
-          <code className="text-xs font-mono font-bold text-amber-300 px-2 tracking-wider">
+        <div className="flex items-center space-x-2 bg-cap-surface border border-cap-border p-1.5 rounded-lg w-full md:w-auto justify-between md:justify-start">
+          <code className="text-xs font-mono font-bold text-warning-300 px-2 tracking-wider">
             {secretToken || 'Loading secret token...'}
           </code>
           <button
@@ -166,13 +166,13 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
       </div>
 
       {/* Agents Header */}
-      <div className="flex-none flex items-center justify-between border-b border-command-border pb-4">
+      <div className="flex-none flex items-center justify-between border-b border-cap-border pb-4">
         <div>
-          <h2 className="text-lg font-sans font-bold text-zinc-100 flex items-center">
-            <Bot className="w-5 h-5 mr-2 text-cyan-400" />
+          <h2 className="text-lg font-sans font-bold cap-text-primary flex items-center">
+            <Bot className="w-5 h-5 mr-2 cap-accent" />
             Registered Agents & Operators
           </h2>
-          <p className="text-xs font-sans text-zinc-400 mt-0.5">
+          <p className="text-xs font-sans cap-text-muted mt-0.5">
             Registered AI agents and human users available for card assignments
           </p>
         </div>
@@ -186,10 +186,10 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
 
       {/* Grid of Agents */}
       {agents.length === 0 ? (
-        <div className="text-center py-16 bg-command-surface rounded-lg tactical-border">
-          <Bot className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-          <h3 className="text-sm font-sans text-zinc-300 font-semibold">No Agents Registered</h3>
-          <p className="text-xs font-sans text-zinc-500 max-w-sm mx-auto mt-1 mb-4">
+        <div className="text-center py-16 bg-cap-surface rounded-lg tactical-border">
+          <Bot className="w-12 h-12 cap-text-faint mx-auto mb-3" />
+          <h3 className="text-sm font-sans cap-text-secondary font-semibold">No Agents Registered</h3>
+          <p className="text-xs font-sans text-neutral-500 max-w-sm mx-auto mt-1 mb-4">
             Register your first human user or connect AI agents via MCP.
           </p>
           <button
@@ -205,27 +205,27 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
           {agents.map((agent) => (
             <div
               key={agent.id}
-              className="bg-command-surface rounded-lg p-5 tactical-border hover:border-cyan-500/40 transition-all group relative overflow-hidden flex flex-col justify-between"
+              className="bg-cap-surface rounded-lg p-5 tactical-border hover:border-brand-500/40 transition-all group relative overflow-hidden flex flex-col justify-between"
             >
               <div>
                 {/* Top Row */}
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-cyan-400 group-hover:border-cyan-500/50 transition-colors">
+                    <div className="w-10 h-10 rounded-lg bg-neutral-900 border border-neutral-700 flex items-center justify-center cap-accent group-hover:border-brand-500/50 transition-colors">
                       <Bot className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-sans font-bold text-zinc-100 group-hover:text-cyan-300 transition-colors">
+                      <h3 className="text-sm font-sans font-bold cap-text-primary group-hover:text-brand-300 transition-colors">
                         {agent.name}
                       </h3>
                       <div className="flex items-center space-x-2 mt-0.5 flex-wrap">
-                        <span className="text-[11px] font-sans text-zinc-400 capitalize">{agent.type.replace('_', ' ')}</span>
+                        <span className="text-[11px] font-sans cap-text-muted capitalize">{agent.type.replace('_', ' ')}</span>
                         <span className="cap-divider w-1 h-1 rounded-full shrink-0" aria-hidden="true" />
-                        <span className="text-[11px] font-sans text-cyan-400 font-medium capitalize">{agent.role}</span>
+                        <span className="text-[11px] font-sans cap-accent font-medium capitalize">{agent.role}</span>
                         {agent.type === 'ai_agent' && agent.owner_id && (
                           <>
                             <span className="cap-divider w-1 h-1 rounded-full shrink-0" aria-hidden="true" />
-                            <span className="inline-flex items-center text-[10px] font-mono font-medium text-amber-400">
+                            <span className="inline-flex items-center text-[10px] font-mono font-medium cap-text-warning">
                               <ShieldCheck className="w-3 h-3 mr-0.5" /> Owned by {getOwnerName(agents, agent.owner_id) || 'Human Owner'}
                             </span>
                           </>
@@ -239,26 +239,26 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
                 </div>
 
                 {/* Capabilities */}
-                <div className="mt-4 pt-3 border-t border-command-border/60">
-                  <div className="text-[11px] font-sans text-zinc-400 mb-1.5 font-medium">Capabilities:</div>
+                <div className="mt-4 pt-3 border-t border-cap-border/60">
+                  <div className="text-[11px] font-sans cap-text-muted mb-1.5 font-medium">Capabilities:</div>
                   <div className="flex flex-wrap gap-1.5">
                     {agent.capabilities && agent.capabilities.length > 0 ? (
                       agent.capabilities.map((cap, idx) => (
-                        <span key={idx} className="px-2 py-0.5 bg-zinc-900 text-zinc-300 text-xs font-sans rounded border border-zinc-800">
+                        <span key={idx} className="px-2 py-0.5 bg-neutral-900 cap-text-secondary text-xs font-sans rounded border border-neutral-800">
                           {cap}
                         </span>
                       ))
                     ) : (
-                      <span className="text-xs font-sans text-zinc-500 italic">General</span>
+                      <span className="text-xs font-sans text-neutral-500 italic">General</span>
                     )}
                   </div>
                 </div>
               </div>
 
               {/* Bottom Row */}
-              <div className="mt-4 pt-3 border-t border-command-border/60 flex items-center justify-between text-xs font-sans text-zinc-400">
-                <div className="flex items-center text-zinc-400">
-                  <Clock className="w-3.5 h-3.5 mr-1 text-zinc-500" />
+              <div className="mt-4 pt-3 border-t border-cap-border/60 flex items-center justify-between text-xs font-sans cap-text-muted">
+                <div className="flex items-center cap-text-muted">
+                  <Clock className="w-3.5 h-3.5 mr-1 text-neutral-500" />
                   <span>Last seen: {formatLastSeen(agent.last_seen_at)}</span>
                 </div>
 
@@ -301,10 +301,10 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
       {editingAgent && (
         <div className="cap-scrim">
           <div className="cap-dialog w-full max-w-md p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-command-border pb-3">
+            <div className="flex items-center justify-between border-b border-cap-border pb-3">
               <div className="flex items-center space-x-2">
-                <Edit3 className="w-5 h-5 text-amber-400" />
-                <h3 className="text-base font-bold text-zinc-100 uppercase tracking-wide">Edit Agent Attributes</h3>
+                <Edit3 className="w-5 h-5 cap-text-warning" />
+                <h3 className="text-base font-bold cap-text-primary uppercase tracking-wide">Edit Agent Attributes</h3>
               </div>
               <button
                 onClick={() => setEditingAgent(null)}
@@ -337,12 +337,12 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
                   >
                     <option value="">No Assigned Human Owner</option>
                     {humanAgents.map((h) => (
-                      <option key={h.id} value={h.id} className="bg-command-card text-zinc-200">
+                      <option key={h.id} value={h.id} className="bg-cap-surface text-neutral-200">
                         {h.name} ({h.role})
                       </option>
                     ))}
                   </select>
-                  <p className="text-[11px] text-zinc-500 mt-1">Select which human operator owns and directs this AI agent.</p>
+                  <p className="text-[11px] text-neutral-500 mt-1">Select which human operator owns and directs this AI agent.</p>
                 </div>
               )}
 
@@ -386,7 +386,7 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
                 />
               </div>
 
-              <div className="flex justify-end space-x-3 pt-3 border-t border-command-border">
+              <div className="flex justify-end space-x-3 pt-3 border-t border-cap-border">
                 <button
                   type="button"
                   onClick={() => setEditingAgent(null)}

@@ -24,28 +24,31 @@ holding raw `R G B` triplets:
 ```
 --neutral-50 … --neutral-950     surfaces, borders, text
 --brand-50   … --brand-950       the active colour profile
---success-*  --warning-*  --danger-*  --info-*  --alt-*
+--success-*  --warning-*  --danger-*  --info-*
 ```
 
 `tailwind.config.js` binds Tailwind's colour families to those variables via
 `<alpha-value>`, so opacity modifiers keep working:
 
 ```js
-cyan: brand,   // bg-cyan-600/20 → rgb(var(--brand-600) / 0.2)
-zinc: neutral,
-emerald: success,  amber: warning,  rose: danger,  blue: info
+neutral, brand, success, warning, danger, info   // and nothing else
+// bg-brand-600/20 → rgb(var(--brand-600) / 0.2)
 ```
 
-Two consequences worth internalising:
+Three things worth internalising:
 
-- **Hue-named utility classes are aliases onto semantic ramps.** `text-amber-400`
-  *is* warning text. It themes correctly, but the name lies about intent —
-  prefer `cap-text-warning` or `success`/`warning`/`danger` family names in new
-  code.
+- **Hue names are not aliased, deliberately.** There is no `zinc`, `cyan` or
+  `emerald` family. `bg-zinc-900` produces *no CSS rule at all* — a loud,
+  visible failure rather than a silently mis-named colour. That is the point:
+  the aliases existed during the migration and let hue-naming creep back in.
 - **Light mode is a ramp inversion, not an override.** Each step keeps its
   *role* across modes: `400` is always "readable text colour", `600` is always
   "solid fill that carries `--color-on-accent` text", `950` is always "faintest
   tinted panel". That is why light mode needs no `!important` anywhere.
+- **Structural `cap-*` colours are alpha-capable.** `bg-cap-surface`,
+  `border-cap-border/60` and friends resolve through the ramp triplets. Binding
+  them to the `--color-*` aliases instead would make any opacity modifier
+  silently emit nothing.
 
 The active theme is set on `<html>`:
 
@@ -103,6 +106,10 @@ Use these in inline styles and in new CSS. Never a literal hex.
 | `--color-info` / `-subtle` / `-border` | Neutral informational |
 | `--color-scrim` | Modal backdrop (dark in both modes, by design) |
 
+Each has a matching utility: `cap-text-primary`, `cap-text-muted`, `cap-accent`,
+`cap-text-{success,warning,danger,info}`, `bg-cap-surface`, `border-cap-border`,
+and so on. Prefer the utility at call sites; reach for the raw token only in CSS.
+
 ## 4. Component vocabulary
 
 Defined in `src/web/index.css` under `@layer components`.
@@ -146,7 +153,37 @@ this codebase.
 Text helpers: `cap-text-primary`, `cap-text-secondary`, `cap-text-muted`,
 `cap-text-faint`, `cap-accent`, `cap-text-{success,warning,danger,info}`.
 
-## 5. Shape & spacing
+## 5. Categorical scales
+
+Some colour does not mean *status* — it distinguishes *kinds of thing*. Those
+scales are exempt from profile theming, because their whole job is to stay
+mutually distinguishable, and they must never borrow the semantic families:
+tinting a card badge with `brand` asserts "a card is our brand colour", which is
+false, and collapses the encoding whenever the profile shifts.
+
+There are exactly two:
+
+**Entity types** (`--entity-*` in `index.css`). Pair a selector class with a
+role class:
+
+```jsx
+<span className="cap-badge cap-badge-entity cap-entity-document">DOC</span>
+<FileText className="cap-entity-icon cap-entity-document" />
+```
+
+Available: `cap-entity-{card,agent,document,board,project,kb}`. The selector
+class only picks a foreground/background pair; the role class consumes it.
+
+**Knowledge-graph nodes** (`TYPE_COLORS_DARK` / `TYPE_COLORS_LIGHT` in
+`KnowledgeGraphCanvas.tsx`). Rendered to canvas by vis-network, so it is
+plain JS hex rather than CSS, with an explicit variant per mode. Treat it as a
+chart scale.
+
+The `--alt-*` ramp exists but is **not** exposed as a utility family: it feeds
+the ambient body gradient and is the reservoir these scales draw from. "alt" is
+not a function, so it is not a call-site colour name.
+
+## 6. Shape & spacing
 
 Radius comes from tokens; `rounded` and `rounded-md` are the same 6px value.
 
@@ -162,7 +199,7 @@ Spacing:
 - Card padding: compact `p-3`, standard `p-4`
 - Grid gaps: `gap-4` or `gap-6`
 
-## 6. Contrast
+## 7. Contrast
 
 WCAG 2.1 AA is a build requirement, not an aspiration: **4.5:1 for body text,
 3:1 for large text (≥24px, or ≥18.66px bold)**, in every combination of
@@ -177,7 +214,7 @@ touching ramps or adding a profile.
 Decorative glyphs (rules, dot separators) are exempt, and are therefore marked
 `aria-hidden` and drawn with `cap-divider` rather than being coloured text.
 
-## 7. Rules for agents
+## 8. Rules for agents
 
 1. Reach for a `cap-*` component class first. Only write bespoke styling when
    no primitive fits — and then add the primitive instead of inlining it.
@@ -185,11 +222,12 @@ Decorative glyphs (rules, dot separators) are exempt, and are therefore marked
    `rounded-[11px]`. Use tokens and the radius scale.
 3. Never write `dark:` variants or `.light` overrides. If something looks wrong
    in one mode, the ramp is wrong — fix `index.css`, not the component.
-4. Prefer semantic family names (`success`, `warning`, `danger`, `info`,
-   `brand`, `neutral`) over hue names (`emerald`, `amber`, `rose`, `cyan`).
+4. The only colour families are `neutral`, `brand`, `success`, `warning`,
+   `danger`, `info`, plus the `cap-*` structural tokens and the categorical
+   scales in §5. Hue names do not resolve; if you reach for `text-zinc-400` the
+   element renders unstyled.
 5. One `cap-btn-primary` per view. Everything else is secondary, soft or ghost.
-6. Data visualisation is the one exception: the knowledge-graph node palette in
-   `KnowledgeGraphCanvas.tsx` is a *categorical encoding* of entity type, and
-   legitimately uses fixed per-category hues with separate light/dark variants.
-   Treat it as a chart scale, not as UI chrome.
+6. Before picking a colour, ask whether it means *status* (use a semantic
+   family) or *kind* (use a categorical scale from §5). Getting this backwards
+   is how a card badge ends up claiming to be a success state.
 7. After a visual change, verify contrast in both modes before calling it done.

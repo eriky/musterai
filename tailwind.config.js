@@ -3,7 +3,7 @@
 /**
  * Bind a Tailwind colour family to a CSS-variable ramp defined in
  * src/web/index.css. `<alpha-value>` keeps opacity modifiers working,
- * so `bg-cyan-600/20` still renders a 20% tint of the themed value.
+ * so `bg-brand-600/20` still renders a 20% tint of the themed value.
  */
 const ramp = (name) =>
   Object.fromEntries(
@@ -19,7 +19,7 @@ const success = ramp('success');
 const warning = ramp('warning');
 const danger = ramp('danger');
 const info = ramp('info');
-const alt = ramp('alt');
+// `alt` ramp lives in CSS only — see the colours block below.
 
 export default {
   content: ['./src/web/**/*.{html,js,ts,jsx,tsx}'],
@@ -27,51 +27,38 @@ export default {
   theme: {
     extend: {
       colors: {
-        // ── Semantic families (use these in new code) ──────────
+        // ── Semantic families — the only colour names in the markup.
+        //    Hue names (zinc, cyan, emerald, …) are deliberately NOT
+        //    aliased here: naming a colour by its hue is what
+        //    DESIGN_LANGUAGE.md §7 rule 4 forbids, and leaving the
+        //    aliases in place lets it creep back in silently.
         neutral,
         brand,
         success,
         warning,
         danger,
         info,
-
-        // ── Hue-named families are aliases onto the semantic
-        //    ramps, so existing markup themes correctly. Prefer the
-        //    semantic names above; see DESIGN_LANGUAGE.md §7.
-        zinc: neutral,
-        slate: neutral,
-        gray: neutral,
-        cyan: brand,
-        emerald: success,
-        green: success,
-        amber: warning,
-        yellow: warning,
-        rose: danger,
-        red: danger,
-        blue: info,
-        sky: info,
-        indigo: alt,
-        violet: alt,
-        purple: alt,
+        // `--alt-*` is deliberately not exposed as a utility family: it
+        // feeds the ambient body gradient and is the reservoir the
+        // entity-type scale draws from, but as a call-site colour name
+        // "alt" says nothing about intent. Add it back only with a role.
 
         // ── Structural tokens ─────────────────────────────────
-        command: {
-          bg: 'var(--color-surface-base)',
-          surface: 'var(--color-surface-elevated)',
-          card: 'var(--color-surface-elevated)',
-          border: 'var(--color-border-subtle)',
-          muted: 'var(--color-text-muted)',
-        },
+        //    Bound to the ramp triplets rather than the `--color-*`
+        //    aliases they mirror, so opacity modifiers work:
+        //    `border-cap-border/60` silently emitted no rule while
+        //    these were plain `var()` values.
         cap: {
-          accent: 'var(--color-accent)',
-          'accent-solid': 'var(--color-accent-solid)',
-          'on-accent': 'var(--color-on-accent)',
-          surface: 'var(--color-surface-elevated)',
-          base: 'var(--color-surface-base)',
-          hover: 'var(--color-surface-hover)',
-          border: 'var(--color-border-subtle)',
-          text: 'var(--color-text-primary)',
-          muted: 'var(--color-text-muted)',
+          accent: `rgb(var(--brand-400) / <alpha-value>)`,
+          'accent-solid': `rgb(var(--brand-600) / <alpha-value>)`,
+          'on-accent': `rgb(var(--neutral-950) / <alpha-value>)`,
+          surface: `rgb(var(--neutral-900) / <alpha-value>)`,
+          base: `rgb(var(--neutral-950) / <alpha-value>)`,
+          hover: `rgb(var(--neutral-800) / <alpha-value>)`,
+          active: `rgb(var(--neutral-700) / <alpha-value>)`,
+          border: `rgb(var(--neutral-800) / <alpha-value>)`,
+          text: `rgb(var(--neutral-100) / <alpha-value>)`,
+          muted: `rgb(var(--neutral-400) / <alpha-value>)`,
         },
       },
       borderRadius: {
