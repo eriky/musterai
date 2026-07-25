@@ -1,7 +1,9 @@
 import React from 'react';
 import { Project, ProjectSummary, Agent } from '../types.js';
-import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, User, UserCheck, UserPlus, Trash2, Edit2 } from 'lucide-react';
+import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, UserPlus, Trash2, Edit2 } from 'lucide-react';
+import { ThemePicker } from './ThemePicker.js';
 
+type TabId = 'agents' | 'board' | 'docs' | 'activity' | 'kb';
 
 interface HeaderProps {
   projects: Project[];
@@ -10,8 +12,8 @@ interface HeaderProps {
   onDeleteProject: (id: string) => void;
   onOpenEditProject?: () => void;
   summary: ProjectSummary | null;
-  activeTab: 'agents' | 'board' | 'docs' | 'activity' | 'kb';
-  onSelectTab: (tab: 'agents' | 'board' | 'docs' | 'activity' | 'kb') => void;
+  activeTab: TabId;
+  onSelectTab: (tab: TabId) => void;
   onOpenNewProject: () => void;
   onOpenNewBoard: () => void;
   onOpenRegisterAgent: () => void;
@@ -22,7 +24,15 @@ interface HeaderProps {
   onSelectHuman?: (id: string) => void;
 }
 
+/** Vertical rule between header groups. Decorative, so it carries no text. */
+const Divider: React.FC = () => (
+  <span className="cap-divider w-px h-4 shrink-0" aria-hidden="true" />
+);
 
+/** Small dot separator in the telemetry strip. */
+const Dot: React.FC = () => (
+  <span className="cap-divider w-1 h-1 rounded-full shrink-0" aria-hidden="true" />
+);
 
 export const Header: React.FC<HeaderProps> = ({
   projects,
@@ -44,35 +54,43 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const humanAgents = agents.filter(a => a.type === 'human');
 
+  const tabs: { id: TabId; icon: React.ElementType; label: string }[] = [
+    { id: 'agents', icon: Bot, label: `Agents ${summary ? `(${summary.active_agent_count}/${summary.agent_count})` : ''}` },
+    { id: 'board', icon: Layout, label: `Kanban Board ${summary ? `(${summary.card_count})` : ''}` },
+    { id: 'docs', icon: FileText, label: `Design Documents ${summary ? `(${summary.document_count})` : ''}` },
+    { id: 'kb', icon: Database, label: 'Knowledge Base' },
+    { id: 'activity', icon: Activity, label: 'Activity Log' },
+  ];
+
   return (
-    <header className="bg-command-surface border-b border-command-border sticky top-0 z-40 backdrop-blur-md bg-opacity-95 w-full">
+    <header className="bg-cap-surface border-b border-cap-border sticky top-0 z-40 backdrop-blur-md w-full">
       <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
-          
+
           {/* Left Side: Brand & Selectors */}
           <div className="flex items-center space-x-4">
-            
+
             {/* Logo */}
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-lg bg-cyan-950 border border-cyan-500/50 flex items-center justify-center text-cyan-400 font-mono font-bold text-xs shadow-inner">
+              <div className="w-8 h-8 rounded-md cap-accent-bg border cap-accent flex items-center justify-center font-mono font-bold text-xs">
                 CAP
               </div>
-              <span className="font-sans font-bold text-sm text-zinc-100 tracking-wider hidden md:inline">
+              <span className="font-sans font-bold text-sm cap-text-primary tracking-wider hidden md:inline">
                 MISSION CONTROL
               </span>
             </div>
 
             {/* Human Operator Picker */}
             {humanAgents.length > 0 && onSelectHuman && (
-              <div className="flex items-center space-x-1.5 bg-command-bg border border-command-border rounded-md px-2 py-1">
-                <span className="text-[11px] font-mono text-zinc-400 font-semibold uppercase">I am:</span>
+              <div className="flex items-center space-x-1.5 bg-cap-base border border-cap-border rounded-md px-2 py-1">
+                <span className="text-[11px] font-mono cap-text-muted font-semibold uppercase">I am:</span>
                 <select
                   value={selectedHumanId || ''}
                   onChange={(e) => onSelectHuman(e.target.value)}
-                  className="bg-transparent text-amber-300 text-xs font-mono font-bold focus:outline-none cursor-pointer"
+                  className="bg-transparent cap-accent text-xs font-mono font-bold focus:outline-none cursor-pointer"
                 >
                   {humanAgents.map((h) => (
-                    <option key={h.id} value={h.id} className="bg-command-card text-zinc-200">
+                    <option key={h.id} value={h.id} className="bg-cap-surface cap-text-primary">
                       {h.name} ({h.role})
                     </option>
                   ))}
@@ -80,17 +98,17 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
 
-            <span className="text-zinc-700">|</span>
+            <Divider />
 
             {/* Project Selector Dropdown, Edit & Delete Buttons */}
             <div className="flex items-center space-x-1.5">
               <select
                 value={selectedProjectId || ''}
                 onChange={(e) => onSelectProject(e.target.value)}
-                className="bg-command-bg border border-command-border text-zinc-200 text-xs font-mono rounded-md px-3 py-1.5 focus:outline-none focus:border-cyan-500 cursor-pointer"
+                className="cap-input w-auto font-mono cursor-pointer"
               >
                 {projects.map((p) => (
-                  <option key={p.id} value={p.id} className="bg-command-card text-zinc-200">
+                  <option key={p.id} value={p.id} className="bg-cap-surface cap-text-primary">
                     Project: {p.name}
                   </option>
                 ))}
@@ -99,7 +117,7 @@ export const Header: React.FC<HeaderProps> = ({
               {selectedProjectId && projects.length > 0 && onOpenEditProject && (
                 <button
                   onClick={onOpenEditProject}
-                  className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-emerald-400 rounded transition-colors cursor-pointer"
+                  className="cap-btn cap-btn-icon cap-btn-ghost"
                   title="Edit Selected Project Details"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
@@ -114,7 +132,7 @@ export const Header: React.FC<HeaderProps> = ({
                       onDeleteProject(selectedProjectId);
                     }
                   }}
-                  className="p-1.5 hover:bg-zinc-800 text-zinc-500 hover:text-rose-400 rounded transition-colors cursor-pointer"
+                  className="cap-btn cap-btn-icon cap-btn-ghost-danger"
                   title="Delete Selected Project"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -123,135 +141,77 @@ export const Header: React.FC<HeaderProps> = ({
 
               <button
                 onClick={onOpenNewProject}
-                className="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-mono font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 transition-all cursor-pointer"
+                className="cap-btn cap-btn-soft font-mono"
                 title="Create New Project"
               >
-                <FolderPlus className="w-3.5 h-3.5 mr-1" /> + Project
+                <FolderPlus className="w-3.5 h-3.5" /> + Project
               </button>
             </div>
 
-
-            <span className="text-zinc-700">|</span>
+            <Divider />
 
             {/* Entity Creation Buttons */}
             <div className="flex items-center space-x-2">
-              <button
-                onClick={onOpenNewBoard}
-                className="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 cursor-pointer"
-              >
-                <Layers className="w-3.5 h-3.5 mr-1 text-cyan-400" /> + Board
+              <button onClick={onOpenNewBoard} className="cap-btn cap-btn-secondary font-mono">
+                <Layers className="w-3.5 h-3.5 cap-accent" /> + Board
               </button>
 
-              <button
-                onClick={onOpenRegisterAgent}
-                className="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 cursor-pointer"
-              >
-                <UserPlus className="w-3.5 h-3.5 mr-1 text-emerald-400" /> + User
+              <button onClick={onOpenRegisterAgent} className="cap-btn cap-btn-secondary font-mono">
+                <UserPlus className="w-3.5 h-3.5 cap-accent" /> + User
               </button>
 
-
-              <button
-                onClick={onOpenNewCard}
-                className="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5 mr-1 text-indigo-400" /> + Card
+              <button onClick={onOpenNewCard} className="cap-btn cap-btn-secondary font-mono">
+                <Plus className="w-3.5 h-3.5 cap-accent" /> + Card
               </button>
 
-              <button
-                onClick={onOpenNewDoc}
-                className="inline-flex items-center px-2 py-1 rounded text-xs font-mono bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 cursor-pointer"
-              >
-                <FileText className="w-3.5 h-3.5 mr-1 text-amber-400" /> + Doc
+              <button onClick={onOpenNewDoc} className="cap-btn cap-btn-secondary font-mono">
+                <FileText className="w-3.5 h-3.5 cap-accent" /> + Doc
               </button>
             </div>
 
           </div>
 
+          {/* Right Side: Theme Picker */}
+          <div className="flex items-center">
+            <ThemePicker />
+          </div>
 
         </div>
 
         {/* Sub-Navigation & Summary Telemetry */}
-        <div className="flex items-center justify-between border-t border-command-border/60 py-2">
-          {/* Clean Navigation Tabs */}
+        <div className="flex items-center justify-between border-t border-cap-border/60 py-2">
           <nav className="flex space-x-2">
-            <button
-              onClick={() => onSelectTab('agents')}
-              className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-medium transition-all ${
-                activeTab === 'agents'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-command-card'
-              }`}
-            >
-              <Bot className="w-3.5 h-3.5 mr-1.5" />
-              Agents {summary ? `(${summary.active_agent_count}/${summary.agent_count})` : ''}
-            </button>
-
-            <button
-              onClick={() => onSelectTab('board')}
-              className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-medium transition-all ${
-                activeTab === 'board'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-command-card'
-              }`}
-            >
-              <Layout className="w-3.5 h-3.5 mr-1.5" />
-              Kanban Board {summary ? `(${summary.card_count})` : ''}
-            </button>
-
-            <button
-              onClick={() => onSelectTab('docs')}
-              className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-medium transition-all ${
-                activeTab === 'docs'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-command-card'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5 mr-1.5" />
-              Design Documents {summary ? `(${summary.document_count})` : ''}
-            </button>
-
-            <button
-              onClick={() => onSelectTab('kb')}
-              className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-medium transition-all ${
-                activeTab === 'kb'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-command-card'
-              }`}
-            >
-              <Database className="w-3.5 h-3.5 mr-1.5 text-indigo-400" />
-              Knowledge Base
-            </button>
-
-            <button
-              onClick={() => onSelectTab('activity')}
-              className={`inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-medium transition-all ${
-                activeTab === 'activity'
-                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-command-card'
-              }`}
-            >
-              <Activity className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
-              Activity Log
-            </button>
-
+            {tabs.map(({ id, icon: Icon, label }) => (
+              <button
+                key={id}
+                onClick={() => onSelectTab(id)}
+                aria-current={activeTab === id ? 'page' : undefined}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans font-medium cap-tab ${
+                  activeTab === id ? 'cap-tab-active' : ''
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </button>
+            ))}
           </nav>
 
-          {/* Clean Summary Stats */}
+          {/* Summary telemetry */}
           {summary && (
-            <div className="hidden md:flex items-center space-x-4 text-xs font-sans text-zinc-400">
+            <div className="hidden md:flex items-center gap-3 text-xs font-sans">
               <div>
-                <span className="text-zinc-500">Active Agents: </span>
-                <span className="text-emerald-400 font-medium">{summary.active_agent_count}</span>
+                <span className="cap-text-muted">Active Agents: </span>
+                <span className="cap-text-success font-medium">{summary.active_agent_count}</span>
               </div>
-              <span className="text-zinc-700">•</span>
+              <Dot />
               <div>
-                <span className="text-zinc-500">Boards: </span>
-                <span className="text-zinc-200 font-medium">{summary.board_count}</span>
+                <span className="cap-text-muted">Boards: </span>
+                <span className="cap-text-primary font-medium">{summary.board_count}</span>
               </div>
-              <span className="text-zinc-700">•</span>
+              <Dot />
               <div>
-                <span className="text-zinc-500">Total Cards: </span>
-                <span className="text-cyan-400 font-medium">{summary.card_count}</span>
+                <span className="cap-text-muted">Total Cards: </span>
+                <span className="cap-accent font-medium">{summary.card_count}</span>
               </div>
             </div>
           )}

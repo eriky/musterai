@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import * as vis from 'vis-network/standalone/esm/vis-network.js';
 import { DataSet } from 'vis-data';
 import { KBGraphTree, KBGraphNode } from '../types.js';
-import { ZoomIn, ZoomOut, RefreshCw, Move, Search } from 'lucide-react';
+import { ZoomIn, ZoomOut, RefreshCw, Move, Search, Zap } from 'lucide-react';
+import { useTheme } from '../ThemeContext.js';
 
 interface KnowledgeGraphCanvasProps {
   data: KBGraphTree;
@@ -12,16 +13,30 @@ interface KnowledgeGraphCanvasProps {
   onSelectNode: (node: KBGraphNode) => void;
 }
 
-const TYPE_COLORS: Record<string, { bg: string; border: string; highlightBg: string; text: string }> = {
-  ip_address: { bg: '#1e3a8a', border: '#3b82f6', highlightBg: '#2563eb', text: '#93c5fd' },
-  email: { bg: '#831843', border: '#ec4899', highlightBg: '#db2777', text: '#fbcfe8' },
-  server: { bg: '#064e3b', border: '#10b981', highlightBg: '#059669', text: '#a7f3d0' },
-  service: { bg: '#581c87', border: '#a855f7', highlightBg: '#9333ea', text: '#e9d5ff' },
-  database: { bg: '#78350f', border: '#f59e0b', highlightBg: '#d97706', text: '#fde68a' },
-  network: { bg: '#0c4a6e', border: '#0ea5e9', highlightBg: '#0284c7', text: '#bae6fd' },
-  credential_ref: { bg: '#7f1d1d', border: '#ef4444', highlightBg: '#dc2626', text: '#fca5a5' },
-  person: { bg: '#881337', border: '#f43f5e', highlightBg: '#e11d48', text: '#fecdd3' },
-  custom: { bg: '#1f2937', border: '#6b7280', highlightBg: '#4b5563', text: '#d1d5db' },
+// Dark mode node palettes (rich, vivid backgrounds with light text)
+const TYPE_COLORS_DARK: Record<string, { bg: string; border: string; highlightBg: string; text: string }> = {
+  ip_address:     { bg: '#1e3a8a', border: '#3b82f6', highlightBg: '#2563eb',  text: '#93c5fd' },
+  email:          { bg: '#831843', border: '#ec4899', highlightBg: '#db2777',  text: '#fbcfe8' },
+  server:         { bg: '#064e3b', border: '#10b981', highlightBg: '#059669',  text: '#a7f3d0' },
+  service:        { bg: '#3b0764', border: '#a855f7', highlightBg: '#7c3aed',  text: '#e9d5ff' },
+  database:       { bg: '#78350f', border: '#f59e0b', highlightBg: '#d97706',  text: '#fde68a' },
+  network:        { bg: '#0c4a6e', border: '#0ea5e9', highlightBg: '#0284c7',  text: '#bae6fd' },
+  credential_ref: { bg: '#7f1d1d', border: '#ef4444', highlightBg: '#dc2626',  text: '#fca5a5' },
+  person:         { bg: '#881337', border: '#f43f5e', highlightBg: '#e11d48',  text: '#fecdd3' },
+  custom:         { bg: '#1f2937', border: '#6b7280', highlightBg: '#4b5563',  text: '#d1d5db' },
+};
+
+// Light mode palettes (muted, pastel bg with dark text for readability)
+const TYPE_COLORS_LIGHT: Record<string, { bg: string; border: string; highlightBg: string; text: string }> = {
+  ip_address:     { bg: '#dbeafe', border: '#3b82f6', highlightBg: '#bfdbfe',  text: '#1e3a8a' },
+  email:          { bg: '#fce7f3', border: '#ec4899', highlightBg: '#fbcfe8',  text: '#831843' },
+  server:         { bg: '#d1fae5', border: '#10b981', highlightBg: '#a7f3d0',  text: '#064e3b' },
+  service:        { bg: '#ede9fe', border: '#8b5cf6', highlightBg: '#ddd6fe',  text: '#4c1d95' },
+  database:       { bg: '#fef3c7', border: '#f59e0b', highlightBg: '#fde68a',  text: '#78350f' },
+  network:        { bg: '#e0f2fe', border: '#0ea5e9', highlightBg: '#bae6fd',  text: '#0c4a6e' },
+  credential_ref: { bg: '#fee2e2', border: '#ef4444', highlightBg: '#fca5a5',  text: '#7f1d1d' },
+  person:         { bg: '#ffe4e6', border: '#f43f5e', highlightBg: '#fecdd3',  text: '#881337' },
+  custom:         { bg: '#f3f4f6', border: '#6b7280', highlightBg: '#e5e7eb',  text: '#1f2937' },
 };
 
 function formatNode(
@@ -29,9 +44,11 @@ function formatNode(
   isSelected: boolean,
   isSearchMatched: boolean,
   isSearchActive: boolean,
-  linkCount: number
+  linkCount: number,
+  isDark: boolean,
 ) {
-  const colors = TYPE_COLORS[node.type] || TYPE_COLORS.custom;
+  const palette = isDark ? TYPE_COLORS_DARK : TYPE_COLORS_LIGHT;
+  const colors = palette[node.type] || palette.custom;
   let labelText = node.name;
   if (node.identifier && node.identifier !== node.name) {
     labelText += `\n(${node.identifier})`;
@@ -45,14 +62,20 @@ function formatNode(
     nodeSize += 6; // Visual size boost for search matches
   }
 
+  const selectedBorder = isDark ? '#818cf8' : '#7c3aed';
+  const dimBg       = isDark ? '#0f172a' : '#e5e7eb';
+  const dimBorder   = isDark ? '#1e293b' : '#cbd5e1';
+  const dimText     = isDark ? '#475569' : '#94a3b8';
+  const strokeColor = isDark ? '#020617' : '#ffffff';
+
   // Visual styling based on selection and search match state
   let bgColor = colors.bg;
-  let borderColor = isSelected ? '#818cf8' : colors.border;
-  let textColor = '#f8fafc';
+  let borderColor = isSelected ? selectedBorder : colors.border;
+  let textColor = colors.text;
   let borderWidth = isSelected ? 3.5 : 2;
   let opacity = 1.0;
   let shadowSize = 8;
-  let shadowColor = 'rgba(0,0,0,0.5)';
+  let shadowColor = isDark ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.15)';
 
   if (isSearchActive) {
     if (isSearchMatched) {
@@ -63,9 +86,9 @@ function formatNode(
       shadowColor = 'rgba(245, 158, 11, 0.8)';
     } else {
       opacity = 0.25; // Dim non-matching nodes
-      bgColor = '#0f172a';
-      borderColor = '#1e293b';
-      textColor = '#475569';
+      bgColor = dimBg;
+      borderColor = dimBorder;
+      textColor = dimText;
     }
   }
 
@@ -80,8 +103,8 @@ function formatNode(
       size: isSearchMatched ? 13 : 12,
       face: 'sans-serif',
       multi: 'html',
-      strokeWidth: 3,
-      strokeColor: '#020617',
+      strokeWidth: isDark ? 3 : 2,
+      strokeColor,
     },
     color: {
       background: bgColor,
@@ -92,7 +115,7 @@ function formatNode(
       },
       hover: {
         background: colors.highlightBg,
-        border: '#818cf8',
+        border: selectedBorder,
       },
     },
     borderWidth,
@@ -112,6 +135,8 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
   searchQuery,
   onSelectNode,
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme.mode === 'dark';
   const containerRef = useRef<HTMLDivElement>(null);
   const networkRef = useRef<any>(null);
   const nodesDataSetRef = useRef<DataSet<any> | null>(null);
@@ -225,7 +250,9 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
 
         ctx.save();
         ctx.font = 'bold 11px sans-serif';
-        ctx.fillStyle = '#ffffff';
+        // Use dark text on light bg nodes, white on dark bg nodes
+        const htmlEl = document.documentElement;
+        ctx.fillStyle = htmlEl.classList.contains('light') ? '#1f2937' : '#ffffff';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`${factCount}`, pos.x, pos.y);
@@ -270,7 +297,7 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
       const isSelected = selectedEntityId === node.id;
       const isSearchMatched = searchMatchedIds.has(node.id);
       const linkCount = degreeMap.get(node.id) || 0;
-      const formatted = formatNode(node, isSelected, isSearchMatched, isSearchActive, linkCount);
+      const formatted = formatNode(node, isSelected, isSearchMatched, isSearchActive, linkCount, isDark);
       const existing = nodesDS.get(node.id);
       if (existing && existing.x !== undefined) {
         return {
@@ -293,10 +320,16 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
     });
 
     // Upsert edges (dim edges during search if not connected to matched nodes)
+    const edgesDS2 = edgesDS;
     const edgesToUpsert = data.links.map(link => {
       const isConnectedToMatch = searchMatchedIds.has(link.source) || searchMatchedIds.has(link.target);
-      const edgeColor = isSearchActive && !isConnectedToMatch ? '#1e293b' : '#334155';
-      const edgeOpacity = isSearchActive && !isConnectedToMatch ? 0.2 : 1.0;
+      const baseEdgeColor   = isDark ? '#334155' : '#94a3b8';
+      const dimEdgeColor    = isDark ? '#1e293b' : '#e2e8f0';
+      const edgeColor       = isSearchActive && !isConnectedToMatch ? dimEdgeColor : baseEdgeColor;
+      const edgeOpacity     = isSearchActive && !isConnectedToMatch ? 0.2 : 1.0;
+      const labelColor      = isSearchActive && !isConnectedToMatch ? dimEdgeColor : (isDark ? '#94a3b8' : '#64748b');
+      const strokeColor     = isDark ? '#020617' : '#ffffff';
+      const highlightHover  = isDark ? '#818cf8' : '#7c3aed';
 
       return {
         id: link.id,
@@ -304,11 +337,11 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
         to: link.target,
         label: link.relation_type,
         font: {
-          color: isSearchActive && !isConnectedToMatch ? '#334155' : '#94a3b8',
+          color: labelColor,
           size: 10,
           face: 'monospace',
-          strokeWidth: 3,
-          strokeColor: '#020617',
+          strokeWidth: isDark ? 3 : 2,
+          strokeColor,
           align: 'horizontal',
         },
         arrows: {
@@ -317,7 +350,7 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
         color: {
           color: edgeColor,
           highlight: '#f59e0b',
-          hover: '#818cf8',
+          hover: highlightHover,
           opacity: edgeOpacity,
         },
         width: isConnectedToMatch && isSearchActive ? 3 : 2,
@@ -327,7 +360,7 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
         },
       };
     });
-    edgesDS.update(edgesToUpsert);
+    edgesDS2.update(edgesToUpsert);
 
     if (selectedEntityId && networkRef.current) {
       networkRef.current.selectNodes([selectedEntityId]);
@@ -342,7 +375,7 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
         }
       }, 150);
     }
-  }, [data.nodes, data.links, selectedEntityId, searchMatchedIds, isSearchActive]);
+  }, [data.nodes, data.links, selectedEntityId, searchMatchedIds, isSearchActive, isDark]);
 
   // Focus camera on search matched nodes
   useEffect(() => {
@@ -374,22 +407,20 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full min-h-[450px] bg-slate-950/90 rounded-xl border border-slate-800 overflow-hidden shadow-2xl flex-1">
+    <div className="cap-panel relative w-full h-full min-h-[450px] overflow-hidden flex-1">
       {/* Empty State Overlay when no nodes exist */}
       {data.nodes.length === 0 && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center text-slate-400 bg-slate-950/90 backdrop-blur-sm">
-          <svg className="w-12 h-12 mb-3 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-cap-surface cap-text-muted">
+          <Zap className="w-12 h-12 mb-3 cap-text-faint" />
           <p className="text-base font-medium">No Graph Nodes Found</p>
-          <p className="text-sm text-slate-500 mt-1">Add entities and gained knowledge facts to populate the graph.</p>
+          <p className="text-sm mt-1">Add entities and gained knowledge facts to populate the graph.</p>
         </div>
       )}
 
       {/* Search Overlay Badge */}
       {isSearchActive && (
-        <div className="absolute top-3 left-3 z-20 px-3 py-1.5 bg-amber-950/90 border border-amber-500/40 rounded-lg text-amber-300 text-xs font-semibold flex items-center space-x-2 backdrop-blur-md shadow-lg">
-          <Search className="w-3.5 h-3.5 text-amber-400" />
+        <div className="cap-badge cap-badge-warning absolute top-3 left-3 z-20 px-3 py-1.5 normal-case tracking-normal text-xs backdrop-blur-md">
+          <Search className="w-3.5 h-3.5" />
           <span>
             Search Active: {searchMatchedIds.size} {searchMatchedIds.size === 1 ? 'node' : 'nodes'} matched
           </span>
@@ -397,33 +428,21 @@ export const KnowledgeGraphCanvas: React.FC<KnowledgeGraphCanvasProps> = ({
       )}
 
       {/* Control Overlay Buttons */}
-      <div className="absolute top-3 right-3 z-20 flex items-center space-x-1.5 bg-slate-900/90 p-1.5 rounded-lg border border-slate-800 backdrop-blur-md shadow-lg">
-        <button
-          onClick={handleZoomIn}
-          className="p-1.5 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded transition cursor-pointer"
-          title="Zoom In"
-        >
+      <div className="cap-panel absolute top-3 right-3 z-20 flex items-center gap-1 p-1 backdrop-blur-md">
+        <button onClick={handleZoomIn} className="cap-btn cap-btn-icon cap-btn-ghost" title="Zoom In">
           <ZoomIn className="w-4 h-4" />
         </button>
-        <button
-          onClick={handleZoomOut}
-          className="p-1.5 text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 rounded transition cursor-pointer"
-          title="Zoom Out"
-        >
+        <button onClick={handleZoomOut} className="cap-btn cap-btn-icon cap-btn-ghost" title="Zoom Out">
           <ZoomOut className="w-4 h-4" />
         </button>
-        <button
-          onClick={handleResetView}
-          className="p-1.5 text-slate-400 hover:text-indigo-400 bg-slate-800/80 hover:bg-slate-700 rounded transition flex items-center space-x-1 cursor-pointer"
-          title="Fit Graph to Screen"
-        >
+        <button onClick={handleResetView} className="cap-btn cap-btn-icon cap-btn-soft" title="Fit Graph to Screen">
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
 
       {/* Helper Legend */}
-      <div className="absolute bottom-3 left-3 z-20 px-3 py-1.5 bg-slate-900/80 rounded-lg border border-slate-800 text-[11px] text-slate-400 flex items-center space-x-2 backdrop-blur-md">
-        <Move className="w-3.5 h-3.5 text-indigo-400" />
+      <div className="cap-panel absolute bottom-3 left-3 z-20 px-3 py-1.5 text-[11px] flex items-center gap-2 cap-text-muted backdrop-blur-md">
+        <Move className="w-3.5 h-3.5 cap-accent" />
         <span>Drag nodes to rearrange • Smooth cursor zoom • Search highlights matching nodes in gold</span>
       </div>
 

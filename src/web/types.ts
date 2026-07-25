@@ -106,6 +106,18 @@ export interface Document {
   updated_at: string;
 }
 
+export interface DocumentVersion {
+  id: string;
+  document_id: string;
+  version: number;
+  title: string;
+  content: string;
+  author_id: string | null;
+  author_name?: string | null;
+  change_summary: string | null;
+  created_at: string;
+}
+
 export interface Event {
   id: string;
   project_id: string;

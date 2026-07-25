@@ -113,7 +113,12 @@ export class DocumentService {
 
     const title = data.title !== undefined ? data.title : existing.title;
     const content = data.content !== undefined ? data.content : existing.content;
-    const author_id = data.author_id || actorId || existing.author_id;
+    // Who actually made this edit. Null when the caller is unidentified — the
+    // version row must not inherit the previous author, or history credits the
+    // wrong person.
+    const editor_id = data.author_id || actorId || null;
+    // The document row keeps its last known author rather than going null.
+    const author_id = editor_id || existing.author_id;
     const change_summary = data.change_summary || 'Updated content';
     const newVersion = existing.version + 1;
     const updated_at = new Date().toISOString();
@@ -127,7 +132,7 @@ export class DocumentService {
     await this.db.execute(
       `INSERT INTO document_version (id, document_id, version, title, content, author_id, change_summary, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [versionId, id, newVersion, title, content, author_id, change_summary, updated_at]
+      [versionId, id, newVersion, title, content, editor_id, change_summary, updated_at]
     );
 
     const updated: Document = {
@@ -145,7 +150,7 @@ export class DocumentService {
         entity_type: 'document',
         entity_id: id,
         action: 'updated',
-        actor_id: author_id || undefined,
+        actor_id: editor_id || undefined,
         payload: { title, version: newVersion, change_summary },
       });
     }
@@ -178,7 +183,9 @@ export class DocumentService {
 
   async getHistory(id: string): Promise<DocumentVersion[]> {
     return this.db.query<DocumentVersion>(
-      'SELECT * FROM document_version WHERE document_id = ? ORDER BY version DESC',
+      `SELECT v.*, a.name as author_name FROM document_version v
+       LEFT JOIN agent_registration a ON v.author_id = a.id
+       WHERE v.document_id = ? ORDER BY v.version DESC`,
       [id]
     );
   }

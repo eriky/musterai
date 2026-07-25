@@ -1,5 +1,5 @@
 // File: src/web/api.ts
-import { Project, Board, Column, Card, CardDetails, Document, Agent, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType } from './types.js';
+import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType } from './types.js';
 
 const API_BASE = '/api/v1';
 
@@ -104,7 +104,7 @@ export const api = {
   updateDocument: (id: string, data: { title?: string; content?: string; change_summary?: string; author_id?: string }) =>
     fetchJSON<Document>(`/documents/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   setDocumentStatus: (id: string, status: string) => fetchJSON<Document>(`/documents/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
-  getDocumentHistory: (id: string) => fetchJSON<any[]>(`/documents/${id}/versions`),
+  getDocumentHistory: (id: string) => fetchJSON<DocumentVersion[]>(`/documents/${id}/versions`),
 
   // Agents & Settings
   getAgents: () => fetchJSON<Agent[]>(`/agents`),

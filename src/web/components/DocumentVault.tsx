@@ -1,8 +1,8 @@
 // File: src/web/components/DocumentVault.tsx
 import React, { useState, useEffect } from 'react';
-import { Document } from '../types.js';
-import { FileText, Edit3, History, CheckCircle, Clock, Save, Plus, X, ArrowLeft } from 'lucide-react';
-import { marked } from 'marked';
+import { Document, DocumentVersion } from '../types.js';
+import { FileText, Edit3, History, CheckCircle, Clock, Save, Plus, X, ArrowLeft, User } from 'lucide-react';
+import { renderMarkdown } from '../markdown.js';
 import { api } from '../api.js';
 
 interface DocumentVaultProps {
@@ -24,7 +24,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
   const [changeSummary, setChangeSummary] = useState('');
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<DocumentVersion[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
   // Find active doc by ID, or fallback to latest doc if no ID is specified
@@ -99,20 +99,20 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
     switch (status) {
       case 'approved':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-sans font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-500/40">
+          <span className="cap-badge cap-badge-success">
             <CheckCircle className="w-3 h-3 mr-1" /> Approved
           </span>
         );
       case 'in_review':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-sans font-medium bg-amber-950/80 text-amber-400 border border-amber-500/40">
+          <span className="cap-badge cap-badge-warning">
             <Clock className="w-3 h-3 mr-1 animate-pulse" /> In Review
           </span>
         );
       case 'draft':
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-sans font-medium bg-zinc-900 text-zinc-400 border border-zinc-700">
+          <span className="cap-badge cap-badge-neutral">
             Draft (v{selectedDoc?.version || 1})
           </span>
         );
@@ -123,16 +123,16 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
     <div className="flex flex-col flex-1 h-full min-h-0 font-sans space-y-4">
       
       {/* Header Bar */}
-      <div className="flex-none flex items-center justify-between border-b border-command-border pb-3">
+      <div className="flex-none flex items-center justify-between border-b border-cap-border pb-3">
         <div className="flex items-center space-x-3">
-          <FileText className="w-5 h-5 text-amber-400" />
-          <h2 className="text-base font-bold text-zinc-100 uppercase tracking-wide">
+          <FileText className="w-5 h-5 cap-text-warning" />
+          <h2 className="text-base font-bold cap-text-primary uppercase tracking-wide">
             Design Documents
           </h2>
         </div>
         <button
           onClick={onOpenNewDoc}
-          className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-zinc-950 transition-all cursor-pointer shadow-sm"
+          className="cap-btn cap-btn-primary"
         >
           <Plus className="w-3.5 h-3.5 mr-1" /> Create Document
         </button>
@@ -140,15 +140,15 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
 
       {/* Main View (Stretches 100% height!) */}
       {documents.length === 0 ? (
-        <div className="text-center py-16 bg-command-surface rounded-xl tactical-border">
-          <FileText className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-          <h3 className="text-sm text-zinc-300 font-semibold">No Design Documents</h3>
-          <p className="text-xs text-zinc-500 max-w-sm mx-auto mt-1 mb-4">
+        <div className="text-center py-16 bg-cap-surface rounded-lg tactical-border">
+          <FileText className="w-12 h-12 cap-text-faint mx-auto mb-3" />
+          <h3 className="text-sm cap-text-secondary font-semibold">No Design Documents</h3>
+          <p className="text-xs text-neutral-500 max-w-sm mx-auto mt-1 mb-4">
             Author and version control system specifications and design docs.
           </p>
           <button
             onClick={onOpenNewDoc}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-zinc-950 text-xs font-bold rounded-md cursor-pointer"
+            className="cap-btn cap-btn-lg cap-btn-primary"
           >
             Create Document
           </button>
@@ -157,8 +157,8 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
         <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 min-h-0 h-full overflow-hidden">
           
           {/* Document Tree Sidebar */}
-          <div className="md:col-span-1 bg-command-surface rounded-xl p-4 tactical-border flex flex-col h-full min-h-0 overflow-y-auto space-y-2">
-            <h3 className="flex-none text-xs font-bold text-zinc-400 uppercase mb-3 tracking-wider">
+          <div className="md:col-span-1 bg-cap-surface rounded-lg p-4 tactical-border flex flex-col h-full min-h-0 overflow-y-auto space-y-2">
+            <h3 className="flex-none text-xs font-bold cap-text-muted uppercase mb-3 tracking-wider">
               Documents ({documents.length})
             </h3>
 
@@ -169,15 +169,15 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                   onClick={() => handleSelectDoc(doc)}
                   className={`w-full text-left p-3 rounded-lg border transition-all cursor-pointer ${
                     selectedDoc?.id === doc.id
-                      ? 'bg-amber-950/30 border-amber-500/50 text-amber-300 shadow-sm'
-                      : 'bg-command-card border-command-border text-zinc-300 hover:border-zinc-700 hover:bg-zinc-900'
+                      ? 'bg-warning-950/30 border-warning-500/50 text-warning-300 shadow-sm'
+                      : 'bg-cap-surface border-cap-border cap-text-secondary hover:border-neutral-700 hover:bg-neutral-900'
                   }`}
                 >
                   <div className="flex items-center justify-between text-xs font-bold truncate">
                     <span className="truncate">{doc.title}</span>
-                    <span className="text-[10px] font-mono text-zinc-500 ml-1">v{doc.version}</span>
+                    <span className="text-[10px] font-mono text-neutral-500 ml-1">v{doc.version}</span>
                   </div>
-                  <div className="flex items-center justify-between mt-1 text-[10px] text-zinc-500">
+                  <div className="flex items-center justify-between mt-1 text-[10px] text-neutral-500">
                     <span className="capitalize">{doc.status.replace('_', ' ')}</span>
                     <span>{new Date(doc.updated_at).toLocaleDateString()}</span>
                   </div>
@@ -187,16 +187,16 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
           </div>
 
           {/* Document Reader / Editor */}
-          <div className="md:col-span-3 bg-command-surface rounded-xl p-6 tactical-border flex flex-col h-full min-h-0 overflow-y-auto">
+          <div className="md:col-span-3 bg-cap-surface rounded-lg p-6 tactical-border flex flex-col h-full min-h-0 overflow-y-auto">
 
             {selectedDoc ? (
               <div className="space-y-5">
                 
                 {/* Spec Toolbar & Status */}
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-command-border pb-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cap-border pb-4">
                   <div>
-                    <h2 className="text-lg font-bold text-zinc-100">{selectedDoc.title}</h2>
-                    <div className="flex items-center space-x-3 mt-1 text-xs text-zinc-500">
+                    <h2 className="text-lg font-bold cap-text-primary">{selectedDoc.title}</h2>
+                    <div className="flex items-center space-x-3 mt-1 text-xs text-neutral-500">
                       <span>ID: #{selectedDoc.id.substring(selectedDoc.id.length - 8)}</span>
                       <span>•</span>
                       <span>Version {selectedDoc.version}</span>
@@ -211,7 +211,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                     {selectedDoc.status === 'draft' && !isEditing && (
                       <button
                         onClick={() => handleStatusChange('in_review')}
-                        className="px-2.5 py-1 bg-amber-600/20 text-amber-300 border border-amber-500/40 text-xs rounded hover:bg-amber-600/30 transition-colors cursor-pointer"
+                        className="cap-btn cap-btn-soft"
                       >
                         Submit for Review
                       </button>
@@ -219,7 +219,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                     {selectedDoc.status === 'in_review' && !isEditing && (
                       <button
                         onClick={() => handleStatusChange('approved')}
-                        className="px-2.5 py-1 bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 text-xs rounded hover:bg-emerald-600/30 transition-colors cursor-pointer"
+                        className="cap-btn cap-btn-soft"
                       >
                         Approve
                       </button>
@@ -230,31 +230,31 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                       <>
                         <button
                           onClick={handleSaveEdit}
-                          className="inline-flex items-center px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold text-xs rounded transition-colors cursor-pointer"
+                          className="cap-btn cap-btn-primary"
                         >
-                          <Save className="w-3.5 h-3.5 mr-1.5 text-zinc-950" /> Save Version
+                          <Save className="w-3.5 h-3.5" /> Save Version
                         </button>
 
                         <button
                           onClick={handleCancelEdit}
-                          className="inline-flex items-center px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-600 text-xs rounded transition-colors cursor-pointer"
+                          className="cap-btn cap-btn-secondary"
                           title="Discard changes and exit editor"
                         >
-                          <X className="w-3.5 h-3.5 mr-1 text-rose-400" /> Cancel
+                          <X className="w-3.5 h-3.5 mr-1" /> Cancel
                         </button>
                       </>
                     ) : (
                       <>
                         <button
                           onClick={handleStartEdit}
-                          className="inline-flex items-center px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-600 text-xs rounded transition-colors cursor-pointer"
+                          className="cap-btn cap-btn-secondary"
                         >
-                          <Edit3 className="w-3.5 h-3.5 mr-1.5 text-amber-400" /> Edit Document
+                          <Edit3 className="w-3.5 h-3.5 mr-1.5" /> Edit Document
                         </button>
 
                         <button
                           onClick={handleLoadHistory}
-                          className="p-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-amber-400 border border-zinc-700 rounded transition-colors cursor-pointer"
+                          className="cap-btn cap-btn-icon cap-btn-ghost"
                           title="Version History"
                         >
                           <History className="w-4 h-4" />
@@ -268,54 +268,64 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                 {isEditing ? (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Title</label>
+                      <label className="cap-label">Title</label>
                       <input
                         type="text"
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
-                        className="w-full bg-command-card border border-command-border text-zinc-100 text-sm rounded p-2.5 focus:border-amber-500 focus:outline-none"
+                        className="cap-input cap-input-lg"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Change Summary</label>
+                      <label className="cap-label">Change Summary</label>
                       <input
                         type="text"
                         value={changeSummary}
                         onChange={(e) => setChangeSummary(e.target.value)}
                         placeholder="Summary of changes..."
-                        className="w-full bg-command-card border border-command-border text-zinc-100 text-xs rounded p-2 focus:border-amber-500 focus:outline-none"
+                        className="cap-input"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Markdown Body</label>
+                      <label className="cap-label">Markdown Body</label>
                       <textarea
                         rows={16}
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
-                        className="w-full bg-command-card border border-command-border text-zinc-100 font-mono text-xs p-3 rounded leading-relaxed focus:border-amber-500 focus:outline-none"
+                        className="cap-input font-mono p-3 leading-relaxed"
                       />
                     </div>
                   </div>
                 ) : (
                   <div
-                    className="markdown-render max-w-none text-xs leading-relaxed bg-command-card p-6 rounded-lg border border-command-border overflow-y-auto max-h-[550px]"
-                    dangerouslySetInnerHTML={{ __html: marked.parse(selectedDoc.content || '') as string }}
+                    className="markdown-render max-w-none text-xs leading-relaxed bg-cap-surface p-6 rounded-lg border border-cap-border overflow-y-auto max-h-[550px]"
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedDoc.content) }}
                   />
                 )}
 
                 {/* History Drawer */}
                 {showHistory && (
-                  <div className="p-4 bg-command-card rounded-lg border border-amber-500/30 space-y-3">
-                    <h4 className="text-xs font-bold text-amber-300 uppercase flex items-center">
+                  <div className="p-4 bg-cap-surface rounded-lg border border-warning-500/30 space-y-3">
+                    <h4 className="text-xs font-bold text-warning-300 uppercase flex items-center">
                       <History className="w-3.5 h-3.5 mr-1.5" /> Version History
                     </h4>
                     <div className="space-y-2 max-h-40 overflow-y-auto">
                       {history.map((ver) => (
-                        <div key={ver.id} className="p-2.5 bg-zinc-900 rounded border border-zinc-800 text-xs flex items-center justify-between">
-                          <div>
-                            <span className="font-bold text-amber-400">v{ver.version}</span> - {ver.change_summary || 'Updated'}
+                        <div key={ver.id} className="p-2.5 bg-neutral-900 rounded border border-neutral-800 text-xs flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div>
+                              <span className="font-bold cap-text-warning">v{ver.version}</span> - {ver.change_summary || 'Updated'}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-1 cap-text-muted text-[10px]">
+                              <User className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                              {ver.author_name ? (
+                                <span className="cap-chip">{ver.author_name}</span>
+                              ) : (
+                                <span className="italic">Unknown author</span>
+                              )}
+                            </div>
                           </div>
-                          <span className="text-[10px] text-zinc-500">{new Date(ver.created_at).toLocaleString()}</span>
+                          <span className="text-[10px] text-neutral-500 flex-shrink-0">{new Date(ver.created_at).toLocaleString()}</span>
                         </div>
                       ))}
                     </div>

@@ -1,5 +1,5 @@
 // File: src/web/App.tsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Project, Board, Column, Card, Agent, Document, Event, ProjectSummary } from './types.js';
 import { api, ApiError } from './api.js';
 import { Header } from './components/Header.js';
@@ -8,13 +8,13 @@ import { KanbanBoard } from './components/KanbanBoard.js';
 import { DocumentVault } from './components/DocumentVault.js';
 import { TacticalTerminal } from './components/TacticalTerminal.js';
 import { KnowledgeBaseView } from './components/KnowledgeBase.js';
+import { ThemeProvider } from './ThemeContext.js';
 import {
   NewProjectModal,
   EditProjectModal,
   NewBoardModal,
   NewColumnModal,
   NewAgentModal,
-  NewCardModal,
   NewDocModal,
 } from './components/Modals.js';
 
@@ -86,9 +86,9 @@ export const App: React.FC = () => {
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [showNewColumnModal, setShowNewColumnModal] = useState(false);
   const [showRegisterAgentModal, setShowRegisterAgentModal] = useState(false);
-  const [showNewCardModal, setShowNewCardModal] = useState(false);
   const [showNewDocModal, setShowNewDocModal] = useState(false);
-  const [targetColumnId, setTargetColumnId] = useState<string | undefined>(undefined);
+  const [newCardRequest, setNewCardRequest] = useState<{ columnId?: string; token: number } | null>(null);
+  const newCardTokenRef = useRef(0);
 
   const [selectedHumanId, setSelectedHumanId] = useState<string | null>(api.getActiveHumanId());
 
@@ -281,8 +281,11 @@ export const App: React.FC = () => {
   };
 
   const handleOpenNewCardModal = (colId?: string) => {
-    setTargetColumnId(colId);
-    setShowNewCardModal(true);
+    newCardTokenRef.current += 1;
+    setNewCardRequest({ columnId: colId, token: newCardTokenRef.current });
+    if (activeTab !== 'board') {
+      handleSelectTab('board');
+    }
   };
 
   const handleSelectHuman = (id: string) => {
@@ -312,7 +315,8 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-command-bg text-zinc-100 font-sans w-full overflow-hidden">
+    <ThemeProvider userId={selectedHumanId}>
+    <div className="h-screen flex flex-col bg-cap-base cap-text-primary font-sans w-full overflow-hidden">
       
       {/* Platform Header */}
       <Header
@@ -358,8 +362,9 @@ export const App: React.FC = () => {
             agents={agents}
             documents={documents}
             projectId={selectedProjectId}
+            newCardRequest={newCardRequest}
             onMoveCard={handleMoveCard}
-            onOpenNewCard={handleOpenNewCardModal}
+            onNewCardRequestHandled={() => setNewCardRequest(null)}
             onOpenNewColumn={() => setShowNewColumnModal(true)}
             onDeleteBoard={handleDeleteBoard}
             onOpenDocumentInVault={(docId) => {
@@ -452,15 +457,6 @@ export const App: React.FC = () => {
         />
       )}
 
-      {showNewCardModal && (
-        <NewCardModal
-          columns={columns}
-          defaultColumnId={targetColumnId}
-          onClose={() => setShowNewCardModal(false)}
-          onSuccess={loadProjectData}
-        />
-      )}
-
       {showNewDocModal && selectedProjectId && (
         <NewDocModal
           projectId={selectedProjectId}
@@ -474,5 +470,6 @@ export const App: React.FC = () => {
         />
       )}
     </div>
+    </ThemeProvider>
   );
 };

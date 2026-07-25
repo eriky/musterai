@@ -1,6 +1,7 @@
 // File: src/web/components/DocumentReaderModal.tsx
 import React from 'react';
 import { FileText, X, ExternalLink, Clock, ShieldCheck, FileEdit, CheckCircle2, AlertCircle } from 'lucide-react';
+import { renderMarkdown } from '../markdown.js';
 import { Document } from '../types.js';
 
 interface DocumentReaderModalProps {
@@ -18,22 +19,22 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
     switch (status) {
       case 'approved':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-600/50">
-            <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-400" />
+          <span className="cap-badge cap-badge-success">
+            <CheckCircle2 className="w-3 h-3 mr-1 cap-text-success" />
             Approved
           </span>
         );
       case 'in_review':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-950/80 text-amber-400 border border-amber-600/50">
-            <AlertCircle className="w-3 h-3 mr-1 text-amber-400" />
+          <span className="cap-badge cap-badge-warning">
+            <AlertCircle className="w-3 h-3 mr-1 cap-text-warning" />
             In Review
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-zinc-900 text-zinc-400 border border-zinc-700">
-            <FileEdit className="w-3 h-3 mr-1 text-zinc-400" />
+          <span className="cap-badge cap-badge-neutral">
+            <FileEdit className="w-3 h-3 mr-1 cap-text-muted" />
             Draft
           </span>
         );
@@ -41,37 +42,37 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/85 backdrop-blur-sm animate-fade-in">
-      <div className="bg-command-surface border border-command-border rounded-xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden tactical-border">
+    <div className="cap-scrim">
+      <div className="cap-dialog w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden">
         
         {/* Header */}
-        <div className="p-4 border-b border-command-border flex items-start justify-between bg-command-card">
+        <div className="p-4 border-b border-cap-border flex items-start justify-between bg-cap-surface">
           <div className="flex items-start space-x-3 min-w-0 pr-4">
-            <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 flex-shrink-0">
+            <div className="p-2 bg-warning-500/10 border border-warning-500/30 rounded-lg cap-text-warning flex-shrink-0">
               <FileText className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                <h3 className="text-base font-bold text-zinc-100 truncate">{doc.title}</h3>
+                <h3 className="text-base font-bold cap-text-primary truncate">{doc.title}</h3>
                 {getStatusBadge(doc.status)}
-                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-neutral-800 cap-text-secondary border border-neutral-700">
                   v{doc.version}
                 </span>
               </div>
-              <div className="flex items-center space-x-3 mt-1 text-xs text-zinc-400">
+              <div className="flex items-center space-x-3 mt-1 text-xs cap-text-muted">
                 <span className="flex items-center">
-                  <Clock className="w-3 h-3 mr-1 text-zinc-500" />
+                  <Clock className="w-3 h-3 mr-1 text-neutral-500" />
                   Updated: {new Date(doc.updated_at).toLocaleString()}
                 </span>
                 <span>•</span>
-                <span className="font-mono text-zinc-500 text-[11px]">ID: #{doc.id.substring(doc.id.length - 8)}</span>
+                <span className="font-mono text-neutral-500 text-[11px]">ID: #{doc.id.substring(doc.id.length - 8)}</span>
               </div>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer flex-shrink-0"
+            className="cap-btn cap-btn-icon cap-btn-ghost flex-shrink-0"
             title="Close document viewer"
           >
             <X className="w-5 h-5" />
@@ -79,18 +80,19 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
         </div>
 
         {/* Content Viewer Body */}
-        <div className="p-6 overflow-y-auto flex-1 bg-command-surface font-sans text-sm text-zinc-300 leading-relaxed space-y-4">
+        <div className="p-6 overflow-y-auto flex-1 bg-cap-surface font-sans text-sm cap-text-secondary leading-relaxed space-y-4">
           {doc.content ? (
-            <div className="whitespace-pre-wrap font-mono text-xs text-zinc-200 bg-zinc-950/60 p-4 rounded-lg border border-zinc-800/80 leading-relaxed overflow-x-auto selection:bg-amber-500/30 selection:text-amber-200">
-              {doc.content}
-            </div>
+            <div
+              className="markdown-render max-w-none text-xs leading-relaxed bg-cap-surface p-4 rounded-lg border border-cap-border overflow-x-auto"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(doc.content) }}
+            />
           ) : (
-            <p className="text-zinc-500 italic text-xs">This document is empty.</p>
+            <p className="text-neutral-500 italic text-xs">This document is empty.</p>
           )}
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-command-border bg-command-card flex items-center justify-between">
+        <div className="p-4 border-t border-cap-border bg-cap-surface flex items-center justify-between">
           <div>
             {onOpenInVault && (
               <button
@@ -98,7 +100,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
                   onClose();
                   onOpenInVault(doc.id);
                 }}
-                className="inline-flex items-center px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                className="cap-btn cap-btn-soft"
               >
                 <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> Open in Document Vault
               </button>
@@ -106,7 +108,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer border border-zinc-700"
+            className="cap-btn cap-btn-lg cap-btn-secondary"
           >
             Close
           </button>

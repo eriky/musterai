@@ -65,7 +65,7 @@ function describeEvent(
       switch (evt.action) {
         case 'created':
           return {
-            icon: <Plus className="w-3.5 h-3.5 text-cyan-400" />,
+            icon: entityIcon('card', Plus),
             text: `${actor} created card ${card}`,
           };
         case 'updated': {
@@ -76,44 +76,44 @@ function describeEvent(
           if (p.due_date) parts.push(`due date → ${p.due_date}`);
           const detail = parts.length > 0 ? `: ${parts.join(', ')}` : '';
           return {
-            icon: <Pencil className="w-3.5 h-3.5 text-blue-400" />,
+            icon: entityIcon('card', Pencil),
             text: `${actor} updated card ${card}${detail}`,
           };
         }
         case 'moved':
           return {
-            icon: <ArrowRight className="w-3.5 h-3.5 text-indigo-400" />,
+            icon: entityIcon('card', ArrowRight),
             text: `${actor} moved card ${card} to a new column`,
           };
         case 'assigned': {
           const assignee = agentName(agents, p.agent_id);
           return {
-            icon: <UserPlus className="w-3.5 h-3.5 text-emerald-400" />,
+            icon: <UserPlus className="w-3.5 h-3.5 cap-text-success" />,
             text: `${actor} assigned ${assignee} to card ${card}`,
           };
         }
         case 'unassigned': {
           const unassignee = agentName(agents, p.agent_id);
           return {
-            icon: <UserMinus className="w-3.5 h-3.5 text-rose-400" />,
+            icon: <UserMinus className="w-3.5 h-3.5 cap-text-danger" />,
             text: `${actor} removed ${unassignee} from card ${card}`,
           };
         }
         case 'document_linked': {
           const doc = docTitle(documents, p.document_id);
           return {
-            icon: <Link2 className="w-3.5 h-3.5 text-amber-400" />,
+            icon: entityIcon('document', Link2),
             text: `${actor} linked document ${doc} to card ${card}`,
           };
         }
         case 'archived':
           return {
-            icon: <Trash2 className="w-3.5 h-3.5 text-zinc-500" />,
+            icon: <Trash2 className="w-3.5 h-3.5 text-neutral-500" />,
             text: `${actor} archived card ${card}`,
           };
         default:
           return {
-            icon: <CreditCard className="w-3.5 h-3.5 text-cyan-400" />,
+            icon: entityIcon('card', CreditCard),
             text: `${actor} ${evt.action} card ${card}`,
           };
       }
@@ -124,22 +124,22 @@ function describeEvent(
       switch (evt.action) {
         case 'created':
           return {
-            icon: <Plus className="w-3.5 h-3.5 text-amber-400" />,
+            icon: entityIcon('document', Plus),
             text: `${actor} created document ${doc}`,
           };
         case 'updated':
           return {
-            icon: <Pencil className="w-3.5 h-3.5 text-amber-400" />,
+            icon: entityIcon('document', Pencil),
             text: `${actor} updated document ${doc}${p.change_summary ? ` — "${p.change_summary}"` : ''}`,
           };
         case 'status_changed':
           return {
-            icon: <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />,
+            icon: <CheckCircle className="w-3.5 h-3.5 cap-text-success" />,
             text: `${actor} set document ${doc} to ${p.status || 'new status'}`,
           };
         default:
           return {
-            icon: <FileText className="w-3.5 h-3.5 text-amber-400" />,
+            icon: entityIcon('document', FileText),
             text: `${actor} ${evt.action} document ${doc}`,
           };
       }
@@ -150,17 +150,17 @@ function describeEvent(
       switch (evt.action) {
         case 'registered':
           return {
-            icon: <UserPlus className="w-3.5 h-3.5 text-emerald-400" />,
+            icon: <UserPlus className="w-3.5 h-3.5 cap-text-success" />,
             text: `${agentN} registered as ${p.role || 'contributor'}`,
           };
         case 'unregistered':
           return {
-            icon: <UserMinus className="w-3.5 h-3.5 text-rose-400" />,
+            icon: <UserMinus className="w-3.5 h-3.5 cap-text-danger" />,
             text: `${agentN} unregistered from project`,
           };
         default:
           return {
-            icon: <Bot className="w-3.5 h-3.5 text-emerald-400" />,
+            icon: entityIcon('agent', Bot),
             text: `${agentN} ${evt.action}`,
           };
       }
@@ -170,22 +170,22 @@ function describeEvent(
       switch (evt.action) {
         case 'created':
           return {
-            icon: <Plus className="w-3.5 h-3.5 text-indigo-400" />,
+            icon: entityIcon('board', Plus),
             text: `${actor} added column "${p.name || 'Untitled'}" to board`,
           };
         case 'deleted':
           return {
-            icon: <Trash2 className="w-3.5 h-3.5 text-rose-400" />,
+            icon: <Trash2 className="w-3.5 h-3.5 cap-text-danger" />,
             text: `${actor} deleted column "${p.name || `#${evt.entity_id.slice(-6)}`}"`,
           };
         case 'updated':
           return {
-            icon: <Pencil className="w-3.5 h-3.5 text-indigo-400" />,
+            icon: entityIcon('board', Pencil),
             text: `${actor} updated column${p.name ? ` → "${p.name}"` : ''}`,
           };
         default:
           return {
-            icon: <Layout className="w-3.5 h-3.5 text-indigo-400" />,
+            icon: entityIcon('board', Layout),
             text: `${actor} ${evt.action} column`,
           };
       }
@@ -193,13 +193,13 @@ function describeEvent(
 
     case 'board':
       return {
-        icon: <Layout className="w-3.5 h-3.5 text-indigo-400" />,
+        icon: entityIcon('board', Layout),
         text: `${actor} ${evt.action} board${p.name ? ` "${p.name}"` : ''}`,
       };
 
     case 'project':
       return {
-        icon: <FolderOpen className="w-3.5 h-3.5 text-violet-400" />,
+        icon: entityIcon('project', FolderOpen),
         text: `${actor} ${evt.action} project${p.name ? ` "${p.name}"` : ''}`,
       };
 
@@ -207,47 +207,47 @@ function describeEvent(
       switch (evt.action) {
         case 'created':
           return {
-            icon: <Database className="w-3.5 h-3.5 text-blue-400" />,
+            icon: entityIcon('knowledge_base', Database),
             text: `${actor} created Knowledge Base "${p.name || 'KB'}"`,
           };
         case 'linked':
           return {
-            icon: <Database className="w-3.5 h-3.5 text-blue-400" />,
+            icon: entityIcon('knowledge_base', Database),
             text: `${actor} linked Knowledge Base to project`,
           };
         case 'fact_added':
           return {
-            icon: <FileText className="w-3.5 h-3.5 text-emerald-400" />,
+            icon: <FileText className="w-3.5 h-3.5 cap-text-success" />,
             text: `${actor} added gained knowledge "${p.title || 'fact'}"${p.entity_name ? ` → (${p.entity_name})` : ''}`,
           };
         case 'fact_updated':
           return {
-            icon: <Pencil className="w-3.5 h-3.5 text-amber-400" />,
+            icon: entityIcon('document', Pencil),
             text: `${actor} updated gained knowledge "${p.title || 'fact'}"`,
           };
         case 'fact_deleted':
           return {
-            icon: <Trash2 className="w-3.5 h-3.5 text-rose-400" />,
+            icon: <Trash2 className="w-3.5 h-3.5 cap-text-danger" />,
             text: `${actor} deleted gained knowledge fact`,
           };
         case 'entity_created':
           return {
-            icon: <Plus className="w-3.5 h-3.5 text-indigo-400" />,
+            icon: entityIcon('board', Plus),
             text: `${actor} created entity node "${p.name || 'node'}" (${p.type || 'entity'})`,
           };
         case 'entity_updated':
           return {
-            icon: <Pencil className="w-3.5 h-3.5 text-indigo-400" />,
+            icon: entityIcon('board', Pencil),
             text: `${actor} updated entity node "${p.name || 'node'}"`,
           };
         case 'relation_added':
           return {
-            icon: <Database className="w-3.5 h-3.5 text-cyan-400" />,
+            icon: entityIcon('knowledge_base', Database),
             text: `${actor} linked edge "${p.source_name || 'Node'}" --(${p.relation_type || 'link'})--> "${p.target_name || 'Node'}"`,
           };
         default:
           return {
-            icon: <Database className="w-3.5 h-3.5 text-blue-400" />,
+            icon: entityIcon('knowledge_base', Database),
             text: `${actor} ${evt.action} knowledge base`,
           };
       }
@@ -255,7 +255,7 @@ function describeEvent(
 
     default:
       return {
-        icon: <Activity className="w-3.5 h-3.5 text-zinc-400" />,
+        icon: <Activity className="w-3.5 h-3.5 cap-text-muted" />,
         text: `${actor}: ${evt.entity_type} ${evt.action}`,
       };
   }
@@ -263,43 +263,43 @@ function describeEvent(
 
 // ─── Entity type badges ───────────────────────────────────────────────────────
 
-const ENTITY_BADGES: Record<string, React.ReactNode> = {
-  card: (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-cyan-950 text-cyan-400 border border-cyan-700/50 rounded">
-      <CreditCard className="w-2.5 h-2.5" />CARD
-    </span>
-  ),
-  agent: (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-700/50 rounded">
-      <Bot className="w-2.5 h-2.5" />AGENT
-    </span>
-  ),
-  document: (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-amber-950 text-amber-400 border border-amber-700/50 rounded">
-      <FileText className="w-2.5 h-2.5" />DOC
-    </span>
-  ),
-  board: (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-indigo-950 text-indigo-400 border border-indigo-700/50 rounded">
-      <Layout className="w-2.5 h-2.5" />BOARD
-    </span>
-  ),
-  column: (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-indigo-950 text-indigo-400 border border-indigo-700/50 rounded">
-      <Layout className="w-2.5 h-2.5" />COLUMN
-    </span>
-  ),
-  project: (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-violet-950 text-violet-400 border border-violet-700/50 rounded">
-      <FolderOpen className="w-2.5 h-2.5" />PROJECT
-    </span>
-  ),
-  knowledge_base: (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-mono font-bold bg-blue-950 text-blue-400 border border-blue-700/50 rounded">
-      <Database className="w-2.5 h-2.5" />KB
-    </span>
-  ),
+/**
+ * Which entity-scale swatch each entity type draws from. This is a categorical
+ * encoding (see DESIGN_LANGUAGE.md §7 rule 6), so it deliberately does not use
+ * the brand/status families: a card is not "brand-coloured" and an agent is not
+ * "success-coloured", and both must stay distinguishable under every profile.
+ */
+const ENTITY_STYLE: Record<string, string> = {
+  card: 'cap-entity-card',
+  agent: 'cap-entity-agent',
+  document: 'cap-entity-document',
+  board: 'cap-entity-board',
+  column: 'cap-entity-board',
+  project: 'cap-entity-project',
+  knowledge_base: 'cap-entity-kb',
 };
+
+/** Tint a bare icon to the entity it refers to. */
+const entityIcon = (type: string, Icon: React.ElementType, className = 'w-3.5 h-3.5') => (
+  <Icon className={`${className} cap-entity-icon ${ENTITY_STYLE[type] ?? ''}`} />
+);
+
+const ENTITY_BADGES: Record<string, React.ReactNode> = Object.entries({
+  card: [CreditCard, 'CARD'],
+  agent: [Bot, 'AGENT'],
+  document: [FileText, 'DOC'],
+  board: [Layout, 'BOARD'],
+  column: [Layout, 'COLUMN'],
+  project: [FolderOpen, 'PROJECT'],
+  knowledge_base: [Database, 'KB'],
+} as Record<string, [React.ElementType, string]>).reduce((acc, [type, [Icon, label]]) => {
+  acc[type] = (
+    <span className={`cap-badge cap-badge-entity ${ENTITY_STYLE[type]} font-mono text-[9px]`}>
+      <Icon className="w-2.5 h-2.5" />{label}
+    </span>
+  );
+  return acc;
+}, {} as Record<string, React.ReactNode>);
 
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -321,24 +321,24 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
     <div className="flex flex-col flex-1 h-full min-h-0 font-sans space-y-4">
 
       {/* Header Bar */}
-      <div className="flex-none flex items-center justify-between border-b border-command-border pb-3">
+      <div className="flex-none flex items-center justify-between border-b border-cap-border pb-3">
         <div className="flex items-center space-x-3">
-          <Activity className="w-5 h-5 text-emerald-400 animate-pulse" />
-          <h2 className="text-base font-bold text-zinc-100 uppercase tracking-wide">
+          <Activity className="w-5 h-5 cap-text-success animate-pulse" />
+          <h2 className="text-base font-bold cap-text-primary uppercase tracking-wide">
             Activity Log
           </h2>
-          <span className="text-xs font-mono text-zinc-500 bg-command-card border border-command-border px-2 py-0.5 rounded">
+          <span className="text-xs font-mono text-neutral-500 bg-cap-surface border border-cap-border px-2 py-0.5 rounded">
             {filteredEvents.length} events
           </span>
         </div>
 
         <div className="flex items-center space-x-3">
           <div className="flex items-center space-x-2">
-            <Filter className="w-3.5 h-3.5 text-zinc-500" />
+            <Filter className="w-3.5 h-3.5 text-neutral-500" />
             <select
               value={filterEntity}
               onChange={(e) => setFilterEntity(e.target.value)}
-              className="bg-command-card border border-command-border text-zinc-200 text-xs font-mono rounded px-2.5 py-1"
+              className="bg-cap-surface border border-cap-border text-neutral-200 text-xs font-mono rounded px-2.5 py-1"
             >
               <option value="all">All</option>
               <option value="card">Cards</option>
@@ -353,7 +353,7 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
 
           <button
             onClick={onRefresh}
-            className="p-1.5 bg-command-card hover:bg-zinc-800 text-zinc-400 hover:text-emerald-400 border border-command-border rounded transition-colors cursor-pointer"
+            className="p-1.5 bg-cap-surface hover:bg-neutral-800 cap-text-muted hover:text-success-400 border border-cap-border rounded transition-colors cursor-pointer"
             title="Refresh"
           >
             <RefreshCw className="w-4 h-4" />
@@ -365,10 +365,10 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
       <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1">
 
         {filteredEvents.length === 0 ? (
-          <div className="text-center py-16 bg-command-surface rounded-xl tactical-border">
-            <Terminal className="w-8 h-8 mx-auto mb-3 text-zinc-600 opacity-50" />
-            <p className="text-sm text-zinc-500 font-sans">No activity logged yet.</p>
-            <p className="text-xs text-zinc-600 mt-1">Events appear here as agents and users take actions.</p>
+          <div className="text-center py-16 bg-cap-surface rounded-lg tactical-border">
+            <Terminal className="w-8 h-8 mx-auto mb-3 cap-text-faint opacity-50" />
+            <p className="text-sm text-neutral-500 font-sans">No activity logged yet.</p>
+            <p className="text-xs cap-text-faint mt-1">Events appear here as agents and users take actions.</p>
           </div>
         ) : (
           filteredEvents.map((evt) => {
@@ -378,10 +378,10 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
             return (
               <div
                 key={evt.id}
-                className="group flex items-start space-x-3 p-3 bg-command-surface rounded-lg border border-command-border hover:border-zinc-600 transition-all"
+                className="group flex items-start space-x-3 p-3 bg-cap-surface rounded-lg border border-cap-border hover:border-neutral-600 transition-all"
               >
                 {/* Icon */}
-                <div className="mt-0.5 w-7 h-7 flex items-center justify-center bg-command-card rounded-md border border-command-border flex-shrink-0">
+                <div className="mt-0.5 w-7 h-7 flex items-center justify-center bg-cap-surface rounded-md border border-cap-border flex-shrink-0">
                   {icon}
                 </div>
 
@@ -389,14 +389,14 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     {badge}
-                    <span className="text-xs font-sans text-zinc-100">{text}</span>
+                    <span className="text-xs font-sans cap-text-primary">{text}</span>
                   </div>
 
                   <div className="flex items-center gap-3 mt-1.5">
-                    <span className="text-[10px] font-mono text-zinc-500 flex items-center gap-1">
+                    <span className="text-[10px] font-mono text-neutral-500 flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5" />
                       {relativeTime(evt.created_at)}
-                      <span className="text-zinc-700 mx-0.5">·</span>
+                      <span className="cap-divider w-0.5 h-0.5 rounded-full shrink-0 mx-1" aria-hidden="true" />
                       {new Date(evt.created_at).toLocaleTimeString()}
                     </span>
                   </div>

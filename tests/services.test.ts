@@ -217,6 +217,48 @@ describe('Domain Services Integration Tests', () => {
     expect(history.length).toBe(2);
   });
 
+  it('Feature: document version history attributes each edit to its actual author', async () => {
+    const project = await projectService.create({ name: 'P' });
+    const author = await agentService.register({
+      project_id: project.id,
+      name: 'Original Author',
+      type: 'ai_agent',
+      role: 'contributor',
+    });
+    const editor = await agentService.register({
+      project_id: project.id,
+      name: 'Later Editor',
+      type: 'human',
+      role: 'owner',
+    });
+
+    const doc = await documentService.create(
+      { project_id: project.id, title: 'Spec', content: 'v1' },
+      author.id
+    );
+
+    // Edit by a different actor, passed as actorId rather than in the payload.
+    await documentService.update(doc.id, { content: 'v2', change_summary: 'Revised' }, editor.id);
+
+    // Edit by an unidentified caller must not inherit the previous author.
+    await documentService.update(doc.id, { content: 'v3', change_summary: 'Anonymous' });
+
+    const history = await documentService.getHistory(doc.id);
+    expect(history.map(v => v.version)).toEqual([3, 2, 1]);
+
+    const [v3, v2, v1] = history;
+    expect(v1.author_id).toBe(author.id);
+    expect(v1.author_name).toBe('Original Author');
+    expect(v2.author_id).toBe(editor.id);
+    expect(v2.author_name).toBe('Later Editor');
+    expect(v3.author_id).toBeNull();
+    expect(v3.author_name).toBeNull();
+
+    // The document row keeps its last known author rather than going null.
+    const current = await documentService.getById(doc.id);
+    expect(current?.author_id).toBe(editor.id);
+  });
+
   it('Feature: secret token verification and agent session re-binding', async () => {
     const token = await agentService.getHumanSecretToken();
     expect(token).toMatch(/^cap_sec_/);

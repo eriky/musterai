@@ -2,67 +2,829 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ══════════════════════════════════════════════════════════════
+   CAP DESIGN TOKENS
+   See DESIGN_LANGUAGE.md for the rules that govern this file.
+
+   Colour is themed at the *ramp* level, not with per-class
+   overrides. Every palette family used by the app (neutral, brand,
+   success, warning, danger, info) is a set of CSS custom properties
+   holding raw `R G B` triplets. `tailwind.config.js` binds the
+   Tailwind colour families to these triplets via `<alpha-value>`,
+   so `bg-cyan-600`, `text-emerald-400/70` and friends all resolve
+   through the tokens and flip automatically between modes.
+
+   Driven by:
+     <html class="dark|light" data-profile="cyber|amber|emerald|violet">
+
+   Ramp semantics (dark-first, mirrored for light):
+     50/100    palest tints            900/950   deep tints
+     200-400   text & icons           500/600   solid fills & strong borders
+     700-800   subtle chromatic borders
+   In light mode the ramp is inverted so the *role* of each step is
+   preserved: `text-*-400` stays "readable body-weight colour" and
+   `bg-*-950` stays "faint tinted panel" in both modes.
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Neutral ramp — dark mode (zinc) ───────────────────────── */
+  --neutral-50:  250 250 250;
+  --neutral-100: 244 244 245;
+  --neutral-200: 228 228 231;
+  --neutral-300: 212 212 216;
+  --neutral-400: 161 161 170;
+  /* Lifted from zinc-500 (#71717a): at 3.7:1 on the panel surface it
+     failed AA for the muted labels that use it. */
+  --neutral-500: 138 138 148;
+  --neutral-600: 82 82 91;
+  --neutral-700: 63 63 70;
+  --neutral-800: 39 39 42;
+  --neutral-900: 24 24 27;
+  --neutral-950: 9 9 11;
+
+  /* ── Brand ramp — dark mode, "cyber" profile (cyan) ────────── */
+  --brand-50:  236 254 255;
+  --brand-100: 207 250 254;
+  --brand-200: 165 243 252;
+  --brand-300: 103 232 249;
+  --brand-400: 34 211 238;
+  --brand-500: 6 182 212;
+  --brand-600: 8 145 178;
+  --brand-700: 14 116 144;
+  --brand-800: 21 94 117;
+  --brand-900: 22 78 99;
+  --brand-950: 8 51 68;
+
+  /* ── Success ramp — dark mode (emerald) ────────────────────── */
+  --success-50:  236 253 245;
+  --success-100: 209 250 229;
+  --success-200: 167 243 208;
+  --success-300: 110 231 183;
+  --success-400: 52 211 153;
+  --success-500: 16 185 129;
+  --success-600: 5 150 105;
+  --success-700: 4 120 87;
+  --success-800: 6 95 70;
+  --success-900: 6 78 59;
+  --success-950: 2 44 34;
+
+  /* ── Warning ramp — dark mode (amber) ──────────────────────── */
+  --warning-50:  255 251 235;
+  --warning-100: 254 243 199;
+  --warning-200: 253 230 138;
+  --warning-300: 252 211 77;
+  --warning-400: 251 191 36;
+  --warning-500: 245 158 11;
+  --warning-600: 217 119 6;
+  --warning-700: 180 83 9;
+  --warning-800: 146 64 14;
+  --warning-900: 120 53 15;
+  --warning-950: 69 26 3;
+
+  /* ── Danger ramp — dark mode (rose) ────────────────────────── */
+  --danger-50:  255 241 242;
+  --danger-100: 255 228 230;
+  --danger-200: 254 205 211;
+  --danger-300: 253 164 175;
+  --danger-400: 251 113 133;
+  --danger-500: 244 63 94;
+  --danger-600: 225 29 72;
+  --danger-700: 190 18 60;
+  --danger-800: 159 18 57;
+  --danger-900: 136 19 55;
+  --danger-950: 76 5 25;
+
+  /* ── Info ramp — dark mode (blue) ──────────────────────────── */
+  --info-50:  239 246 255;
+  --info-100: 219 234 254;
+  --info-200: 191 219 254;
+  --info-300: 147 197 253;
+  --info-400: 96 165 250;
+  --info-500: 59 130 246;
+  --info-600: 37 99 235;
+  --info-700: 29 78 216;
+  --info-800: 30 64 175;
+  --info-900: 30 58 138;
+  --info-950: 23 37 84;
+
+  /* ── Alt ramp — dark mode (indigo/violet, graph & agent hues) ─ */
+  --alt-50:  238 242 255;
+  --alt-100: 224 231 255;
+  --alt-200: 199 210 254;
+  --alt-300: 165 180 252;
+  --alt-400: 129 140 248;
+  --alt-500: 99 102 241;
+  --alt-600: 79 70 229;
+  --alt-700: 67 56 202;
+  --alt-800: 55 48 163;
+  --alt-900: 49 46 129;
+  --alt-950: 30 27 75;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Brand profiles — dark mode
+   ══════════════════════════════════════════════════════════════ */
+
+[data-profile='amber'] {
+  --brand-50:  255 251 235;
+  --brand-100: 254 243 199;
+  --brand-200: 253 230 138;
+  --brand-300: 252 211 77;
+  --brand-400: 251 191 36;
+  --brand-500: 245 158 11;
+  --brand-600: 217 119 6;
+  --brand-700: 180 83 9;
+  --brand-800: 146 64 14;
+  --brand-900: 120 53 15;
+  --brand-950: 69 26 3;
+}
+
+[data-profile='emerald'] {
+  --brand-50:  236 253 245;
+  --brand-100: 209 250 229;
+  --brand-200: 167 243 208;
+  --brand-300: 110 231 183;
+  --brand-400: 52 211 153;
+  --brand-500: 16 185 129;
+  --brand-600: 5 150 105;
+  --brand-700: 4 120 87;
+  --brand-800: 6 95 70;
+  --brand-900: 6 78 59;
+  --brand-950: 2 44 34;
+}
+
+/* Violet sits darker than the other hues at equal ramp steps, so its dark
+   ramp is shifted one step lighter from 400 up. That keeps the universal
+   rule intact — in dark mode a solid accent fill (600) always carries
+   near-black text — instead of making `--color-on-accent` a special case. */
+[data-profile='violet'] {
+  --brand-50:  245 243 255;
+  --brand-100: 237 233 254;
+  --brand-200: 237 233 254;
+  --brand-300: 221 214 254;
+  --brand-400: 196 181 253;
+  --brand-500: 167 139 250;
+  --brand-600: 139 92 246;
+  --brand-700: 124 58 237;
+  --brand-800: 91 33 182;
+  --brand-900: 76 29 149;
+  --brand-950: 46 16 101;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LIGHT MODE — ramps inverted so each step keeps its role.
+   `html.light` (0,1,1) outranks `[data-profile]` (0,1,0), so the
+   light neutral/status ramps always win over the dark profile
+   blocks above; the light profile blocks below (0,2,1) win over both.
+   ══════════════════════════════════════════════════════════════ */
+
+html.light {
+  /* Neutral — a slate ramp, mirrored. 950 = page, 900 = panel,
+     800/700 = raised & borders, 400/300 = muted & body text,
+     100 = primary text. */
+  --neutral-50:  15 23 42;
+  --neutral-100: 15 23 42;
+  --neutral-200: 30 41 59;
+  --neutral-300: 51 65 85;
+  --neutral-400: 71 85 105;
+  --neutral-500: 100 116 139;
+  --neutral-600: 148 163 184;
+  --neutral-700: 203 213 225;
+  --neutral-800: 226 232 240;
+  --neutral-900: 255 255 255;
+  --neutral-950: 248 250 252;
+
+  /* Brand — cyber (cyan), inverted */
+  --brand-50:  8 51 68;
+  --brand-100: 22 78 99;
+  --brand-200: 8 51 68;
+  --brand-300: 22 78 99;
+  --brand-400: 21 94 117;
+  --brand-500: 22 78 99;
+  --brand-600: 21 94 117;
+  --brand-700: 165 243 252;
+  --brand-800: 207 250 254;
+  --brand-900: 207 250 254;
+  --brand-950: 236 254 255;
+
+  /* Success — emerald, inverted */
+  --success-50:  2 44 34;
+  --success-100: 6 78 59;
+  --success-200: 2 44 34;
+  --success-300: 6 78 59;
+  --success-400: 6 95 70;
+  --success-500: 6 78 59;
+  --success-600: 6 95 70;
+  --success-700: 167 243 208;
+  --success-800: 209 250 229;
+  --success-900: 209 250 229;
+  --success-950: 236 253 245;
+
+  /* Warning — amber, inverted */
+  --warning-50:  69 26 3;
+  --warning-100: 120 53 15;
+  --warning-200: 69 26 3;
+  --warning-300: 120 53 15;
+  --warning-400: 146 64 14;
+  --warning-500: 120 53 15;
+  --warning-600: 146 64 14;
+  --warning-700: 253 230 138;
+  --warning-800: 254 243 199;
+  --warning-900: 254 243 199;
+  --warning-950: 255 251 235;
+
+  /* Danger — rose, inverted */
+  --danger-50:  76 5 25;
+  --danger-100: 136 19 55;
+  --danger-200: 76 5 25;
+  --danger-300: 136 19 55;
+  --danger-400: 159 18 57;
+  --danger-500: 136 19 55;
+  --danger-600: 159 18 57;
+  --danger-700: 254 205 211;
+  --danger-800: 255 228 230;
+  --danger-900: 255 228 230;
+  --danger-950: 255 241 242;
+
+  /* Info — blue, inverted */
+  --info-50:  23 37 84;
+  --info-100: 30 58 138;
+  --info-200: 23 37 84;
+  --info-300: 30 58 138;
+  --info-400: 30 64 175;
+  --info-500: 30 58 138;
+  --info-600: 30 64 175;
+  --info-700: 191 219 254;
+  --info-800: 219 234 254;
+  --info-900: 219 234 254;
+  --info-950: 239 246 255;
+
+  /* Alt — indigo, inverted */
+  --alt-50:  30 27 75;
+  --alt-100: 49 46 129;
+  --alt-200: 30 27 75;
+  --alt-300: 49 46 129;
+  --alt-400: 55 48 163;
+  --alt-500: 49 46 129;
+  --alt-600: 55 48 163;
+  --alt-700: 199 210 254;
+  --alt-800: 224 231 255;
+  --alt-900: 224 231 255;
+  --alt-950: 238 242 255;
+}
+
+/* ── Brand profiles — light mode ───────────────────────────────── */
+
+html.light[data-profile='amber'] {
+  --brand-50:  69 26 3;
+  --brand-100: 120 53 15;
+  --brand-200: 69 26 3;
+  --brand-300: 120 53 15;
+  --brand-400: 146 64 14;
+  --brand-500: 120 53 15;
+  --brand-600: 146 64 14;
+  --brand-700: 253 230 138;
+  --brand-800: 254 243 199;
+  --brand-900: 254 243 199;
+  --brand-950: 255 251 235;
+}
+
+html.light[data-profile='emerald'] {
+  --brand-50:  2 44 34;
+  --brand-100: 6 78 59;
+  --brand-200: 2 44 34;
+  --brand-300: 6 78 59;
+  --brand-400: 6 95 70;
+  --brand-500: 6 78 59;
+  --brand-600: 6 95 70;
+  --brand-700: 167 243 208;
+  --brand-800: 209 250 229;
+  --brand-900: 209 250 229;
+  --brand-950: 236 253 245;
+}
+
+html.light[data-profile='violet'] {
+  --brand-50:  46 16 101;
+  --brand-100: 76 29 149;
+  --brand-200: 46 16 101;
+  --brand-300: 76 29 149;
+  --brand-400: 91 33 182;
+  --brand-500: 76 29 149;
+  --brand-600: 91 33 182;
+  --brand-700: 221 214 254;
+  --brand-800: 237 233 254;
+  --brand-900: 237 233 254;
+  --brand-950: 245 243 255;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SEMANTIC ALIASES
+   Named by function, never by hue. Resolved lazily, so they follow
+   whichever ramp values are in scope for the current mode/profile.
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Surfaces */
+  --color-surface-base:     rgb(var(--neutral-950));
+  --color-surface-elevated: rgb(var(--neutral-900));
+  --color-surface-hover:    rgb(var(--neutral-800));
+  --color-surface-active:   rgb(var(--neutral-700));
+
+  /* Borders */
+  --color-border-subtle: rgb(var(--neutral-800));
+  --color-border-hover:  rgb(var(--neutral-600));
+  --color-border-focus:  rgb(var(--brand-500) / 0.55);
+
+  /* Text */
+  --color-text-primary:   rgb(var(--neutral-100));
+  --color-text-secondary: rgb(var(--neutral-300));
+  --color-text-muted:     rgb(var(--neutral-400));
+  --color-text-faint:     rgb(var(--neutral-600));
+
+  /* Brand accent. `-solid` is a fill, `--color-on-accent` is the only
+     text colour legible on it; `--color-accent` is the text/icon value. */
+  --color-accent:        rgb(var(--brand-400));
+  --color-accent-solid:  rgb(var(--brand-600));
+  --color-accent-hover:  rgb(var(--brand-500));
+  --color-on-accent:     rgb(var(--neutral-950));
+  --color-accent-subtle: rgb(var(--brand-500) / 0.15);
+  --color-accent-border: rgb(var(--brand-500) / 0.4);
+  --color-accent-glow:   rgb(var(--brand-500) / 0.25);
+
+  /* Status — text value, tint background, border, solid fill */
+  --color-success:        rgb(var(--success-400));
+  --color-success-subtle: rgb(var(--success-500) / 0.15);
+  --color-success-border: rgb(var(--success-500) / 0.4);
+
+  --color-warning:        rgb(var(--warning-400));
+  --color-warning-subtle: rgb(var(--warning-500) / 0.15);
+  --color-warning-border: rgb(var(--warning-500) / 0.4);
+
+  --color-danger:         rgb(var(--danger-400));
+  --color-danger-solid:   rgb(var(--danger-600));
+  --color-danger-hover:   rgb(var(--danger-500));
+  --color-on-danger:      rgb(var(--neutral-950));
+  --color-danger-subtle:  rgb(var(--danger-500) / 0.15);
+  --color-danger-border:  rgb(var(--danger-500) / 0.4);
+
+  --color-info:           rgb(var(--info-400));
+  --color-info-subtle:    rgb(var(--info-500) / 0.15);
+  --color-info-border:    rgb(var(--info-500) / 0.4);
+
+  /* Modal scrim — stays dark in both modes so dialogs read as raised */
+  --color-scrim: rgb(9 9 11 / 0.72);
+
+  /* Radius scale */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ENTITY TYPE SCALE — a categorical encoding, not a semantic one.
+
+   Activity-log badges and icons identify *which kind of thing* an
+   event touched. That is the same species of scale as the knowledge
+   graph's node palette (DESIGN_LANGUAGE.md §7 rule 6): the hues carry
+   no status meaning and must stay mutually distinguishable, so they
+   are fixed per mode rather than riding the brand/status ramps.
+
+   Previously these badges borrowed the semantic families, which said
+   "a card is brand-coloured" and "an agent is success-coloured", and
+   left board and project rendering identically once both hue aliases
+   pointed at the same ramp.
+
+   Each entity supplies a foreground and a tint background; borders
+   derive from the foreground.
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  --entity-card-fg:     34 211 238;   --entity-card-bg:      8 51 68;
+  --entity-agent-fg:    52 211 153;   --entity-agent-bg:     2 44 34;
+  --entity-document-fg: 251 191 36;   --entity-document-bg:  69 26 3;
+  --entity-board-fg:    129 140 248;  --entity-board-bg:     30 27 75;
+  --entity-project-fg:  167 139 250;  --entity-project-bg:   46 16 101;
+  --entity-kb-fg:       96 165 250;   --entity-kb-bg:        23 37 84;
+}
+
+html.light {
+  --entity-card-fg:     21 94 117;    --entity-card-bg:      236 254 255;
+  --entity-agent-fg:    6 95 70;      --entity-agent-bg:     236 253 245;
+  --entity-document-fg: 146 64 14;    --entity-document-bg:  255 251 235;
+  --entity-board-fg:    55 48 163;    --entity-board-bg:     238 242 255;
+  --entity-project-fg:  91 33 182;    --entity-project-bg:   245 243 255;
+  --entity-kb-fg:       30 64 175;    --entity-kb-bg:        239 246 255;
+}
+
 @layer base {
   body {
-    background-color: #09090b;
-    color: #f4f4f5;
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(6, 182, 212, 0.05) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.05) 0px, transparent 50%);
+    background-color: var(--color-surface-base);
+    color: var(--color-text-primary);
+    background-image:
+      radial-gradient(at 0% 0%, rgb(var(--brand-500) / 0.05) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgb(var(--alt-500) / 0.05) 0px, transparent 50%);
     background-attachment: fixed;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Form controls inherit the surface tokens by default so a missed
+     class can't strand a dark input on a light page. */
+  input,
+  textarea,
+  select {
+    color: var(--color-text-primary);
+  }
+
+  ::placeholder {
+    color: var(--color-text-muted);
+    opacity: 1;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 }
 
-/* Custom Tactical Scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* ══════════════════════════════════════════════════════════════
+   COMPONENT CLASSES
+   One vocabulary for buttons, inputs, panels and badges. Sections
+   must not invent their own — see DESIGN_LANGUAGE.md §7.
+   ══════════════════════════════════════════════════════════════ */
+
+@layer components {
+  /* ── Buttons ─────────────────────────────────────────────────
+     Base geometry: radius-md, compact padding, xs semibold text.
+     Pair `.cap-btn` with exactly one variant. */
+  .cap-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease,
+      color 0.15s ease, opacity 0.15s ease;
+  }
+
+  .cap-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  /* Standard (roomier) and icon-only sizes */
+  .cap-btn-lg {
+    padding: 0.5rem 1rem;
+  }
+
+  .cap-btn-icon {
+    padding: 0.375rem;
+    gap: 0;
+  }
+
+  /* Primary — the profile accent. One primary action per view. */
+  .cap-btn-primary {
+    background-color: var(--color-accent-solid);
+    color: var(--color-on-accent);
+  }
+  .cap-btn-primary:hover:not(:disabled) {
+    background-color: var(--color-accent-hover);
+  }
+  .cap-btn-primary:disabled {
+    background-color: var(--color-surface-hover);
+    color: var(--color-text-muted);
+    opacity: 1;
+  }
+
+  /* Secondary — neutral raised surface. Cancel, dismiss, back. */
+  .cap-btn-secondary {
+    background-color: var(--color-surface-hover);
+    border-color: var(--color-border-subtle);
+    color: var(--color-text-secondary);
+  }
+  .cap-btn-secondary:hover:not(:disabled) {
+    background-color: var(--color-surface-active);
+    color: var(--color-text-primary);
+  }
+
+  /* Soft — accent tint. Secondary actions that still read as "ours". */
+  .cap-btn-soft {
+    background-color: var(--color-accent-subtle);
+    border-color: var(--color-accent-border);
+    color: var(--color-accent);
+  }
+  .cap-btn-soft:hover:not(:disabled) {
+    background-color: rgb(var(--brand-500) / 0.25);
+  }
+
+  /* Ghost — chromeless until hovered. Toolbar and inline icon actions. */
+  .cap-btn-ghost {
+    background-color: transparent;
+    color: var(--color-text-muted);
+  }
+  .cap-btn-ghost:hover:not(:disabled) {
+    background-color: var(--color-surface-hover);
+    color: var(--color-text-primary);
+  }
+
+  /* Danger — destructive. Solid for confirm, soft for trigger. */
+  .cap-btn-danger {
+    background-color: var(--color-danger-solid);
+    color: var(--color-on-danger);
+  }
+  .cap-btn-danger:hover:not(:disabled) {
+    background-color: var(--color-danger-hover);
+  }
+
+  .cap-btn-danger-soft {
+    background-color: var(--color-danger-subtle);
+    border-color: var(--color-danger-border);
+    color: var(--color-danger);
+  }
+  .cap-btn-danger-soft:hover:not(:disabled) {
+    background-color: rgb(var(--danger-500) / 0.25);
+  }
+
+  /* Ghost icon button that turns destructive on hover (row delete). */
+  .cap-btn-ghost-danger {
+    background-color: transparent;
+    color: var(--color-text-faint);
+  }
+  .cap-btn-ghost-danger:hover:not(:disabled) {
+    background-color: var(--color-danger-subtle);
+    color: var(--color-danger);
+  }
+
+  /* ── Segmented control (view switchers) ───────────────────── */
+  .cap-segmented {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border-subtle);
+    background-color: var(--color-surface-elevated);
+  }
+
+  .cap-segmented-item {
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-md);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .cap-segmented-item:hover {
+    color: var(--color-text-primary);
+    background-color: var(--color-surface-hover);
+  }
+  .cap-segmented-item[aria-selected='true'] {
+    background-color: var(--color-accent-subtle);
+    color: var(--color-accent);
+  }
+
+  /* ── Navigation tabs ─────────────────────────────────────── */
+  .cap-tab {
+    color: var(--color-text-muted);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease,
+      border-color 0.15s ease;
+  }
+  .cap-tab:hover {
+    color: var(--color-text-primary);
+    background-color: var(--color-surface-hover);
+  }
+  .cap-tab-active {
+    background-color: var(--color-accent-subtle);
+    color: var(--color-accent);
+    border-color: var(--color-accent-border);
+  }
+
+  /* ── Form controls ───────────────────────────────────────── */
+  .cap-input {
+    width: 100%;
+    background-color: var(--color-surface-base);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+    padding: 0.375rem 0.625rem;
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+    color: var(--color-text-primary);
+    transition: border-color 0.15s ease;
+  }
+  .cap-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+  }
+  .cap-input:disabled {
+    background-color: var(--color-surface-hover);
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+  }
+
+  /* Roomier variant for modal forms */
+  .cap-input-lg {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .cap-label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    margin-bottom: 0.25rem;
+  }
+
+  /* ── Surfaces ────────────────────────────────────────────── */
+  .cap-panel {
+    background-color: var(--color-surface-elevated);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+  }
+
+  .cap-surface {
+    background-color: var(--color-surface-elevated);
+    border-color: var(--color-border-subtle);
+  }
+
+  .cap-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background-color: var(--color-scrim);
+    backdrop-filter: blur(4px);
+  }
+
+  .cap-dialog {
+    background-color: var(--color-surface-elevated);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.45);
+  }
+
+  /* ── Badges / pills ──────────────────────────────────────── */
+  .cap-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid transparent;
+    font-size: 0.625rem;
+    font-weight: 700;
+    line-height: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  .cap-badge-accent {
+    background-color: var(--color-accent-subtle);
+    border-color: var(--color-accent-border);
+    color: var(--color-accent);
+  }
+  .cap-badge-success {
+    background-color: var(--color-success-subtle);
+    border-color: var(--color-success-border);
+    color: var(--color-success);
+  }
+  .cap-badge-warning {
+    background-color: var(--color-warning-subtle);
+    border-color: var(--color-warning-border);
+    color: var(--color-warning);
+  }
+  .cap-badge-danger {
+    background-color: var(--color-danger-subtle);
+    border-color: var(--color-danger-border);
+    color: var(--color-danger);
+  }
+  .cap-badge-info {
+    background-color: var(--color-info-subtle);
+    border-color: var(--color-info-border);
+    color: var(--color-info);
+  }
+  .cap-badge-neutral {
+    background-color: var(--color-surface-hover);
+    border-color: var(--color-border-subtle);
+    color: var(--color-text-secondary);
+  }
+
+  /* Mono identity chip (entity names, agent handles, IDs) */
+  .cap-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border-subtle);
+    background-color: var(--color-surface-hover);
+    color: var(--color-text-secondary);
+    font-family: theme('fontFamily.mono');
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    white-space: nowrap;
+  }
+
+  /* ── Entity-type encoding ────────────────────────────────────
+     Pair a `cap-entity-<type>` selector (which only picks the pair of
+     ramp values) with a role class that consumes it. Keeps the scale
+     in one place instead of a hue class per call site. */
+  .cap-entity-card     { --entity-fg: var(--entity-card-fg);     --entity-bg: var(--entity-card-bg); }
+  .cap-entity-agent    { --entity-fg: var(--entity-agent-fg);    --entity-bg: var(--entity-agent-bg); }
+  .cap-entity-document { --entity-fg: var(--entity-document-fg); --entity-bg: var(--entity-document-bg); }
+  .cap-entity-board    { --entity-fg: var(--entity-board-fg);    --entity-bg: var(--entity-board-bg); }
+  .cap-entity-project  { --entity-fg: var(--entity-project-fg);  --entity-bg: var(--entity-project-bg); }
+  .cap-entity-kb       { --entity-fg: var(--entity-kb-fg);       --entity-bg: var(--entity-kb-bg); }
+
+  /* Role: the pill in the activity stream */
+  .cap-badge-entity {
+    background-color: rgb(var(--entity-bg));
+    border-color: rgb(var(--entity-fg) / 0.4);
+    color: rgb(var(--entity-fg));
+  }
+
+  /* Role: a bare icon tinted to its entity type */
+  .cap-entity-icon {
+    color: rgb(var(--entity-fg));
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: #09090b;
-}
+/* ══════════════════════════════════════════════════════════════
+   Semantic text/fill helpers
+   ══════════════════════════════════════════════════════════════ */
 
+.cap-accent          { color: var(--color-accent); }
+.cap-text-primary    { color: var(--color-text-primary); }
+.cap-text-secondary  { color: var(--color-text-secondary); }
+.cap-text-muted      { color: var(--color-text-muted); }
+.cap-text-faint      { color: var(--color-text-faint); }
+.cap-text-success    { color: var(--color-success); }
+.cap-text-warning    { color: var(--color-warning); }
+.cap-text-danger     { color: var(--color-danger); }
+.cap-text-info       { color: var(--color-info); }
+
+.cap-accent-bg     { background-color: var(--color-accent-subtle); border-color: var(--color-accent-border); }
+.cap-accent-border { border-color: var(--color-accent-border); }
+.cap-accent-glow   { box-shadow: 0 0 12px -2px var(--color-accent-glow); }
+
+.cap-divider { background-color: var(--color-border-subtle); }
+
+/* ══════════════════════════════════════════════════════════════
+   Tactical chrome
+   ══════════════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-surface-base); }
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: var(--color-surface-active);
   border-radius: 3px;
 }
+::-webkit-scrollbar-thumb:hover { background: var(--color-border-hover); }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
-}
-
-/* Tactical Glow & Grid Utility Classes */
 .bg-grid-pattern {
   background-size: 24px 24px;
-  background-image: linear-gradient(to right, rgba(39, 39, 42, 0.4) 1px, transparent 1px),
-                    linear-gradient(to bottom, rgba(39, 39, 42, 0.4) 1px, transparent 1px);
+  background-image:
+    linear-gradient(to right, rgb(var(--neutral-700) / 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--neutral-700) / 0.35) 1px, transparent 1px);
 }
 
 .tactical-border {
-  border: 1px solid rgba(39, 39, 42, 0.8);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: inset 0 1px 0 0 rgb(var(--neutral-100) / 0.05);
 }
 
 .tactical-border-active {
-  border: 1px solid rgba(6, 182, 212, 0.4);
-  box-shadow: 0 0 12px -2px rgba(6, 182, 212, 0.25);
+  border: 1px solid var(--color-accent-border);
+  box-shadow: 0 0 12px -2px var(--color-accent-glow);
 }
 
-.pulse-glow-emerald {
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
-}
+.pulse-glow-success { box-shadow: 0 0 8px rgb(var(--success-500) / 0.5); }
+.pulse-glow-accent  { box-shadow: 0 0 8px var(--color-accent-glow); }
 
-.pulse-glow-cyan {
-  box-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
-}
+/* ══════════════════════════════════════════════════════════════
+   Markdown document rendering
+   ══════════════════════════════════════════════════════════════ */
 
-/* Markdown Document Render Styles */
 .markdown-render h1 {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #fcd34d; /* amber-300 */
-  border-bottom: 1px solid #27272a;
+  color: var(--color-accent);
+  border-bottom: 1px solid var(--color-border-subtle);
   padding-bottom: 0.5rem;
   margin-top: 1rem;
   margin-bottom: 0.75rem;
@@ -71,8 +833,8 @@
 .markdown-render h2 {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #f4f4f5; /* zinc-100 */
-  border-bottom: 1px solid rgba(39, 39, 42, 0.6);
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border-subtle);
   padding-bottom: 0.375rem;
   margin-top: 1rem;
   margin-bottom: 0.5rem;
@@ -81,15 +843,17 @@
 .markdown-render h3 {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #e4e4e7; /* zinc-200 */
+  color: var(--color-text-secondary);
   margin-top: 0.875rem;
   margin-bottom: 0.5rem;
 }
 
-.markdown-render h4, .markdown-render h5, .markdown-render h6 {
+.markdown-render h4,
+.markdown-render h5,
+.markdown-render h6 {
   font-size: 0.85rem;
   font-weight: 700;
-  color: #a1a1aa; /* zinc-400 */
+  color: var(--color-text-muted);
   margin-top: 0.75rem;
   margin-bottom: 0.375rem;
 }
@@ -97,7 +861,7 @@
 .markdown-render p {
   margin-bottom: 0.75rem;
   line-height: 1.625;
-  color: #d4d4d8; /* zinc-300 */
+  color: var(--color-text-secondary);
 }
 
 .markdown-render ul {
@@ -114,34 +878,34 @@
 
 .markdown-render li {
   margin-bottom: 0.25rem;
-  color: #d4d4d8;
+  color: var(--color-text-secondary);
 }
 
 .markdown-render blockquote {
-  border-left: 3px solid rgba(245, 158, 11, 0.7);
-  background-color: rgba(69, 26, 3, 0.25);
+  border-left: 3px solid var(--color-warning);
+  background-color: var(--color-warning-subtle);
   padding: 0.5rem 1rem;
   margin: 0.75rem 0;
-  border-radius: 0 0.375rem 0.375rem 0;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
   font-style: italic;
-  color: #fbbf24;
+  color: var(--color-text-secondary);
 }
 
 .markdown-render code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.75rem;
-  background-color: #09090b;
-  color: #34d399; /* emerald-400 */
+  background-color: var(--color-surface-base);
+  color: var(--color-success);
   padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
-  border: 1px solid #27272a;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-subtle);
 }
 
 .markdown-render pre {
-  background-color: #09090b;
-  border: 1px solid #27272a;
+  background-color: var(--color-surface-base);
+  border: 1px solid var(--color-border-subtle);
   padding: 0.875rem;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-lg);
   overflow-x: auto;
   margin: 0.875rem 0;
 }
@@ -151,7 +915,7 @@
   padding: 0;
   border: none;
   font-size: 0.75rem;
-  color: #34d399;
+  color: var(--color-success);
 }
 
 .markdown-render table {
@@ -162,36 +926,36 @@
 }
 
 .markdown-render th {
-  border: 1px solid #27272a;
-  background-color: #18181b;
+  border: 1px solid var(--color-border-subtle);
+  background-color: var(--color-surface-hover);
   padding: 0.5rem 0.75rem;
   text-align: left;
   font-weight: 700;
-  color: #f4f4f5;
+  color: var(--color-text-primary);
 }
 
 .markdown-render td {
-  border: 1px solid rgba(39, 39, 42, 0.8);
+  border: 1px solid var(--color-border-subtle);
   padding: 0.5rem 0.75rem;
-  color: #d4d4d8;
+  color: var(--color-text-secondary);
 }
 
 .markdown-render hr {
   border: 0;
-  border-top: 1px solid #27272a;
+  border-top: 1px solid var(--color-border-subtle);
   margin: 1rem 0;
 }
 
 .markdown-render a {
-  color: #22d3ee; /* cyan-400 */
+  color: var(--color-accent);
   text-decoration: underline;
 }
 
 .markdown-render a:hover {
-  color: #67e8f9;
+  opacity: 0.8;
 }
 
-.markdown-render input[type="checkbox"] {
+.markdown-render input[type='checkbox'] {
   margin-right: 0.5rem;
-  accent-color: #f59e0b;
+  accent-color: var(--color-accent-solid);
 }

@@ -1,104 +1,233 @@
-# CAP UI Design Language Specification
+# CAP UI Design Language
 
-## 1. Overview & Core Philosophy
-The Collaborative Agent Platform (CAP) design language provides a unified, tactical visual system built for maximum clarity, density, and accessibility across human and AI interactions.
+Normative for every UI change in `src/web/`. If a rule here conflicts with
+existing markup, the rule wins and the markup is the bug.
 
-All visual decisions in CAP are governed by two fundamental principles:
-1. **Functional Color Naming**: Colors are named by their intent and purpose (`alert`, `warning`, `success`, `info`, `brand-primary`, `surface-base`), never by literal color terms (e.g. "red", "green", "blue").
-2. **Harmonious Geometry & Shapes**: All interactive and structural elements conform to standardized spatial scale, padding, border-radii, and field dimensions.
+## 1. Core principles
 
----
+1. **Colour is named by function, never by hue.** `success`, `warning`,
+   `danger`, `info`, `brand`, `neutral`. What hue those resolve to depends on
+   the user's colour profile and appearance mode, and is not a component's
+   business.
+2. **Theming happens at the ramp, not at the call site.** No component ever
+   branches on light vs. dark. No `dark:` variants. No `.light .foo` overrides.
+3. **Shared components before bespoke ones.** Buttons, inputs, panels, dialogs
+   and badges come from the `cap-*` vocabulary in `src/web/index.css`. A
+   section that invents its own button is the defect this document exists to
+   prevent.
 
-## 2. User Color Profiles & Theme Mode Architecture
+## 2. How theming works
 
-### User Binding & Persistence
-Theme preferences are explicitly linked to the active human operator profile (`agent_registration` record of type `human`):
-- **Selected Color Profile**: Choice of primary brand identity accent suite.
-- **Appearance Mode**: Independent selection of `Dark` or `Light` mode.
-- **Persistence**: Saved in local storage key `cap_user_theme_<user_id>` and synced with user profile settings.
+`src/web/index.css` defines every palette family as CSS custom properties
+holding raw `R G B` triplets:
 
----
+```
+--neutral-50 … --neutral-950     surfaces, borders, text
+--brand-50   … --brand-950       the active colour profile
+--success-*  --warning-*  --danger-*  --info-*
+```
 
-## 3. Color Profiles
+`tailwind.config.js` binds Tailwind's colour families to those variables via
+`<alpha-value>`, so opacity modifiers keep working:
 
-CAP supports four curated tactical color profiles:
+```js
+neutral, brand, success, warning, danger, info   // and nothing else
+// bg-brand-600/20 → rgb(var(--brand-600) / 0.2)
+```
 
-### 1. Tactical Cyber (Default Cyan)
-- **Primary Accent**: Cyan (`#06b6d4`)
-- **Theme Identity**: High-tech tactical mission control.
+Three things worth internalising:
 
-### 2. Amber Command (Tactical Gold)
-- **Primary Accent**: Warm Amber (`#f59e0b`)
-- **Theme Identity**: Command console & priority warning alert system.
+- **Hue names are not aliased, deliberately.** There is no `zinc`, `cyan` or
+  `emerald` family. `bg-zinc-900` produces *no CSS rule at all* — a loud,
+  visible failure rather than a silently mis-named colour. That is the point:
+  the aliases existed during the migration and let hue-naming creep back in.
+- **Light mode is a ramp inversion, not an override.** Each step keeps its
+  *role* across modes: `400` is always "readable text colour", `600` is always
+  "solid fill that carries `--color-on-accent` text", `950` is always "faintest
+  tinted panel". That is why light mode needs no `!important` anywhere.
+- **Structural `cap-*` colours are alpha-capable.** `bg-cap-surface`,
+  `border-cap-border/60` and friends resolve through the ramp triplets. Binding
+  them to the `--color-*` aliases instead would make any opacity modifier
+  silently emit nothing.
 
-### 3. Emerald Matrix (Tactical Green)
-- **Primary Accent**: Emerald (`#10b981`)
-- **Theme Identity**: System health, active telemetry, and code execution.
+The active theme is set on `<html>`:
 
-### 4. Deep Space Violet (Tactical Purple)
-- **Primary Accent**: Violet (`#8b5cf6`)
-- **Theme Identity**: Deep space exploration & agent coordination.
+```html
+<html class="dark|light" data-profile="cyber|amber|emerald|violet">
+```
 
----
+Specificity is deliberate: `html.light` (0,1,1) outranks `[data-profile]`
+(0,1,0), and `html.light[data-profile='x']` (0,2,1) outranks both.
 
-## 4. Independent Light & Dark Mode Mapping
+### Colour profiles
 
-Each color profile dynamically provides both **Dark Mode** and **Light Mode** variations without altering semantic token names.
+| Profile | Brand hue | Identity |
+| :-- | :-- | :-- |
+| `cyber` (default) | Cyan | High-tech tactical mission control |
+| `amber` | Amber | Command console & priority alerts |
+| `emerald` | Emerald | System health & code execution |
+| `violet` | Violet | Agent coordination |
 
-### Semantic Token Matrix
+Preference is per human operator, persisted at `cap_user_theme_<user_id>`, with
+colour profile and light/dark chosen independently.
 
-| Semantic Token | Dark Mode (Default) | Light Mode |
-| :--- | :--- | :--- |
-| `--color-surface-base` | `#09090b` (Obsidian) | `#f8fafc` (Slate 50) |
-| `--color-surface-elevated` | `#18181b` (Zinc 900) | `#ffffff` (White) |
-| `--color-surface-hover` | `#27272a` (Zinc 800) | `#f1f5f9` (Slate 100) |
-| `--color-surface-active` | `#3f3f46` (Zinc 700) | `#e2e8f0` (Slate 200) |
-| `--color-border-subtle` | `rgba(39, 39, 42, 0.8)` | `#cbd5e1` (Slate 300) |
-| `--color-border-hover` | `#3f3f46` | `#94a3b8` (Slate 400) |
-| `--color-border-focus` | Profile Accent (`rgba(accent, 0.5)`) | Profile Accent (`rgba(accent, 0.6)`) |
-| `--color-text-primary` | `#f4f4f5` (Zinc 100) | `#0f172a` (Slate 900) |
-| `--color-text-secondary` | `#d4d4d8` (Zinc 300) | `#334155` (Slate 700) |
-| `--color-text-muted` | `#a1a1aa` (Zinc 400) | `#64748b` (Slate 500) |
-| `--color-status-success` | `#10b981` (Emerald) | `#059669` (Emerald 600) |
-| `--color-status-warning` | `#f59e0b` (Amber) | `#d97706` (Amber 600) |
-| `--color-status-alert` | `#ef4444` (Rose/Red) | `#dc2626` (Red 600) |
-| `--color-status-info` | `#3b82f6` (Blue) | `#2563eb` (Blue 600) |
+Two known consequences of profile theming, accepted deliberately:
 
----
+- Under the `amber` and `emerald` profiles the brand hue coincides with the
+  `warning` / `success` hue. Status is still distinguishable by placement and
+  iconography, not by hue alone.
+- The violet dark ramp is shifted one step lighter from `400` up, because
+  violet at equal ramp steps is too dark to carry near-black text on a solid
+  fill. This preserves the universal rule (dark mode: solid brand fill takes
+  near-black text) instead of special-casing `--color-on-accent`.
 
-## 5. Shapes, Geometry & Radius Standards
+## 3. Semantic tokens
 
-To preserve visual rhythm across inputs, buttons, containers, and cards, the following corner radius scale must be strictly applied:
+Use these in inline styles and in new CSS. Never a literal hex.
 
-### Radius Scale
-- `radius-sm` (`0.25rem` / 4px): Badge indicators, tag pills, inline code elements.
-- `radius-md` (`0.375rem` / 6px): Buttons, form inputs, dropdown selectors.
-- `radius-lg` (`0.5rem` / 8px): Kanban cards, document viewer containers, modal dialogs.
-- `radius-xl` (`0.75rem` / 12px): Outer application containers, main board columns.
-- `radius-full` (`9999px`): Agent avatar circles, status indicator dots.
+| Token | Role |
+| :-- | :-- |
+| `--color-surface-base` | Page background |
+| `--color-surface-elevated` | Panels, cards, dialogs |
+| `--color-surface-hover` | Raised / hovered rows, secondary button face |
+| `--color-surface-active` | Pressed / active surface |
+| `--color-border-subtle` | Default border and divider |
+| `--color-border-hover` | Border on hover |
+| `--color-text-primary` | Headings and body |
+| `--color-text-secondary` | Supporting copy |
+| `--color-text-muted` | Labels, metadata, timestamps |
+| `--color-text-faint` | Decorative glyphs only — never meaningful text |
+| `--color-accent` | Brand as **text/icon** on a surface |
+| `--color-accent-solid` | Brand as a **fill** |
+| `--color-on-accent` | The only legible text colour on `accent-solid` |
+| `--color-success` / `-subtle` / `-border` | Healthy, online, approved |
+| `--color-warning` / `-subtle` / `-border` | Needs attention, in review |
+| `--color-danger` / `-solid` / `-subtle` / `-border` | Destructive, failed |
+| `--color-info` / `-subtle` / `-border` | Neutral informational |
+| `--color-scrim` | Modal backdrop (dark in both modes, by design) |
 
-### Height & Component Spacing Standards
-- **Form Control Height**: Standard inputs & select controls are `2.25rem` (36px, `h-9`).
-- **Button Padding**: Compact `px-3 py-1.5`, Standard `px-4 py-2`.
-- **Card Padding**: Compact `p-3`, Standard `p-4`.
-- **Grid Gaps**: Standard layout gap `gap-4` (16px) or `gap-6` (24px).
+Each has a matching utility: `cap-text-primary`, `cap-text-muted`, `cap-accent`,
+`cap-text-{success,warning,danger,info}`, `bg-cap-surface`, `border-cap-border`,
+and so on. Prefer the utility at call sites; reach for the raw token only in CSS.
 
----
+## 4. Component vocabulary
 
-## 6. Typography & Visual Hierarchy
+Defined in `src/web/index.css` under `@layer components`.
 
-- **Font Stack**: Monospace / Sans-serif tactical UI typography.
-- **Headings**:
-  - `h1`: `text-xl font-bold text-amber-500 dark:text-amber-300` (Main doc title)
-  - `h2`: `text-lg font-semibold text-slate-800 dark:text-zinc-100` (Section headers)
-  - `h3`: `text-sm font-semibold text-slate-700 dark:text-zinc-200` (Sub-sections & card titles)
-- **Code & Telemetry**: Monospace (`font-mono`, `text-xs`) with emerald or cyan highlight tokens.
+### Buttons
 
----
+Always `cap-btn` plus exactly one variant.
 
-## 7. Agent Implementation Guidelines
-When introducing or modifying UI components in CAP:
-1. Always use semantic CSS class tokens or functional Tailwind colors (`emerald` for success, `rose` for alert, `amber` for warning, `cyan` for brand primary).
-2. Support both Light and Dark mode variations using Tailwind's `dark:` variant or CSS custom property variables.
-3. Avoid inline hardcoded color values (`#ff0000`, `rgb(...)`) or arbitrary corner radii (`rounded-[11px]`). Use standard radius and color tokens.
-4. Color profile and light/dark preferences must be linked to the human operator session.
+| Variant | Use for |
+| :-- | :-- |
+| `cap-btn-primary` | The one main action in a view. Brand fill. |
+| `cap-btn-secondary` | Cancel, dismiss, back. Neutral raised face. |
+| `cap-btn-soft` | Secondary actions that should still read as "ours". Brand tint. |
+| `cap-btn-ghost` | Toolbar and inline icon actions. Chromeless until hover. |
+| `cap-btn-danger` | Confirming a destructive action. |
+| `cap-btn-danger-soft` | Triggering a destructive flow. |
+| `cap-btn-ghost-danger` | Row-level delete icons. |
+
+Modifiers: `cap-btn-lg` (roomier, for modal footers), `cap-btn-icon`
+(square, icon-only).
+
+**Primary buttons are brand-coloured everywhere.** A section does not get its
+own primary hue — that was the single largest source of visual inconsistency in
+this codebase.
+
+### Other primitives
+
+| Class | Use for |
+| :-- | :-- |
+| `cap-input`, `cap-input-lg` | Every text input, textarea and select |
+| `cap-label` | The label above a form control |
+| `cap-panel` | Cards, side panels, floating overlays |
+| `cap-dialog` | Modal body |
+| `cap-scrim` | Modal backdrop; already handles fixed/centering/blur |
+| `cap-badge` + `cap-badge-{accent,success,warning,danger,info,neutral}` | Status pills |
+| `cap-chip` | Mono identity chips — entity names, agent handles, IDs |
+| `cap-segmented` + `cap-segmented-item` | View switchers (`aria-selected` drives the active style) |
+| `cap-tab` / `cap-tab-active` | Top-level navigation |
+| `cap-divider` | Rules and dot separators |
+
+Text helpers: `cap-text-primary`, `cap-text-secondary`, `cap-text-muted`,
+`cap-text-faint`, `cap-accent`, `cap-text-{success,warning,danger,info}`.
+
+## 5. Categorical scales
+
+Some colour does not mean *status* — it distinguishes *kinds of thing*. Those
+scales are exempt from profile theming, because their whole job is to stay
+mutually distinguishable, and they must never borrow the semantic families:
+tinting a card badge with `brand` asserts "a card is our brand colour", which is
+false, and collapses the encoding whenever the profile shifts.
+
+There are exactly two:
+
+**Entity types** (`--entity-*` in `index.css`). Pair a selector class with a
+role class:
+
+```jsx
+<span className="cap-badge cap-badge-entity cap-entity-document">DOC</span>
+<FileText className="cap-entity-icon cap-entity-document" />
+```
+
+Available: `cap-entity-{card,agent,document,board,project,kb}`. The selector
+class only picks a foreground/background pair; the role class consumes it.
+
+**Knowledge-graph nodes** (`TYPE_COLORS_DARK` / `TYPE_COLORS_LIGHT` in
+`KnowledgeGraphCanvas.tsx`). Rendered to canvas by vis-network, so it is
+plain JS hex rather than CSS, with an explicit variant per mode. Treat it as a
+chart scale.
+
+The `--alt-*` ramp exists but is **not** exposed as a utility family: it feeds
+the ambient body gradient and is the reservoir these scales draw from. "alt" is
+not a function, so it is not a call-site colour name.
+
+## 6. Shape & spacing
+
+Radius comes from tokens; `rounded` and `rounded-md` are the same 6px value.
+
+- `radius-sm` (4px) — badges, tag pills, inline code
+- `radius-md` (6px) — buttons, inputs, selects
+- `radius-lg` (8px) — cards, panels, dialogs
+- `radius-xl` (12px) — outer app containers, board columns
+- `rounded-full` — avatars, status dots
+
+Spacing:
+
+- Button padding: compact `px-3 py-1.5` (`cap-btn`), standard `px-4 py-2` (`cap-btn-lg`)
+- Card padding: compact `p-3`, standard `p-4`
+- Grid gaps: `gap-4` or `gap-6`
+
+## 7. Contrast
+
+WCAG 2.1 AA is a build requirement, not an aspiration: **4.5:1 for body text,
+3:1 for large text (≥24px, or ≥18.66px bold)**, in every combination of
+`{dark, light} × {cyber, amber, emerald, violet}`.
+
+The token ramps are chosen so that conforming markup passes automatically. The
+combinations were verified empirically by walking the rendered DOM, compositing
+each element's effective background through its ancestors, and computing the
+real contrast ratio — not by eyeballing screenshots. Re-run that check after
+touching ramps or adding a profile.
+
+Decorative glyphs (rules, dot separators) are exempt, and are therefore marked
+`aria-hidden` and drawn with `cap-divider` rather than being coloured text.
+
+## 8. Rules for agents
+
+1. Reach for a `cap-*` component class first. Only write bespoke styling when
+   no primitive fits — and then add the primitive instead of inlining it.
+2. Never hardcode a colour: no `#rrggbb`, no `rgb(...)`, no arbitrary
+   `rounded-[11px]`. Use tokens and the radius scale.
+3. Never write `dark:` variants or `.light` overrides. If something looks wrong
+   in one mode, the ramp is wrong — fix `index.css`, not the component.
+4. The only colour families are `neutral`, `brand`, `success`, `warning`,
+   `danger`, `info`, plus the `cap-*` structural tokens and the categorical
+   scales in §5. Hue names do not resolve; if you reach for `text-zinc-400` the
+   element renders unstyled.
+5. One `cap-btn-primary` per view. Everything else is secondary, soft or ghost.
+6. Before picking a colour, ask whether it means *status* (use a semantic
+   family) or *kind* (use a categorical scale from §5). Getting this backwards
+   is how a card badge ends up claiming to be a success state.
+7. After a visual change, verify contrast in both modes before calling it done.
