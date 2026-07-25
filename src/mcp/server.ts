@@ -102,6 +102,11 @@ All AI agents and human operators collaborating within CAP must follow this prot
     return { content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }] };
   });
 
+  server.tool('delete_project', { project_id: z.string() }, async ({ project_id }) => {
+    await services.projectService.delete(project_id, getActorId({ project_id }));
+    return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Project ${project_id} deleted` }) }] };
+  });
+
   // --- Board & Column Tools ---
   server.tool('list_boards', { project_id: z.string() }, async ({ project_id }) => {
     const boards = await services.boardService.list(project_id);
@@ -112,6 +117,12 @@ All AI agents and human operators collaborating within CAP must follow this prot
     const board = await services.boardService.create(args);
     return { content: [{ type: 'text', text: JSON.stringify(board, null, 2) }] };
   });
+
+  server.tool('delete_board', { board_id: z.string() }, async ({ board_id }) => {
+    await services.boardService.delete(board_id, getActorId({ board_id }));
+    return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Board ${board_id} deleted` }) }] };
+  });
+
 
   server.tool('get_board', { board_id: z.string() }, async ({ board_id }) => {
     const board = await services.boardService.getById(board_id);
@@ -238,6 +249,12 @@ All AI agents and human operators collaborating within CAP must follow this prot
     await services.cardService.archive(card_id, getActorId({ card_id }));
     return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
   });
+
+  server.tool('delete_card', { card_id: z.string() }, async ({ card_id }) => {
+    await services.cardService.delete(card_id, getActorId({ card_id }));
+    return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Card ${card_id} deleted` }) }] };
+  });
+
 
   server.tool('link_document_to_card', { card_id: z.string(), document_id: z.string() }, async ({ card_id, document_id }) => {
     await services.cardService.linkDocument(card_id, document_id, getActorId({ card_id }));

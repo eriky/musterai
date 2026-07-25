@@ -53,15 +53,16 @@ export const api = {
   },
 
   // Projects
-
   getProjects: () => fetchJSON<Project[]>('/projects'),
   createProject: (data: { name: string; description?: string }) => fetchJSON<Project>('/projects', { method: 'POST', body: JSON.stringify(data) }),
   getProjectSummary: (id: string) => fetchJSON<ProjectSummary>(`/projects/${id}/summary`),
+  deleteProject: (id: string) => fetchJSON<void>(`/projects/${id}`, { method: 'DELETE' }),
 
   // Boards
   getBoards: (projectId: string) => fetchJSON<Board[]>(`/projects/${projectId}/boards`),
   createBoard: (projectId: string, name: string) => fetchJSON<Board>(`/projects/${projectId}/boards`, { method: 'POST', body: JSON.stringify({ name }) }),
   getBoardDetails: (id: string) => fetchJSON<Board & { columns: Column[]; cards: Card[] }>(`/boards/${id}`),
+  deleteBoard: (id: string) => fetchJSON<void>(`/boards/${id}`, { method: 'DELETE' }),
 
   // Columns
   createColumn: (boardId: string, name: string, wipLimit?: number) => fetchJSON<Column>(`/boards/${boardId}/columns`, { method: 'POST', body: JSON.stringify({ name, wip_limit: wipLimit }) }),
@@ -80,6 +81,8 @@ export const api = {
   addComment: (cardId: string, authorId: string, content: string) => fetchJSON<any>(`/cards/${cardId}/comments`, { method: 'POST', body: JSON.stringify({ author_id: authorId, content }) }),
   linkDocument: (cardId: string, documentId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/documents`, { method: 'POST', body: JSON.stringify({ document_id: documentId }) }),
   unlinkDocument: (cardId: string, documentId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/documents/${documentId}`, { method: 'DELETE' }),
+  deleteCard: (id: string) => fetchJSON<void>(`/cards/${id}`, { method: 'DELETE' }),
+
 
   // Documents
   getDocuments: (projectId: string) => fetchJSON<Document[]>(`/projects/${projectId}/documents`),

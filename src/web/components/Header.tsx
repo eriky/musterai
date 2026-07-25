@@ -1,12 +1,13 @@
 import React from 'react';
 import { Project, ProjectSummary, Agent } from '../types.js';
-import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, User, UserCheck, UserPlus } from 'lucide-react';
+import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, User, UserCheck, UserPlus, Trash2 } from 'lucide-react';
 
 
 interface HeaderProps {
   projects: Project[];
   selectedProjectId: string | null;
   onSelectProject: (id: string) => void;
+  onDeleteProject: (id: string) => void;
   summary: ProjectSummary | null;
   activeTab: 'agents' | 'board' | 'docs' | 'activity' | 'kb';
   onSelectTab: (tab: 'agents' | 'board' | 'docs' | 'activity' | 'kb') => void;
@@ -21,10 +22,12 @@ interface HeaderProps {
 }
 
 
+
 export const Header: React.FC<HeaderProps> = ({
   projects,
   selectedProjectId,
   onSelectProject,
+  onDeleteProject,
   summary,
   activeTab,
   onSelectTab,
@@ -42,53 +45,42 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="bg-command-surface border-b border-command-border sticky top-0 z-40 backdrop-blur-md bg-opacity-95 w-full">
       <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-14">
           
-          {/* Brand Logo & Name */}
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-cyan-950/80 border border-cyan-500/40 text-cyan-400">
-              <Bot className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-sans text-sm font-bold text-zinc-100 tracking-tight">Collaborative Agent Platform</span>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                  v2.0
-                </span>
-              </div>
-              <p className="text-[11px] font-sans text-zinc-400">Project management & design doc hub for AI agents & humans</p>
-            </div>
-          </div>
-
-          {/* Project & Human Operator Selectors */}
-          <div className="flex items-center space-x-3">
+          {/* Left Side: Brand & Selectors */}
+          <div className="flex items-center space-x-4">
             
+            {/* Logo */}
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 rounded-lg bg-cyan-950 border border-cyan-500/50 flex items-center justify-center text-cyan-400 font-mono font-bold text-xs shadow-inner">
+                CAP
+              </div>
+              <span className="font-sans font-bold text-sm text-zinc-100 tracking-wider hidden md:inline">
+                MISSION CONTROL
+              </span>
+            </div>
+
             {/* Human Operator Picker */}
-            {onSelectHuman && (
-              <div className="flex items-center space-x-1.5 bg-zinc-900 border border-amber-500/40 rounded-md px-2.5 py-1.5 shadow-sm">
-                <UserCheck className="w-3.5 h-3.5 text-amber-400" />
-                <span className="text-xs font-sans text-zinc-400 font-medium">I am:</span>
+            {humanAgents.length > 0 && onSelectHuman && (
+              <div className="flex items-center space-x-1.5 bg-command-bg border border-command-border rounded-md px-2 py-1">
+                <span className="text-[11px] font-mono text-zinc-400 font-semibold uppercase">I am:</span>
                 <select
                   value={selectedHumanId || ''}
                   onChange={(e) => onSelectHuman(e.target.value)}
-                  className="bg-transparent text-amber-300 text-xs font-sans font-bold focus:outline-none cursor-pointer"
+                  className="bg-transparent text-amber-300 text-xs font-mono font-bold focus:outline-none cursor-pointer"
                 >
-                  {humanAgents.length === 0 ? (
-                    <option value="" className="bg-command-card text-zinc-400">Human Operator</option>
-                  ) : (
-                    humanAgents.map((h) => (
-                      <option key={h.id} value={h.id} className="bg-command-card text-zinc-200">
-                        {h.name} ({h.role})
-                      </option>
-                    ))
-                  )}
+                  {humanAgents.map((h) => (
+                    <option key={h.id} value={h.id} className="bg-command-card text-zinc-200">
+                      {h.name} ({h.role})
+                    </option>
+                  ))}
                 </select>
               </div>
             )}
 
             <span className="text-zinc-700">|</span>
 
-            {/* Project Selector Dropdown */}
+            {/* Project Selector Dropdown & Delete Button */}
             <div className="flex items-center space-x-1.5">
               <select
                 value={selectedProjectId || ''}
@@ -102,6 +94,21 @@ export const Header: React.FC<HeaderProps> = ({
                 ))}
               </select>
 
+              {selectedProjectId && projects.length > 0 && (
+                <button
+                  onClick={() => {
+                    const proj = projects.find(p => p.id === selectedProjectId);
+                    if (proj && confirm(`Are you sure you want to delete project "${proj.name}"?\n\nThis will permanently delete all boards, cards, documents, and knowledge base links in this project.`)) {
+                      onDeleteProject(selectedProjectId);
+                    }
+                  }}
+                  className="p-1.5 hover:bg-zinc-800 text-zinc-500 hover:text-rose-400 rounded transition-colors cursor-pointer"
+                  title="Delete Selected Project"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+
               <button
                 onClick={onOpenNewProject}
                 className="inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-mono font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 transition-all cursor-pointer"
@@ -110,6 +117,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <FolderPlus className="w-3.5 h-3.5 mr-1" /> + Project
               </button>
             </div>
+
 
             <span className="text-zinc-700">|</span>
 

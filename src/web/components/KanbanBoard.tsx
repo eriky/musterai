@@ -16,6 +16,7 @@ interface KanbanBoardProps {
   onMoveCard: (cardId: string, targetColumnId: string, position?: string) => void;
   onOpenNewCard: (columnId?: string) => void;
   onOpenNewColumn: () => void;
+  onDeleteBoard: (boardId: string) => void;
   onRefresh: () => void;
 }
 
@@ -28,6 +29,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onMoveCard,
   onOpenNewCard,
   onOpenNewColumn,
+  onDeleteBoard,
   onRefresh,
 }) => {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -36,6 +38,21 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('');
   const [assignAgentId, setAssignAgentId] = useState<string>('');
   const [linkDocumentId, setLinkDocumentId] = useState<string>('');
+
+  const handleDeleteCard = async (cardId: string, cardTitle: string) => {
+    if (!confirm(`Are you sure you want to delete task "${cardTitle}"?`)) return;
+    try {
+      await api.deleteCard(cardId);
+      if (selectedCardId === cardId) {
+        setSelectedCardId(null);
+        setCardDetails(null);
+      }
+      onRefresh();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete card');
+    }
+  };
+
 
   const handleDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -154,11 +171,24 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
         <div className="flex items-center space-x-2">
           <button
+            onClick={() => {
+              if (confirm(`Are you sure you want to delete board "${board.name}"?\n\nThis will permanently delete all columns and cards on this board.`)) {
+                onDeleteBoard(board.id);
+              }
+            }}
+            className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-semibold bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-500/40 transition-all cursor-pointer"
+            title="Delete Board"
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete Board
+          </button>
+
+          <button
             onClick={onOpenNewColumn}
             className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-all cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5 mr-1" /> Add Column
           </button>
+
 
           <button
             onClick={() => onOpenNewCard()}
@@ -249,8 +279,21 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                 <span className="font-mono text-[10px] text-zinc-500 group-hover:text-cyan-400">
                                   #{card.id.substring(card.id.length - 6)}
                                 </span>
-                                {getPriorityBadge(card.priority)}
+                                <div className="flex items-center space-x-1.5">
+                                  {getPriorityBadge(card.priority)}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteCard(card.id, card.title);
+                                    }}
+                                    className="p-0.5 hover:bg-zinc-800 text-zinc-600 hover:text-rose-400 rounded transition-colors cursor-pointer"
+                                    title="Delete Card"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
                               </div>
+
 
                               <h4 className="text-xs font-sans font-semibold text-zinc-100 group-hover:text-cyan-200 line-clamp-2 mb-2">
                                 {card.title}
@@ -296,13 +339,23 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 <span className="font-mono text-xs text-cyan-400 font-bold">Card #{cardDetails.id}</span>
                 {getPriorityBadge(cardDetails.priority)}
               </div>
-              <button
-                onClick={() => { setSelectedCardId(null); setCardDetails(null); }}
-                className="p-1 text-zinc-400 hover:text-zinc-100 rounded cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handleDeleteCard(cardDetails.id, cardDetails.title)}
+                  className="inline-flex items-center px-2.5 py-1 bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-500/40 rounded text-xs font-semibold transition-all cursor-pointer"
+                  title="Delete Task"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete Task
+                </button>
+                <button
+                  onClick={() => { setSelectedCardId(null); setCardDetails(null); }}
+                  className="p-1 text-zinc-400 hover:text-zinc-100 rounded cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
+
 
             <div className="p-5 overflow-y-auto space-y-5 flex-1 font-sans">
               <div>

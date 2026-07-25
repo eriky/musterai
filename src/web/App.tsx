@@ -288,6 +288,27 @@ export const App: React.FC = () => {
     api.setActiveHumanId(id);
   };
 
+  const handleDeleteProject = async (projectId: string) => {
+    try {
+      await api.deleteProject(projectId);
+      const remaining = projects.filter((p) => p.id !== projectId);
+      const nextProjectId = remaining.length > 0 ? remaining[0].id : undefined;
+      setSelectedProjectId(nextProjectId || null);
+      loadProjects(nextProjectId);
+    } catch (err) {
+      console.error('Failed to delete project:', err);
+    }
+  };
+
+  const handleDeleteBoard = async (boardId: string) => {
+    try {
+      await api.deleteBoard(boardId);
+      loadProjectData();
+    } catch (err) {
+      console.error('Failed to delete board:', err);
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col bg-command-bg text-zinc-100 font-sans w-full overflow-hidden">
       
@@ -296,6 +317,7 @@ export const App: React.FC = () => {
         projects={projects}
         selectedProjectId={selectedProjectId}
         onSelectProject={handleSelectProject}
+        onDeleteProject={handleDeleteProject}
         summary={summary}
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
@@ -335,9 +357,11 @@ export const App: React.FC = () => {
             onMoveCard={handleMoveCard}
             onOpenNewCard={handleOpenNewCardModal}
             onOpenNewColumn={() => setShowNewColumnModal(true)}
+            onDeleteBoard={handleDeleteBoard}
             onRefresh={loadProjectData}
           />
         )}
+
 
         {activeTab === 'docs' && (
           <DocumentVault

@@ -317,6 +317,30 @@ export class CardService {
     await this.db.execute(`UPDATE card SET archived = 1, updated_at = ? WHERE id = ?`, [updated_at, cardId]);
   }
 
+  async delete(cardId: string, actorId?: string): Promise<void> {
+    const existing = await this.getById(cardId);
+    if (!existing) throw new Error(`Card with ID ${cardId} not found`);
+
+    const projectId = await this.getProjectIdForColumn(existing.column_id);
+
+    await this.db.execute('DELETE FROM card_assignee WHERE card_id = ?', [cardId]);
+    await this.db.execute('DELETE FROM card_label WHERE card_id = ?', [cardId]);
+    await this.db.execute('DELETE FROM card_document WHERE card_id = ?', [cardId]);
+    await this.db.execute('DELETE FROM comment WHERE card_id = ?', [cardId]);
+    await this.db.execute('DELETE FROM card WHERE id = ?', [cardId]);
+
+    if (this.eventService && projectId) {
+      await this.eventService.create({
+        project_id: projectId,
+        entity_type: 'card',
+        entity_id: cardId,
+        action: 'deleted',
+        actor_id: actorId,
+        payload: { title: existing.title },
+      });
+    }
+  }
+
   private async getProjectIdForColumn(columnId: string): Promise<string | null> {
     const rows = await this.db.query<{ project_id: string }>(
       `SELECT b.project_id FROM "column" col JOIN board b ON col.board_id = b.id WHERE col.id = ?`,
@@ -325,3 +349,4 @@ export class CardService {
     return rows[0]?.project_id || null;
   }
 }
+

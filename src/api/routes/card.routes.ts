@@ -108,12 +108,14 @@ export function createCardRouter(cardService: CardService, commentService: Comme
 
   router.delete('/cards/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await cardService.archive(req.params.id);
+      const actorId = (req.headers['x-agent-id'] || req.headers['x-actor-id']) as string | undefined;
+      await cardService.delete(req.params.id, actorId);
       res.status(204).end();
     } catch (err) {
       next(err);
     }
   });
+
 
   // Document links
   router.post('/cards/:id/documents', async (req: Request, res: Response, next: NextFunction) => {

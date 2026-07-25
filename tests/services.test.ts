@@ -99,7 +99,13 @@ describe('Domain Services Integration Tests', () => {
 
     const comments = await commentService.listByCard(card.id);
     expect(comments.length).toBe(1);
+
+    // Test card deletion
+    await cardService.delete(card.id);
+    await expect(cardService.getById(card.id)).rejects.toThrow('not found');
   });
+
+
 
   it('registers and unregisters an agent cleanly', async () => {
     const project = await projectService.create({ name: 'P' });
