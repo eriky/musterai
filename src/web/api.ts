@@ -82,6 +82,7 @@ export const api = {
   moveCard: (id: string, targetColumnId: string, position?: string) =>
     fetchJSON<CardDetails>(`/cards/${id}/move`, { method: 'PATCH', body: JSON.stringify({ target_column_id: targetColumnId, position }) }),
   assignCard: (cardId: string, agentId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/assignees`, { method: 'POST', body: JSON.stringify({ agent_id: agentId }) }),
+  unassignCard: (cardId: string, agentId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/assignees/${agentId}`, { method: 'DELETE' }),
   addComment: (cardId: string, authorId: string, content: string) => fetchJSON<any>(`/cards/${cardId}/comments`, { method: 'POST', body: JSON.stringify({ author_id: authorId, content }) }),
   linkDocument: (cardId: string, documentId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/documents`, { method: 'POST', body: JSON.stringify({ document_id: documentId }) }),
   unlinkDocument: (cardId: string, documentId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/documents/${documentId}`, { method: 'DELETE' }),
@@ -158,5 +159,4 @@ export const api = {
   addRelation: (data: { kb_id: string; source_entity_id: string; target_entity_id: string; relation_type: string; description?: string }) =>
     fetchJSON<KBRelation>('/kbs/relations', { method: 'POST', body: JSON.stringify(data) }),
 };
-
 

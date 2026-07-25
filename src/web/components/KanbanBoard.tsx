@@ -66,6 +66,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [commentText, setCommentText] = useState('');
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('');
   const [assignAgentId, setAssignAgentId] = useState<string>('');
+  const [removingAgentId, setRemovingAgentId] = useState<string | null>(null);
   const [linkDocumentId, setLinkDocumentId] = useState<string>('');
   const [linkCardRelationType, setLinkCardRelationType] = useState<CardLinkRelationType>('relates_to');
   const [linkCardQuery, setLinkCardQuery] = useState('');
@@ -285,6 +286,20 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       onRefresh();
     } catch (err) {
       console.error('Failed to assign agent:', err);
+    }
+  };
+
+  const handleUnassignAgent = async (agentId: string) => {
+    if (!selectedCardId) return;
+    setRemovingAgentId(agentId);
+    try {
+      const updated = await api.unassignCard(selectedCardId, agentId);
+      setCardDetails(updated);
+      onRefresh();
+    } catch (err: any) {
+      alert(err.message || 'Failed to remove assignee');
+    } finally {
+      setRemovingAgentId(null);
     }
   };
 
@@ -940,8 +955,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {cardDetails.assignees.length > 0 ? (
                       cardDetails.assignees.map((agent) => (
-                        <span key={agent.id} className="px-2 py-1 bg-brand-950/60 text-brand-300 border border-brand-500/30 text-xs font-mono rounded">
-                          🤖 {agent.name}
+                        <span key={agent.id} className="muster-chip">
+                          <span>🤖 {agent.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleUnassignAgent(agent.id)}
+                            disabled={removingAgentId === agent.id}
+                            className="muster-btn muster-btn-icon muster-btn-ghost-danger p-0.5"
+                            title={`Remove ${agent.name} from card`}
+                            aria-label={`Remove ${agent.name} from card`}
+                          >
+                            <X className="w-3 h-3" aria-hidden="true" />
+                          </button>
                         </span>
                       ))
                     ) : (

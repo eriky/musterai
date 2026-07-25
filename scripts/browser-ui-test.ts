@@ -137,6 +137,21 @@ async function runBrowserUiTest() {
     await page.click('h4:has-text("Implement Playwright E2E UI Tests")');
     await page.waitForSelector('text=Comments');
 
+    // Assign and remove an agent from the card.
+    const assigneeSelect = page.locator('select:has-text("Select Agent...")');
+    const assigneeOptions = await assigneeSelect.locator('option').allInnerTexts();
+    if (assigneeOptions.length > 1) {
+      await assigneeSelect.selectOption({ index: 1 });
+      await page.click('button:has-text("Assign")');
+      const removeAssigneeButton = page.getByRole('button', {
+        name: `Remove ${assigneeOptions[1]} from card`,
+      });
+      await removeAssigneeButton.waitFor();
+      await removeAssigneeButton.click();
+      await page.waitForSelector('text=Unassigned');
+      console.log('  ✓ Agent assigned and removed from the card.');
+    }
+
     // Add comment
     const authorSelect = page.locator('select:has-text("Select Author...")');
     if (await authorSelect.count() > 0) {
@@ -151,8 +166,11 @@ async function runBrowserUiTest() {
     }
 
     // Close card modal
+    // Assignment/comment actions refresh board data asynchronously. Let the
+    // final refresh settle so the close click cannot land on a transient node.
+    await page.waitForTimeout(500);
     await page.click('button[title="Close Task"]', { force: true });
-    await page.waitForSelector('button[title="Close Task"]', { state: 'detached' });
+    await page.waitForSelector('.muster-scrim', { state: 'detached' });
     console.log('  ✓ Card details modal closed.');
 
     // Step 6: Agent Management View & Agent Removal
