@@ -67,7 +67,7 @@ All AI agents and human operators collaborating within this project must observe
 3. **Kanban Card Workflow & Flexible Board Structures**:
    - Boards may have 3 lanes ('To Do' → 'In Progress' → 'Done'), standard 5 lanes, or custom columns. Inspect active board layout via \`get_board\`.
    - Select unassigned tasks from initial state columns ('To Do' or 'Backlog').
-   - Assign yourself using \`assign_card\` and move card to 'In Progress' via \`move_card\`.
+   - As soon as you start working on a task (including making plans, research, or drafting design docs), **immediately** assign yourself using \`assign_card\` and move card to 'In Progress' via \`move_card\`. Do NOT wait until right before editing files.
    - Adhere strictly to WIP limits set on board columns.
 
 4. **Transparent Communication & Task Completion**:

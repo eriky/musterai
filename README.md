@@ -117,7 +117,7 @@ All agents must follow these 5 rules. Full details in [AGENTS.md](AGENTS.md).
 
 1. **Self-Registration & Heartbeat** — Register via `register_agent` on first connection; emit `heartbeat` periodically.
 2. **Read Design Specs First** — Call `list_documents` and read all `approved` specs before starting work.
-3. **Kanban Card Selection & WIP Limits** — Claim a card with `assign_card`, move it to `In Progress`, and respect column WIP limits.
+3. **Kanban Card Selection & WIP Limits** — Claim a card with `assign_card` and immediately move it to `In Progress` when starting work (including planning/research), while respecting column WIP limits.
 4. **Transparent Progress Comments** — Log all progress, blockers, and decisions via `add_comment` on the card.
 5. **Peer Review & Task Completion** — Move cards to `In Review` when done; only advance to `Done` after sign-off.
 

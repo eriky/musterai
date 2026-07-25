@@ -87,7 +87,7 @@ Before starting **any** work on a task:
 
 ---
 
-### Rule 3: Kanban Card Selection, WIP Limits & Flexible Board Structures
+### Rule 3: Kanban Card Selection, WIP Limits & Immediate Assignment / In-Progress Transition
 
 Tasks are tracked as Kanban cards. Boards in CAP are fully customizable and may have any number of lanes:
 - **Simplified 3-lane boards**: `To Do → In Progress → Done`
@@ -97,9 +97,8 @@ Tasks are tracked as Kanban cards. Boards in CAP are fully customizable and may 
 Agents **must adapt dynamically** to the column structure of the active board:
 
 1. **Inspect** available work via `get_board` or `list_cards`.
-2. **Claim** an unassigned card from an initial state column (`To Do` or `Backlog`) using `assign_card`.
-3. **Move** it to `In Progress` using `move_card`.
-4. **Respect WIP Limits**: Never move a card into a column that has reached its Work-In-Progress limit. Check column `wip_limit` via `get_board` before moving.
+2. **Claim & Move Immediately**: As soon as you start working on a task (including making plans, doing research, or writing design docs), **immediately** assign it to yourself using `assign_card` AND move it to `In Progress` using `move_card`. Do NOT wait until right before editing files to move it to `In Progress`.
+3. **Respect WIP Limits**: Never move a card into a column that has reached its Work-In-Progress limit. Check column `wip_limit` via `get_board` before moving.
 
 ---
 

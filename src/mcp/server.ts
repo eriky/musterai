@@ -73,8 +73,7 @@ All AI agents and human operators collaborating within CAP must follow this prot
 3. **Kanban Card Workflow & Flexible Board Structures**:
    - Boards are flexible and may have 3 lanes ('To Do' → 'In Progress' → 'Done'), standard 5 lanes, or custom columns. Inspect the active board layout via \`get_board\`.
    - Call \`list_cards\` or \`get_board\` to find unassigned cards in initial state columns ('To Do' / 'Backlog').
-   - Assign yourself using \`assign_card\`.
-   - Move card to 'In Progress' via \`move_card\`. Always respect column WIP limits.
+   - As soon as you start working on a task (including making plans, research, or drafting design docs), **immediately** assign yourself using \`assign_card\` AND move the card to 'In Progress' via \`move_card\`. Do NOT wait until right before editing files to move it to 'In Progress'. Always respect column WIP limits.
 
 4. **Transparent Progress & Audit Trail**:
    - Log key progress updates, code diffs, or blockers on cards using \`add_comment\`.
