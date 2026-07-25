@@ -1,0 +1,109 @@
+import { describe, expect, it } from 'vitest';
+import {
+  DONE_LANE_PAGE_SIZE,
+  getLaneCards,
+  isDoneLane,
+  sortCardsByUpdatedAt,
+} from '../src/web/kanban.js';
+import { Card } from '../src/web/types.js';
+
+const makeCard = (
+  id: string,
+  updatedAt: string,
+  columnId = 'column-1'
+): Card => ({
+  id,
+  column_id: columnId,
+  title: id,
+  description: null,
+  position: id,
+  priority: 'medium',
+  due_date: null,
+  status: 'active',
+  blocked_reason: null,
+  created_at: updatedAt,
+  updated_at: updatedAt,
+  archived: 0,
+});
+
+describe('kanban card arrangement', () => {
+  const cards = [
+    makeCard('middle', '2026-02-02T12:00:00.000Z'),
+    makeCard('oldest', '2026-01-01T12:00:00.000Z'),
+    makeCard('newest', '2026-03-03T12:00:00.000Z'),
+  ];
+
+  it('sorts cards by their latest update in either direction', () => {
+    expect(sortCardsByUpdatedAt(cards, 'newest').map((card) => card.id)).toEqual([
+      'newest',
+      'middle',
+      'oldest',
+    ]);
+    expect(sortCardsByUpdatedAt(cards, 'oldest').map((card) => card.id)).toEqual([
+      'oldest',
+      'middle',
+      'newest',
+    ]);
+  });
+
+  it('recognizes the Done lane without depending on capitalization or spacing', () => {
+    expect(isDoneLane('Done')).toBe(true);
+    expect(isDoneLane(' done ')).toBe(true);
+    expect(isDoneLane('Completed')).toBe(false);
+  });
+
+  it('limits Done while leaving other lanes and archived cards out of the count', () => {
+    const doneCards = Array.from(
+      { length: DONE_LANE_PAGE_SIZE + 3 },
+      (_, index) =>
+        makeCard(
+          `card-${index.toString().padStart(2, '0')}`,
+          `2026-01-${(index + 1).toString().padStart(2, '0')}T12:00:00.000Z`
+        )
+    );
+    const archived = { ...makeCard('archived', '2026-02-01T12:00:00.000Z'), archived: 1 };
+    const anotherLane = makeCard('elsewhere', '2026-02-02T12:00:00.000Z', 'column-2');
+
+    const done = getLaneCards(
+      [...doneCards, archived, anotherLane],
+      'column-1',
+      'Done',
+      'newest'
+    );
+    const inProgress = getLaneCards(
+      doneCards,
+      'column-1',
+      'In Progress',
+      'newest'
+    );
+
+    expect(done.all).toHaveLength(DONE_LANE_PAGE_SIZE + 3);
+    expect(done.visible).toHaveLength(DONE_LANE_PAGE_SIZE);
+    expect(done.hiddenCount).toBe(3);
+    expect(inProgress.visible).toHaveLength(DONE_LANE_PAGE_SIZE + 3);
+    expect(inProgress.hiddenCount).toBe(0);
+  });
+
+  it('can reveal additional Done cards in bounded batches', () => {
+    const cards = Array.from(
+      { length: DONE_LANE_PAGE_SIZE * 2 + 1 },
+      (_, index) =>
+        makeCard(
+          `card-${index}`,
+          new Date(Date.UTC(2026, 0, index + 1)).toISOString()
+        )
+    );
+
+    const result = getLaneCards(
+      cards,
+      'column-1',
+      'Done',
+      'oldest',
+      DONE_LANE_PAGE_SIZE * 2
+    );
+
+    expect(result.visible).toHaveLength(DONE_LANE_PAGE_SIZE * 2);
+    expect(result.hiddenCount).toBe(1);
+    expect(result.visible[0].id).toBe('card-0');
+  });
+});

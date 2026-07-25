@@ -5,6 +5,12 @@ import { Board, Column, Card, Agent, CardDetails, Document, CardLinkRelationType
 import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch } from 'lucide-react';
 import { renderMarkdown } from '../markdown.js';
 import { api } from '../api.js';
+import {
+  CardDateSortOrder,
+  DONE_LANE_PAGE_SIZE,
+  getLaneCards,
+  isDoneLane,
+} from '../kanban.js';
 import { EditColumnModal } from './Modals.js';
 import { DocumentReaderModal } from './DocumentReaderModal.js';
 
@@ -78,6 +84,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   const [isCreatingCard, setIsCreatingCard] = useState(false);
   const [newCardColumnId, setNewCardColumnId] = useState('');
+  const [cardDateSortOrder, setCardDateSortOrder] = useState<CardDateSortOrder>('newest');
+  const [doneVisibleLimits, setDoneVisibleLimits] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    setDoneVisibleLimits({});
+  }, [board?.id, cardDateSortOrder]);
 
   useEffect(() => {
     if (!projectId || !selectedCardId || !linkCardQuery.trim()) {
@@ -422,6 +434,19 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         )}
 
         <div className="flex items-center space-x-2">
+          <label className="flex items-center space-x-2">
+            <span className="text-xs font-semibold muster-text-muted">Sort cards</span>
+            <select
+              value={cardDateSortOrder}
+              onChange={(event) => setCardDateSortOrder(event.target.value as CardDateSortOrder)}
+              className="muster-input w-auto"
+              aria-label="Sort cards by last updated date"
+            >
+              <option value="newest">Updated: newest first</option>
+              <option value="oldest">Updated: oldest first</option>
+            </select>
+          </label>
+
           <button
             onClick={() => {
               if (confirm(`Are you sure you want to delete board "${board.name}"?\n\nThis will permanently delete all columns and cards on this board.`)) {
@@ -440,14 +465,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           >
             <Plus className="w-3.5 h-3.5 mr-1" /> Add Column
           </button>
-
-
-          <button
-            onClick={() => handleOpenNewCardForm()}
-            className="muster-btn muster-btn-primary"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1" /> Add Card
-          </button>
         </div>
       </div>
 
@@ -455,7 +472,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex-1 flex space-x-4 overflow-x-auto min-h-0 h-full pb-2">
           {columns.map((column) => {
-            const columnCards = cards.filter(c => c.column_id === column.id && !c.archived);
+            const doneVisibleLimit = doneVisibleLimits[column.id] ?? DONE_LANE_PAGE_SIZE;
+            const {
+              all: columnCards,
+              visible: visibleColumnCards,
+              hiddenCount,
+            } = getLaneCards(
+              cards,
+              column.id,
+              column.name,
+              cardDateSortOrder,
+              doneVisibleLimit
+            );
             const isAtWipLimit = column.wip_limit !== null && columnCards.length >= column.wip_limit;
             const isExceededWip = column.wip_limit !== null && columnCards.length > column.wip_limit;
 
@@ -521,7 +549,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         snapshot.isDraggingOver ? 'bg-brand-950/20' : ''
                       }`}
                     >
-                      {columnCards.map((card, index) => (
+                      {visibleColumnCards.map((card, index) => (
                         <Draggable key={card.id} draggableId={card.id} index={index}>
                           {(dragProvided, dragSnapshot) => (
                             <div
@@ -601,6 +629,44 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         </Draggable>
                       ))}
                       {provided.placeholder}
+
+                      {isDoneLane(column.name) && columnCards.length > DONE_LANE_PAGE_SIZE && (
+                        <div className="muster-panel p-3 space-y-2 text-center">
+                          <p className="text-[10px] font-mono muster-text-muted">
+                            Showing {visibleColumnCards.length} of {columnCards.length} cards
+                          </p>
+                          <div className="flex items-center justify-center gap-2">
+                            {hiddenCount > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDoneVisibleLimits((current) => ({
+                                    ...current,
+                                    [column.id]: doneVisibleLimit + DONE_LANE_PAGE_SIZE,
+                                  }));
+                                }}
+                                className="muster-btn muster-btn-soft"
+                              >
+                                Show {Math.min(DONE_LANE_PAGE_SIZE, hiddenCount)} more
+                              </button>
+                            )}
+                            {doneVisibleLimit > DONE_LANE_PAGE_SIZE && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDoneVisibleLimits((current) => ({
+                                    ...current,
+                                    [column.id]: DONE_LANE_PAGE_SIZE,
+                                  }));
+                                }}
+                                className="muster-btn muster-btn-ghost"
+                              >
+                                Show fewer
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </Droppable>
