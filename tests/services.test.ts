@@ -352,6 +352,35 @@ describe('Domain Services Integration Tests', () => {
     expect(unblocked.blocked_reason).toBeNull();
   });
 
+  it('includes assignee summaries when listing board cards', async () => {
+    const project = await projectService.create({ name: 'Assigned Cards Project' });
+    const boards = await boardService.list(project.id);
+    const columns = await columnService.list(boards[0].id);
+    const card = await cardService.create({
+      column_id: columns[0].id,
+      title: 'Assigned task',
+    });
+    const assignedAgent = await agentService.register({
+      name: 'Working Agent',
+      type: 'ai_agent',
+      role: 'contributor',
+      status: 'active',
+    });
+    await cardService.assign(card.id, assignedAgent.id);
+
+    const listedCards = await cardService.list({ board_id: boards[0].id });
+
+    expect(listedCards).toHaveLength(1);
+    expect(listedCards[0].assignees).toEqual([
+      {
+        id: assignedAgent.id,
+        name: 'Working Agent',
+        type: 'ai_agent',
+        status: 'active',
+      },
+    ]);
+  });
+
   it('Feature: card-to-card linking supports blocks/blocked_by/relates_to and title search', async () => {
     const project = await projectService.create({ name: 'Linking Project' });
     const boards = await boardService.list(project.id);
@@ -403,5 +432,4 @@ describe('Domain Services Integration Tests', () => {
     expect(detailsA4.linked_cards.some(l => l.card.id === cardC.id)).toBe(false);
   });
 });
-
 

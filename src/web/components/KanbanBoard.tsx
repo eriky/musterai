@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Board, Column, Card, Agent, CardDetails, Document, CardLinkRelationType } from '../types.js';
-import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch } from 'lucide-react';
+import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, Bot, UserRound } from 'lucide-react';
 import { renderMarkdown } from '../markdown.js';
 import { api } from '../api.js';
 import {
@@ -634,6 +634,35 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                 <p className="text-[11px] font-sans muster-text-muted line-clamp-2 mb-3">
                                   {card.description}
                                 </p>
+                              )}
+
+                              {card.assignees && card.assignees.length > 0 && (
+                                <div
+                                  className="flex flex-wrap gap-1 mb-2"
+                                  aria-label={`Assigned to ${card.assignees.map(agent => `${agent.name} (${agent.status})`).join(', ')}`}
+                                >
+                                  {card.assignees.map((agent) => (
+                                    <span
+                                      key={agent.id}
+                                      className="muster-chip max-w-full"
+                                      title={`Assigned to ${agent.name} — ${agent.status}`}
+                                      data-agent-status={agent.status}
+                                    >
+                                      {agent.status === 'active' && (
+                                        <span className="relative flex h-2 w-2 flex-shrink-0" aria-hidden="true">
+                                          <span className="absolute inline-flex h-full w-full animate-ping motion-reduce:animate-none rounded-full bg-success-400 opacity-75" />
+                                          <span className="relative inline-flex h-2 w-2 rounded-full bg-success-500" />
+                                        </span>
+                                      )}
+                                      {agent.type === 'ai_agent' ? (
+                                        <Bot className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                                      ) : (
+                                        <UserRound className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                                      )}
+                                      <span className="truncate">{agent.name}</span>
+                                    </span>
+                                  ))}
+                                </div>
                               )}
 
                               <div className="flex items-center justify-between pt-2 border-t border-muster-border/50 text-[10px] font-mono text-neutral-500">

@@ -1,6 +1,6 @@
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Card, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document, CardLinkRelationType, LinkedCardSummary } from '../shared/types.js';
+import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document, CardLinkRelationType, LinkedCardSummary } from '../shared/types.js';
 import { EventService } from './event.service.js';
 import { rankAfter } from '../shared/lexorank.js';
 
@@ -214,7 +214,35 @@ export class CardService {
 
     sql += ' ORDER BY c.position ASC';
 
-    return this.db.query<Card>(sql, params);
+    const cards = await this.db.query<Card>(sql, params);
+    if (cards.length === 0) return cards;
+
+    const placeholders = cards.map(() => '?').join(', ');
+    const assigneeRows = await this.db.query<CardAssignee & { card_id: string }>(
+      `SELECT ca.card_id, a.id, a.name, a.type, a.status
+       FROM card_assignee ca
+       JOIN agent_registration a ON a.id = ca.agent_id
+       WHERE ca.card_id IN (${placeholders})
+       ORDER BY a.name ASC`,
+      cards.map(card => card.id)
+    );
+
+    const assigneesByCard = new Map<string, CardAssignee[]>();
+    for (const assignee of assigneeRows) {
+      const cardAssignees = assigneesByCard.get(assignee.card_id) || [];
+      cardAssignees.push({
+        id: assignee.id,
+        name: assignee.name,
+        type: assignee.type,
+        status: assignee.status,
+      });
+      assigneesByCard.set(assignee.card_id, cardAssignees);
+    }
+
+    return cards.map(card => ({
+      ...card,
+      assignees: assigneesByCard.get(card.id) || [],
+    }));
   }
 
   async update(id: string, data: UpdateCard, actorId?: string): Promise<CardDetails> {
@@ -472,4 +500,3 @@ export class CardService {
     return rows[0]?.project_id || null;
   }
 }
-

@@ -150,6 +150,11 @@ async function runBrowserUiTest() {
       await removeAssigneeButton.click();
       await page.waitForSelector('text=Unassigned');
       console.log('  ✓ Agent assigned and removed from the card.');
+
+      // Leave the card assigned so the board-tile summary can be verified.
+      await assigneeSelect.selectOption({ index: 1 });
+      await page.click('button:has-text("Assign")');
+      await removeAssigneeButton.waitFor();
     }
 
     // Add comment
@@ -172,6 +177,15 @@ async function runBrowserUiTest() {
     await page.click('button[title="Close Task"]', { force: true });
     await page.waitForSelector('.muster-scrim', { state: 'detached' });
     console.log('  ✓ Card details modal closed.');
+
+    if (assigneeOptions.length > 1) {
+      const boardCard = page.locator('[data-rfd-draggable-id]').filter({
+        hasText: 'Implement Playwright E2E UI Tests',
+      });
+      await boardCard.getByText(assigneeOptions[1], { exact: true }).waitFor();
+      await boardCard.locator('[data-agent-status="active"]').waitFor();
+      console.log('  ✓ Assigned agent and active-status indicator rendered on the board card.');
+    }
 
     // Step 6: Agent Management View & Agent Removal
     console.log('\n[6/8] Testing Agents View, Registration & Removal (+ Agent)...');

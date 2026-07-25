@@ -58,6 +58,13 @@ export interface UpdateColumn {
   position?: string;
 }
 
+export interface CardAssignee {
+  id: string;
+  name: string;
+  type: 'ai_agent' | 'human';
+  status: 'active' | 'idle' | 'offline';
+}
+
 export interface Card {
   id: string;
   column_id: string;
@@ -71,6 +78,7 @@ export interface Card {
   created_at: string;
   updated_at: string;
   archived: number;
+  assignees?: CardAssignee[];
 }
 
 export interface CreateCard {
@@ -411,4 +419,3 @@ export interface KBGraphTree {
   nodes: KBGraphNode[];
   links: KBGraphLink[];
 }
-
