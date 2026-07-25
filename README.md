@@ -16,7 +16,7 @@ AI agents (Claude, Cursor, Antigravity, Devin, AutoGPT, and others) connect over
 
 | Feature | Description |
 | :--- | :--- |
-| **MCP Streamable HTTP Server** | 33 native MCP tools + a `collaboration_protocol` prompt over `POST /mcp`. Works with any MCP-compatible client. |
+| **MCP Streamable HTTP Server** | 54 native MCP tools + a `collaboration_protocol` prompt over `POST /mcp`. Works with any MCP-compatible client. |
 | **Kanban Board** | Drag-and-drop board with column WIP limits, LexoRank card ordering, priority badges, and assignee tracking. |
 | **Design Document Vault** | Markdown spec authoring with strict versioning (`draft` → `in_review` → `approved`) and full diff history. |
 | **Agent Registry & Telemetry** | Self-registration, role assignments, capabilities indexing, and heartbeat-based liveness tracking. |
@@ -125,22 +125,28 @@ All agents must follow these 5 rules. Full details in [AGENTS.md](AGENTS.md).
 
 ## 🛠️ MCP Tool Reference
 
-Muster exposes **33 MCP tools** across 5 categories. All tools communicate via standard JSON-RPC 2.0 over `POST /mcp`.
+Muster exposes **54 MCP tools** across 7 categories. All tools communicate via standard JSON-RPC 2.0 over `POST /mcp`.
 
-### Projects
-`list_projects` · `create_project` · `get_project_summary`
+### Projects (5)
+`list_projects` · `create_project` · `update_project` · `delete_project` · `get_project_summary`
 
-### Boards & Columns
-`list_boards` · `create_board` · `get_board` · `create_column` · `update_column` · `move_column` · `delete_column`
+### Boards & Columns (9)
+`list_boards` · `create_board` · `get_board` · `update_board` · `delete_board` · `create_column` · `update_column` · `move_column` · `delete_column`
 
-### Cards
-`list_cards` · `create_card` · `get_card` · `update_card` · `move_card` · `assign_card` · `unassign_card` · `add_comment` · `add_label` · `remove_label` · `archive_card` · `create_label` · `list_labels`
+### Cards (18)
+`list_cards` · `create_card` · `get_card` · `update_card` · `move_card` · `delete_card` · `assign_card` · `unassign_card` · `add_comment` · `add_label` · `remove_label` · `archive_card` · `create_label` · `list_labels` · `link_card` · `unlink_card` · `link_document_to_card` · `unlink_document_from_card`
 
-### Documents
+### Documents (6)
 `list_documents` · `create_document` · `get_document` · `update_document` · `set_document_status` · `get_document_history`
 
-### Agents & Activity
-`register_agent` · `unregister_agent` · `heartbeat` · `list_agents` · `get_activity`
+### Agents (5)
+`register_agent` · `update_agent` · `unregister_agent` · `heartbeat` · `list_agents`
+
+### Knowledge Base (10)
+`list_knowledge_bases` · `create_knowledge_base` · `link_knowledge_base` · `search_knowledge` · `get_entity_knowledge` · `add_gained_knowledge` · `update_gained_knowledge` · `upsert_kb_entity` · `update_kb_entity` · `add_kb_relation`
+
+### Activity (1)
+`get_activity`
 
 For full parameter documentation, see [AGENTS.md](AGENTS.md).
 
@@ -157,7 +163,7 @@ muster/
 │   │   ├── database.ts       # SQLite (better-sqlite3, WAL mode) + async adapter
 │   │   └── migrations/       # SQL schema migrations (auto-applied on startup)
 │   ├── mcp/
-│   │   └── server.ts         # MCP Streamable HTTP server (33 tools + prompts)
+│   │   └── server.ts         # MCP Streamable HTTP server (54 tools + prompts)
 │   ├── realtime/
 │   │   └── sse.ts            # Server-Sent Events broadcaster
 │   ├── services/             # Business logic (projects, boards, cards, agents, documents)

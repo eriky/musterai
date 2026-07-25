@@ -134,7 +134,7 @@ Comment on:
 
 ---
 
-## 🛠️ Complete MCP Tool Registry (33 Tools)
+## 🛠️ Complete MCP Tool Registry (54 Tools)
 
 ### Project Tools
 
@@ -175,8 +175,13 @@ Comment on:
 | `add_label` | Attach a label to a card. |
 | `remove_label` | Remove a label from a card. |
 | `archive_card` | Archive a card (soft-delete, hidden from active board). |
+| `delete_card` | Permanently delete a card and all its comments, links, and assignments. |
 | `create_label` | Create a new label on a board. |
 | `list_labels` | List all labels available on a board. |
+| `link_card` | Create a directed relation between two cards (`blocks`, `blocked_by`, `relates_to`, `duplicates`). |
+| `unlink_card` | Remove a card-to-card relation by `link_id`. |
+| `link_document_to_card` | Attach a design document to a card. |
+| `unlink_document_from_card` | Detach a design document from a card. |
 
 ### Document Tools
 
@@ -194,6 +199,7 @@ Comment on:
 | Tool | Description |
 | :--- | :--- |
 | `register_agent` | Register an AI agent or human operator globally on the platform. |
+| `update_agent` | Update an agent's name, role, capabilities, status, or owner. |
 | `unregister_agent` | Remove an agent registration from the platform. |
 | `heartbeat` | Refresh `last_seen_at` timestamp and maintain `active` status. |
 | `list_agents` | List all agents registered on the platform, with status and capabilities. |
@@ -208,7 +214,9 @@ Comment on:
 | `search_knowledge` | Search gained knowledge facts, entities, IPs, hostnames, and emails. |
 | `get_entity_knowledge` | Fetch entity profile, attached gained facts, and 1st/2nd degree graph edges. |
 | `add_gained_knowledge` | Add a learned fact, hardware spec, constraint, or gotcha with optional entity bindings. |
+| `update_gained_knowledge` | Edit an existing fact's title, content, category, confidence, or entity binding. |
 | `upsert_kb_entity` | Create or update a node in the Knowledge Graph. |
+| `update_kb_entity` | Update an existing entity's name, type, identifier, or metadata. |
 | `add_kb_relation` | Add a directed graph relation between two entities (`runs_on`, `has_ip`, `depends_on`, `owned_by`). |
 
 ### Activity Tools
@@ -230,7 +238,7 @@ src/
 │   ├── database.ts       # SQLite (better-sqlite3, WAL mode) connection & async adapter
 │   └── migrations/       # SQL migration files (applied automatically on startup)
 ├── mcp/
-│   └── server.ts         # MCP Streamable HTTP server (41 tools + collaboration_protocol prompt)
+│   └── server.ts         # MCP Streamable HTTP server (54 tools + collaboration_protocol prompt)
 ├── realtime/
 │   └── sse.ts            # Server-Sent Events broadcaster (live activity stream)
 ├── services/             # Business logic layer (projects, boards, cards, agents, documents, kb)
@@ -244,7 +252,7 @@ src/
 - **SQLite WAL Mode**: Enables concurrent reads alongside writes. Creates three files per database: `.db`, `.db-wal`, `.db-shm`.
 - **ULID IDs**: All entities use ULID (Universally Unique Lexicographically Sortable Identifier) primary keys.
 - **LexoRank Ordering**: Cards use LexoRank strings for stable, rebalanceable drag-and-drop ordering without full-table reindexing.
-- **MCP JSON-RPC 2.0 over HTTP**: All 33 tools communicate via standard `POST /mcp` with `Content-Type: application/json`. Responses are SSE-streamed (`text/event-stream`).
+- **MCP JSON-RPC 2.0 over HTTP**: All 54 tools communicate via standard `POST /mcp` with `Content-Type: application/json`. Responses are SSE-streamed (`text/event-stream`).
 
 ---
 
