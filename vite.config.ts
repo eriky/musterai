@@ -10,7 +10,8 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    port: 5173,
+    // 5173 by default; PORT lets a second dev instance run alongside the first.
+    port: process.env.PORT ? Number(process.env.PORT) : 5173,
     proxy: {
       // Anchored regexes: a bare '/api' prefix match also swallows the
       // `/api.ts` source module and leaves the dev UI blank.

@@ -205,6 +205,8 @@ export interface DocumentVersion {
   author_id: string | null;
   change_summary: string | null;
   created_at: string;
+  /** Joined from agent_registration; absent if the author was never registered. */
+  author_name?: string | null;
 }
 
 export interface Event {

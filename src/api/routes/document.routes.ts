@@ -2,6 +2,15 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { DocumentService } from '../../services/document.service.js';
 
+function getActorId(req: Request): string | undefined {
+  return (
+    (req.headers['x-agent-id'] as string) ||
+    (req.headers['x-actor-id'] as string) ||
+    req.body?.author_id ||
+    req.body?.actor_id
+  );
+}
+
 export function createDocumentRouter(documentService: DocumentService): Router {
   const router = Router();
 
@@ -18,7 +27,10 @@ export function createDocumentRouter(documentService: DocumentService): Router {
 
   router.post('/projects/:projectId/documents', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const doc = await documentService.create({ ...req.body, project_id: req.params.projectId });
+      const doc = await documentService.create(
+        { ...req.body, project_id: req.params.projectId },
+        getActorId(req)
+      );
       res.status(201).json(doc);
     } catch (err) {
       next(err);
@@ -38,7 +50,7 @@ export function createDocumentRouter(documentService: DocumentService): Router {
 
   router.put('/documents/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const doc = await documentService.update(req.params.id, req.body);
+      const doc = await documentService.update(req.params.id, req.body, getActorId(req));
       res.json(doc);
     } catch (err) {
       next(err);
@@ -47,7 +59,7 @@ export function createDocumentRouter(documentService: DocumentService): Router {
 
   router.patch('/documents/:id/status', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const doc = await documentService.setStatus(req.params.id, req.body.status);
+      const doc = await documentService.setStatus(req.params.id, req.body.status, getActorId(req));
       res.json(doc);
     } catch (err) {
       next(err);
