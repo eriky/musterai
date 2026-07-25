@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Document, DocumentVersion } from '../types.js';
 import { FileText, Edit3, History, CheckCircle, Clock, Save, Plus, X, ArrowLeft, User } from 'lucide-react';
-import { marked } from 'marked';
+import { renderMarkdown } from '../markdown.js';
 import { api } from '../api.js';
 
 interface DocumentVaultProps {
@@ -299,7 +299,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                 ) : (
                   <div
                     className="markdown-render max-w-none text-xs leading-relaxed bg-cap-surface p-6 rounded-lg border border-cap-border overflow-y-auto max-h-[550px]"
-                    dangerouslySetInnerHTML={{ __html: marked.parse(selectedDoc.content || '') as string }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedDoc.content) }}
                   />
                 )}
 

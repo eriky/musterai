@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Board, Column, Card, Agent, CardDetails, Document } from '../types.js';
 import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight } from 'lucide-react';
-import { marked } from 'marked';
+import { renderMarkdown } from '../markdown.js';
 import { api } from '../api.js';
 import { EditColumnModal } from './Modals.js';
 import { DocumentReaderModal } from './DocumentReaderModal.js';
@@ -716,7 +716,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   </div>
                   <div
                     className="markdown-render text-xs cap-text-secondary mt-2 bg-cap-surface p-3 rounded-lg border border-cap-border leading-relaxed overflow-x-auto [&>p:last-child]:mb-0"
-                    dangerouslySetInnerHTML={{ __html: marked.parse(cardDetails.description || 'No description provided.') as string }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(cardDetails.description, 'No description provided.') }}
                   />
                 </div>
               )}
@@ -868,7 +868,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       </div>
                       <div
                         className="markdown-render text-xs text-neutral-200 leading-relaxed overflow-x-auto [&>p:last-child]:mb-0"
-                        dangerouslySetInnerHTML={{ __html: marked.parse(c.content || '') as string }}
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(c.content) }}
                       />
                     </div>
                   ))}

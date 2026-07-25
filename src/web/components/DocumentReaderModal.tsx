@@ -1,7 +1,7 @@
 // File: src/web/components/DocumentReaderModal.tsx
 import React from 'react';
 import { FileText, X, ExternalLink, Clock, ShieldCheck, FileEdit, CheckCircle2, AlertCircle } from 'lucide-react';
-import { marked } from 'marked';
+import { renderMarkdown } from '../markdown.js';
 import { Document } from '../types.js';
 
 interface DocumentReaderModalProps {
@@ -84,7 +84,7 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
           {doc.content ? (
             <div
               className="markdown-render max-w-none text-xs leading-relaxed bg-cap-surface p-4 rounded-lg border border-cap-border overflow-x-auto"
-              dangerouslySetInnerHTML={{ __html: marked.parse(doc.content) as string }}
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(doc.content) }}
             />
           ) : (
             <p className="text-neutral-500 italic text-xs">This document is empty.</p>
