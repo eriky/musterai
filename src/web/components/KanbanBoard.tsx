@@ -16,8 +16,9 @@ interface KanbanBoardProps {
   agents: Agent[];
   documents: Document[];
   projectId: string | null;
+  newCardRequest?: { columnId?: string; token: number } | null;
   onMoveCard: (cardId: string, targetColumnId: string, position?: string) => void;
-  onOpenNewCard: (columnId?: string) => void;
+  onNewCardRequestHandled?: () => void;
   onOpenNewColumn: () => void;
   onDeleteBoard: (boardId: string) => void;
   onOpenDocumentInVault?: (docId: string) => void;
@@ -45,8 +46,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   agents,
   documents,
   projectId,
+  newCardRequest,
   onMoveCard,
-  onOpenNewCard,
+  onNewCardRequestHandled,
   onOpenNewColumn,
   onDeleteBoard,
   onOpenDocumentInVault,
@@ -74,6 +76,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [editCardStatus, setEditCardStatus] = useState<'active' | 'blocked' | 'in_review'>('active');
   const [editCardBlockedReason, setEditCardBlockedReason] = useState<string>('');
 
+  const [isCreatingCard, setIsCreatingCard] = useState(false);
+  const [newCardColumnId, setNewCardColumnId] = useState('');
+
   useEffect(() => {
     if (!projectId || !selectedCardId || !linkCardQuery.trim()) {
       setLinkCardResults([]);
@@ -92,6 +97,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     }, 250);
     return () => clearTimeout(handle);
   }, [linkCardQuery, projectId, selectedCardId]);
+
+  useEffect(() => {
+    if (!newCardRequest) return;
+    handleOpenNewCardForm(newCardRequest.columnId);
+    onNewCardRequestHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newCardRequest]);
 
   const handleRenameBoard = async () => {
     if (!board || !boardNameInput.trim()) return;
@@ -120,6 +132,48 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   };
 
 
+  const closeCardModal = () => {
+    setSelectedCardId(null);
+    setCardDetails(null);
+    setIsEditingCard(false);
+    setIsCreatingCard(false);
+    setNewCardColumnId('');
+  };
+
+  const handleOpenNewCardForm = (columnId?: string) => {
+    const targetColumnId = columnId || columns[0]?.id || '';
+    setSelectedCardId(null);
+    setCardDetails(null);
+    setIsCreatingCard(true);
+    setNewCardColumnId(targetColumnId);
+    setEditCardTitle('');
+    setEditCardDescription('');
+    setEditCardPriority('medium');
+    setEditCardStatus('active');
+    setEditCardBlockedReason('');
+    setIsEditingCard(true);
+    setLinkCardQuery('');
+    setLinkCardResults([]);
+  };
+
+  const handleCreateCard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCardColumnId || !editCardTitle.trim()) return;
+    try {
+      const created = await api.createCard(newCardColumnId, {
+        title: editCardTitle.trim(),
+        description: editCardDescription,
+        priority: editCardPriority,
+        status: editCardStatus,
+        blocked_reason: editCardStatus !== 'active' ? editCardBlockedReason.trim() : null,
+      });
+      onRefresh();
+      await handleOpenCard(created.id);
+    } catch (err: any) {
+      alert(err.message || 'Failed to create card');
+    }
+  };
+
   const handleDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
     if (!destination) return;
@@ -130,6 +184,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   const handleOpenCard = async (cardId: string, editMode = false) => {
     setSelectedCardId(cardId);
+    setIsCreatingCard(false);
+    setNewCardColumnId('');
     try {
       const details = await api.getCardDetails(cardId);
       setCardDetails(details);
@@ -387,7 +443,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
 
           <button
-            onClick={() => onOpenNewCard()}
+            onClick={() => handleOpenNewCardForm()}
             className="cap-btn cap-btn-primary"
           >
             <Plus className="w-3.5 h-3.5 mr-1" /> Add Card
@@ -430,7 +486,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     )}
 
                     <button
-                      onClick={() => onOpenNewCard(column.id)}
+                      onClick={() => handleOpenNewCardForm(column.id)}
                       className="p-1 hover:bg-neutral-800 cap-text-muted hover:text-brand-400 rounded transition-colors cursor-pointer"
                       title="Add card to column"
                     >
@@ -556,56 +612,66 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       </DragDropContext>
 
       {/* Card Detail Modal */}
-      {selectedCardId && cardDetails && (
+      {(cardDetails || isCreatingCard) && (
         <div
           className="cap-scrim"
           tabIndex={0}
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
-              setSelectedCardId(null);
-              setCardDetails(null);
-              setIsEditingCard(false);
+              closeCardModal();
             }
           }}
-          onClick={() => { setSelectedCardId(null); setCardDetails(null); setIsEditingCard(false); }}
+          onClick={closeCardModal}
         >
           <div
             className="cap-dialog w-full max-w-2xl max-h-[85vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            
+
             <div className="p-4 border-b border-cap-border flex items-center justify-between">
               <div className="flex items-center space-x-2 flex-wrap">
-                <span className="font-mono text-xs cap-accent font-bold">Card #{cardDetails.id}</span>
-                {getPriorityBadge(cardDetails.priority)}
-                {cardDetails.status === 'blocked' && (
-                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-danger-950/80 text-danger-300 border border-danger-500/50 flex items-center">
-                    <AlertTriangle className="w-3 h-3 mr-1 cap-text-danger" /> Blocked
-                  </span>
-                )}
-                {cardDetails.status === 'in_review' && (
-                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-warning-950/80 text-warning-300 border border-warning-500/50 flex items-center">
-                    <Eye className="w-3 h-3 mr-1 cap-text-warning" /> Human Review
+                {cardDetails ? (
+                  <>
+                    <span className="font-mono text-xs cap-accent font-bold">Card #{cardDetails.id}</span>
+                    {getPriorityBadge(cardDetails.priority)}
+                    {cardDetails.status === 'blocked' && (
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-danger-950/80 text-danger-300 border border-danger-500/50 flex items-center">
+                        <AlertTriangle className="w-3 h-3 mr-1 cap-text-danger" /> Blocked
+                      </span>
+                    )}
+                    {cardDetails.status === 'in_review' && (
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-warning-950/80 text-warning-300 border border-warning-500/50 flex items-center">
+                        <Eye className="w-3 h-3 mr-1 cap-text-warning" /> Human Review
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span className="font-mono text-xs cap-accent font-bold flex items-center">
+                    <Plus className="w-3.5 h-3.5 mr-1" /> New Card
                   </span>
                 )}
               </div>
               <div className="flex items-center space-x-2">
+                {cardDetails && (
+                  <>
+                    <button
+                      onClick={handleStartEditingCard}
+                      className="inline-flex items-center px-2.5 py-1 bg-brand-950/80 hover:bg-brand-900 text-brand-300 border border-brand-500/40 rounded text-xs font-semibold transition-all cursor-pointer"
+                      title="Edit Task Text & Properties"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 mr-1" /> Edit Task
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCard(cardDetails.id, cardDetails.title)}
+                      className="inline-flex items-center px-2.5 py-1 bg-danger-950/80 hover:bg-danger-900 text-danger-300 border border-danger-500/40 rounded text-xs font-semibold transition-all cursor-pointer"
+                      title="Delete Task"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete Task
+                    </button>
+                  </>
+                )}
                 <button
-                  onClick={handleStartEditingCard}
-                  className="inline-flex items-center px-2.5 py-1 bg-brand-950/80 hover:bg-brand-900 text-brand-300 border border-brand-500/40 rounded text-xs font-semibold transition-all cursor-pointer"
-                  title="Edit Task Text & Properties"
-                >
-                  <Edit2 className="w-3.5 h-3.5 mr-1" /> Edit Task
-                </button>
-                <button
-                  onClick={() => handleDeleteCard(cardDetails.id, cardDetails.title)}
-                  className="inline-flex items-center px-2.5 py-1 bg-danger-950/80 hover:bg-danger-900 text-danger-300 border border-danger-500/40 rounded text-xs font-semibold transition-all cursor-pointer"
-                  title="Delete Task"
-                >
-                  <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete Task
-                </button>
-                <button
-                  onClick={() => { setSelectedCardId(null); setCardDetails(null); setIsEditingCard(false); }}
+                  onClick={closeCardModal}
                   className="p-1 cap-text-muted hover:text-neutral-100 rounded cursor-pointer"
                   title="Close Task"
                 >
@@ -616,9 +682,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
 
             <div className="p-5 overflow-y-auto space-y-5 flex-1 font-sans">
-              
+
               {/* Prominent Card Status Banners */}
-              {cardDetails.status === 'blocked' && !isEditingCard && (
+              {cardDetails && cardDetails.status === 'blocked' && !isEditingCard && (
                 <div className="p-3 bg-danger-950/70 border border-danger-500/60 rounded-lg flex items-center justify-between text-xs text-danger-200">
                   <div className="flex items-start space-x-2">
                     <AlertTriangle className="w-4 h-4 cap-text-danger flex-shrink-0 mt-0.5" />
@@ -636,7 +702,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 </div>
               )}
 
-              {cardDetails.status === 'in_review' && !isEditingCard && (
+              {cardDetails && cardDetails.status === 'in_review' && !isEditingCard && (
                 <div className="p-3 bg-warning-950/70 border border-warning-500/60 rounded-lg flex items-center justify-between text-xs text-warning-200">
                   <div className="flex items-start space-x-2">
                     <Eye className="w-4 h-4 cap-text-warning flex-shrink-0 mt-0.5" />
@@ -655,7 +721,22 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               )}
 
               {isEditingCard ? (
-                <form onSubmit={handleSaveCard} className="space-y-3 bg-cap-surface p-4 rounded-lg border border-brand-500/40">
+                <form onSubmit={isCreatingCard ? handleCreateCard : handleSaveCard} className="space-y-3 bg-cap-surface p-4 rounded-lg border border-brand-500/40">
+                  {isCreatingCard && (
+                    <div>
+                      <label className="cap-label">Column</label>
+                      <select
+                        value={newCardColumnId}
+                        onChange={(e) => setNewCardColumnId(e.target.value)}
+                        className="w-full bg-cap-base border border-cap-border cap-text-primary text-xs rounded p-2"
+                      >
+                        {columns.map((col) => (
+                          <option key={col.id} value={col.id}>{col.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   <div>
                     <label className="cap-label">Task Title</label>
                     <input
@@ -739,21 +820,21 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   <div className="flex justify-end space-x-2 pt-1">
                     <button
                       type="button"
-                      onClick={() => setIsEditingCard(false)}
+                      onClick={isCreatingCard ? closeCardModal : () => setIsEditingCard(false)}
                       className="px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 cap-text-secondary rounded text-xs cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      disabled={!editCardTitle.trim()}
+                      disabled={!editCardTitle.trim() || (isCreatingCard && !newCardColumnId)}
                       className="cap-btn cap-btn-lg cap-btn-primary"
                     >
-                      Save Task
+                      {isCreatingCard ? 'Create Card' : 'Save Task'}
                     </button>
                   </div>
                 </form>
-              ) : (
+              ) : cardDetails && (
                 <div>
                   <div className="flex items-center justify-between">
                     <h3 className="text-base font-bold cap-text-primary">{cardDetails.title}</h3>
@@ -784,6 +865,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 </div>
               )}
 
+              {cardDetails && (
+              <>
               {/* Assignees & Assign Control */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1055,6 +1138,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 </form>
 
               </div>
+              </>
+              )}
             </div>
 
           </div>

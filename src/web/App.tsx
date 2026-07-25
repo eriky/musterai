@@ -1,5 +1,5 @@
 // File: src/web/App.tsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Project, Board, Column, Card, Agent, Document, Event, ProjectSummary } from './types.js';
 import { api, ApiError } from './api.js';
 import { Header } from './components/Header.js';
@@ -15,7 +15,6 @@ import {
   NewBoardModal,
   NewColumnModal,
   NewAgentModal,
-  NewCardModal,
   NewDocModal,
 } from './components/Modals.js';
 
@@ -87,9 +86,9 @@ export const App: React.FC = () => {
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [showNewColumnModal, setShowNewColumnModal] = useState(false);
   const [showRegisterAgentModal, setShowRegisterAgentModal] = useState(false);
-  const [showNewCardModal, setShowNewCardModal] = useState(false);
   const [showNewDocModal, setShowNewDocModal] = useState(false);
-  const [targetColumnId, setTargetColumnId] = useState<string | undefined>(undefined);
+  const [newCardRequest, setNewCardRequest] = useState<{ columnId?: string; token: number } | null>(null);
+  const newCardTokenRef = useRef(0);
 
   const [selectedHumanId, setSelectedHumanId] = useState<string | null>(api.getActiveHumanId());
 
@@ -282,8 +281,11 @@ export const App: React.FC = () => {
   };
 
   const handleOpenNewCardModal = (colId?: string) => {
-    setTargetColumnId(colId);
-    setShowNewCardModal(true);
+    newCardTokenRef.current += 1;
+    setNewCardRequest({ columnId: colId, token: newCardTokenRef.current });
+    if (activeTab !== 'board') {
+      handleSelectTab('board');
+    }
   };
 
   const handleSelectHuman = (id: string) => {
@@ -360,8 +362,9 @@ export const App: React.FC = () => {
             agents={agents}
             documents={documents}
             projectId={selectedProjectId}
+            newCardRequest={newCardRequest}
             onMoveCard={handleMoveCard}
-            onOpenNewCard={handleOpenNewCardModal}
+            onNewCardRequestHandled={() => setNewCardRequest(null)}
             onOpenNewColumn={() => setShowNewColumnModal(true)}
             onDeleteBoard={handleDeleteBoard}
             onOpenDocumentInVault={(docId) => {
@@ -450,15 +453,6 @@ export const App: React.FC = () => {
       {showRegisterAgentModal && (
         <NewAgentModal
           onClose={() => setShowRegisterAgentModal(false)}
-          onSuccess={loadProjectData}
-        />
-      )}
-
-      {showNewCardModal && (
-        <NewCardModal
-          columns={columns}
-          defaultColumnId={targetColumnId}
-          onClose={() => setShowNewCardModal(false)}
           onSuccess={loadProjectData}
         />
       )}
