@@ -359,6 +359,7 @@ export const App: React.FC = () => {
             cards={cards}
             agents={agents}
             documents={documents}
+            projectId={selectedProjectId}
             onMoveCard={handleMoveCard}
             onOpenNewCard={handleOpenNewCardModal}
             onOpenNewColumn={() => setShowNewColumnModal(true)}

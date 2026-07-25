@@ -6,6 +6,17 @@ import { CommentService } from '../../services/comment.service.js';
 export function createCardRouter(cardService: CardService, commentService: CommentService): Router {
   const router = Router();
 
+  router.get('/projects/:projectId/cards/search', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const cards = await cardService.searchByTitle(req.params.projectId, (req.query.q as string) || '', {
+        excludeCardId: req.query.exclude_card_id as string | undefined,
+      });
+      res.json(cards);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.get('/boards/:boardId/cards', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const cards = await cardService.list({
@@ -132,6 +143,29 @@ export function createCardRouter(cardService: CardService, commentService: Comme
   router.delete('/cards/:id/documents/:documentId', async (req: Request, res: Response, next: NextFunction) => {
     try {
       await cardService.unlinkDocument(req.params.id, req.params.documentId);
+      const card = await cardService.getById(req.params.id);
+      res.json(card);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Card-to-card links
+  router.post('/cards/:id/links', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const actorId = (req.headers['x-agent-id'] || req.headers['x-actor-id']) as string | undefined;
+      await cardService.linkCard(req.params.id, req.body.target_card_id, req.body.relation_type, actorId);
+      const card = await cardService.getById(req.params.id);
+      res.json(card);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete('/cards/:id/links/:linkId', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const actorId = (req.headers['x-agent-id'] || req.headers['x-actor-id']) as string | undefined;
+      await cardService.unlinkCard(req.params.id, req.params.linkId, actorId);
       const card = await cardService.getById(req.params.id);
       res.json(card);
     } catch (err) {

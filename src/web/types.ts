@@ -64,6 +64,7 @@ export interface CardDetails extends Card {
   assignees: Agent[];
   labels: Label[];
   linked_documents: Document[];
+  linked_cards: LinkedCardSummary[];
   comments: {
     id: string;
     card_id: string;
@@ -72,6 +73,24 @@ export interface CardDetails extends Card {
     content: string;
     created_at: string;
   }[];
+}
+
+// Stored relation types are directional; 'blocked_by' is the inverse view of
+// a 'blocks' row and is never sent to the API directly.
+export type StoredCardLinkType = 'blocks' | 'relates_to' | 'duplicates';
+export type CardLinkRelationType = StoredCardLinkType | 'blocked_by';
+
+export interface LinkedCardSummary {
+  id: string;
+  relation_type: CardLinkRelationType;
+  card: {
+    id: string;
+    title: string;
+    column_id: string;
+    status: 'active' | 'blocked' | 'in_review';
+    priority: 'critical' | 'high' | 'medium' | 'low';
+    archived: number;
+  };
 }
 
 export interface Document {

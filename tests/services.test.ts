@@ -351,6 +351,57 @@ describe('Domain Services Integration Tests', () => {
     expect(unblocked.status).toBe('active');
     expect(unblocked.blocked_reason).toBeNull();
   });
+
+  it('Feature: card-to-card linking supports blocks/blocked_by/relates_to and title search', async () => {
+    const project = await projectService.create({ name: 'Linking Project' });
+    const boards = await boardService.list(project.id);
+    const columns = await columnService.list(boards[0].id);
+
+    const cardA = await cardService.create({ column_id: columns[0].id, title: 'Implement login API' });
+    const cardB = await cardService.create({ column_id: columns[0].id, title: 'Design login UI' });
+    const cardC = await cardService.create({ column_id: columns[0].id, title: 'Write login docs' });
+
+    // A blocks B -> B should see "blocked_by" A
+    await cardService.linkCard(cardA.id, cardB.id, 'blocks');
+    const detailsA = await cardService.getById(cardA.id);
+    const detailsB = await cardService.getById(cardB.id);
+    expect(detailsA.linked_cards.find(l => l.card.id === cardB.id)?.relation_type).toBe('blocks');
+    expect(detailsB.linked_cards.find(l => l.card.id === cardA.id)?.relation_type).toBe('blocked_by');
+
+    // Choosing "blocked_by" from the other side stores the inverse direction
+    await cardService.linkCard(cardC.id, cardA.id, 'blocked_by');
+    const detailsC = await cardService.getById(cardC.id);
+    expect(detailsC.linked_cards.find(l => l.card.id === cardA.id)?.relation_type).toBe('blocked_by');
+    const detailsA2 = await cardService.getById(cardA.id);
+    expect(detailsA2.linked_cards.find(l => l.card.id === cardC.id)?.relation_type).toBe('blocks');
+
+    // Symmetric relation
+    await cardService.linkCard(cardB.id, cardC.id, 'relates_to');
+    const detailsB2 = await cardService.getById(cardB.id);
+    const detailsC2 = await cardService.getById(cardC.id);
+    expect(detailsB2.linked_cards.find(l => l.card.id === cardC.id)?.relation_type).toBe('relates_to');
+    expect(detailsC2.linked_cards.find(l => l.card.id === cardB.id)?.relation_type).toBe('relates_to');
+
+    // Self-linking is rejected
+    await expect(cardService.linkCard(cardA.id, cardA.id, 'relates_to')).rejects.toThrow();
+
+    // Title search is project-scoped and excludes the given card
+    const results = await cardService.searchByTitle(project.id, 'login', { excludeCardId: cardA.id });
+    expect(results.map(r => r.id).sort()).toEqual([cardB.id, cardC.id].sort());
+
+    // Unlinking removes the relation from both sides
+    const linkId = detailsA2.linked_cards.find(l => l.card.id === cardB.id)!.id;
+    await cardService.unlinkCard(cardA.id, linkId);
+    const detailsA3 = await cardService.getById(cardA.id);
+    const detailsB3 = await cardService.getById(cardB.id);
+    expect(detailsA3.linked_cards.some(l => l.card.id === cardB.id)).toBe(false);
+    expect(detailsB3.linked_cards.some(l => l.card.id === cardA.id)).toBe(false);
+
+    // Deleting a card cleans up its links
+    await cardService.delete(cardC.id);
+    const detailsA4 = await cardService.getById(cardA.id);
+    expect(detailsA4.linked_cards.some(l => l.card.id === cardC.id)).toBe(false);
+  });
 });
 
 
