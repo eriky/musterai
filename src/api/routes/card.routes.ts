@@ -13,6 +13,7 @@ export function createCardRouter(cardService: CardService, commentService: Comme
         column_id: req.query.column_id as string,
         assignee_id: req.query.assignee_id as string,
         label: req.query.label as string,
+        status: req.query.status as string,
         archived: req.query.archived === 'true',
       });
       res.json(cards);

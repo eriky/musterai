@@ -70,17 +70,17 @@ All AI agents and human operators collaborating within CAP must follow this prot
    - Before executing tasks, call \`list_documents\` to inspect approved system specs.
    - If architectural changes are required, create or update a document via \`create_document\` / \`update_document\` and submit for review (\`set_document_status\` → 'in_review').
 
-3. **Kanban Card Workflow & WIP Limits**:
-   - Call \`list_cards\` or \`get_board\` to find unassigned cards in 'Backlog' / 'To Do'.
+3. **Kanban Card Workflow & Flexible Board Structures**:
+   - Boards are flexible and may have 3 lanes ('To Do' → 'In Progress' → 'Done'), standard 5 lanes, or custom columns. Inspect the active board layout via \`get_board\`.
+   - Call \`list_cards\` or \`get_board\` to find unassigned cards in initial state columns ('To Do' / 'Backlog').
    - Assign yourself using \`assign_card\`.
    - Move card to 'In Progress' via \`move_card\`. Always respect column WIP limits.
 
 4. **Transparent Progress & Audit Trail**:
    - Log key progress updates, code diffs, or blockers on cards using \`add_comment\`.
-   - When implementation is completed, move card to 'In Review' and notify reviewers.
 
 5. **Peer Review & Task Completion**:
-   - Peer agents or human operators inspect work in 'In Review' and advance card to 'Done' upon verification.`,
+   - When implementation is completed, if an 'In Review' column exists on the board, move the card to 'In Review' for verification. If no 'In Review' column exists (e.g. 3-lane board), post verification notes and move directly to 'Done'.`,
         },
       },
     ],
@@ -102,6 +102,19 @@ All AI agents and human operators collaborating within CAP must follow this prot
     return { content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }] };
   });
 
+  server.tool(
+    'update_project',
+    {
+      project_id: z.string(),
+      name: z.string().optional(),
+      description: z.string().optional(),
+    },
+    async ({ project_id, ...data }) => {
+      const project = await services.projectService.update(project_id, data, getActorId({ project_id }));
+      return { content: [{ type: 'text', text: JSON.stringify(project, null, 2) }] };
+    }
+  );
+
   server.tool('delete_project', { project_id: z.string() }, async ({ project_id }) => {
     await services.projectService.delete(project_id, getActorId({ project_id }));
     return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Project ${project_id} deleted` }) }] };
@@ -113,8 +126,22 @@ All AI agents and human operators collaborating within CAP must follow this prot
     return { content: [{ type: 'text', text: JSON.stringify(boards, null, 2) }] };
   });
 
-  server.tool('create_board', { project_id: z.string(), name: z.string() }, async (args) => {
-    const board = await services.boardService.create(args);
+  server.tool(
+    'create_board',
+    {
+      project_id: z.string(),
+      name: z.string(),
+      template: z.enum(['simple', 'standard']).optional(),
+      columns: z.array(z.string()).optional(),
+    },
+    async (args) => {
+      const board = await services.boardService.create(args);
+      return { content: [{ type: 'text', text: JSON.stringify(board, null, 2) }] };
+    }
+  );
+
+  server.tool('update_board', { board_id: z.string(), name: z.string() }, async ({ board_id, name }) => {
+    const board = await services.boardService.update(board_id, { name }, getActorId({ board_id, name }));
     return { content: [{ type: 'text', text: JSON.stringify(board, null, 2) }] };
   });
 
@@ -172,6 +199,7 @@ All AI agents and human operators collaborating within CAP must follow this prot
     column_id: z.string().optional(),
     assignee_id: z.string().optional(),
     label: z.string().optional(),
+    status: z.enum(['active', 'blocked', 'in_review']).optional(),
     archived: z.boolean().optional()
   }, async (filters) => {
     const cards = await services.cardService.list(filters);
@@ -185,6 +213,8 @@ All AI agents and human operators collaborating within CAP must follow this prot
     priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
     position: z.string().optional(),
     due_date: z.string().optional(),
+    status: z.enum(['active', 'blocked', 'in_review']).optional(),
+    blocked_reason: z.string().nullable().optional(),
     labels: z.array(z.string()).optional(),
     assignees: z.array(z.string()).optional()
   }, async (args) => {
@@ -202,7 +232,9 @@ All AI agents and human operators collaborating within CAP must follow this prot
     title: z.string().optional(),
     description: z.string().optional(),
     priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
-    due_date: z.string().nullable().optional()
+    due_date: z.string().nullable().optional(),
+    status: z.enum(['active', 'blocked', 'in_review']).optional(),
+    blocked_reason: z.string().nullable().optional()
   }, async ({ card_id, ...data }) => {
     const details = await services.cardService.update(card_id, data, getActorId(data));
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };

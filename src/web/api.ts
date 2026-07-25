@@ -56,12 +56,16 @@ export const api = {
   getProjects: () => fetchJSON<Project[]>('/projects'),
   createProject: (data: { name: string; description?: string }) => fetchJSON<Project>('/projects', { method: 'POST', body: JSON.stringify(data) }),
   getProjectSummary: (id: string) => fetchJSON<ProjectSummary>(`/projects/${id}/summary`),
+  updateProject: (id: string, data: { name?: string; description?: string }) =>
+    fetchJSON<Project>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteProject: (id: string) => fetchJSON<void>(`/projects/${id}`, { method: 'DELETE' }),
 
   // Boards
   getBoards: (projectId: string) => fetchJSON<Board[]>(`/projects/${projectId}/boards`),
-  createBoard: (projectId: string, name: string) => fetchJSON<Board>(`/projects/${projectId}/boards`, { method: 'POST', body: JSON.stringify({ name }) }),
+  createBoard: (projectId: string, name: string, template?: 'simple' | 'standard', columns?: string[]) =>
+    fetchJSON<Board>(`/projects/${projectId}/boards`, { method: 'POST', body: JSON.stringify({ name, template, columns }) }),
   getBoardDetails: (id: string) => fetchJSON<Board & { columns: Column[]; cards: Card[] }>(`/boards/${id}`),
+  updateBoard: (id: string, name: string) => fetchJSON<Board>(`/boards/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }),
   deleteBoard: (id: string) => fetchJSON<void>(`/boards/${id}`, { method: 'DELETE' }),
 
   // Columns
@@ -71,7 +75,7 @@ export const api = {
 
   // Cards
   getCards: (boardId: string) => fetchJSON<Card[]>(`/boards/${boardId}/cards`),
-  createCard: (columnId: string, data: { title: string; description?: string; priority?: string; labels?: string[]; assignees?: string[] }) =>
+  createCard: (columnId: string, data: { title: string; description?: string; priority?: string; status?: string; blocked_reason?: string | null; labels?: string[]; assignees?: string[] }) =>
     fetchJSON<Card>(`/columns/${columnId}/cards`, { method: 'POST', body: JSON.stringify(data) }),
   getCardDetails: (id: string) => fetchJSON<CardDetails>(`/cards/${id}`),
   updateCard: (id: string, data: Partial<Card>) => fetchJSON<CardDetails>(`/cards/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

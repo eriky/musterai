@@ -79,26 +79,27 @@ Before starting **any** work on a task:
 
 1. Call `list_documents` for the project to retrieve all design docs.
 2. Read all documents with `status === 'approved'` to understand architectural constraints.
-3. If your task requires a **new architectural decision or significant change**:
+3. All UI-related contributions must conform strictly to the [Design Language Specification](DESIGN_LANGUAGE.md).
+4. If your task requires a **new architectural decision or significant change**:
    - Create a document via `create_document`.
    - Submit it for review via `set_document_status` (`status: 'in_review'`).
    - Do not begin implementation until it is `approved`.
 
 ---
 
-### Rule 3: Kanban Card Selection & WIP Limits
+### Rule 3: Kanban Card Selection, WIP Limits & Flexible Board Structures
 
-Tasks are tracked as Kanban cards. Agents must:
+Tasks are tracked as Kanban cards. Boards in CAP are fully customizable and may have any number of lanes:
+- **Simplified 3-lane boards**: `To Do → In Progress → Done`
+- **Standard 5-lane boards**: `Backlog → To Do → In Progress → In Review → Done`
+- **Custom-lane boards**: Any custom user-configured sequence of columns.
 
-1. **Inspect** available work via `list_cards` or `get_board`.
-2. **Claim** an unassigned card using `assign_card`.
+Agents **must adapt dynamically** to the column structure of the active board:
+
+1. **Inspect** available work via `get_board` or `list_cards`.
+2. **Claim** an unassigned card from an initial state column (`To Do` or `Backlog`) using `assign_card`.
 3. **Move** it to `In Progress` using `move_card`.
 4. **Respect WIP Limits**: Never move a card into a column that has reached its Work-In-Progress limit. Check column `wip_limit` via `get_board` before moving.
-
-Default board column flow:
-```
-Backlog → To Do → In Progress → In Review → Done
-```
 
 ---
 
@@ -124,10 +125,10 @@ Comment on:
 
 ### Rule 5: Peer Review & Task Completion
 
-1. When implementation and local verification are complete, move the card to `In Review`.
-2. Add a final comment summarizing what was done and how it was verified.
-3. Notify peer agents or human operators for review (via card comment).
-4. Only advance to `Done` once the review is signed off.
+1. When implementation and local verification are complete:
+   - If the board contains an `In Review` column, move the card to `In Review` and post a summary comment for review.
+   - If the board has no `In Review` column (such as a 3-lane `To Do → In Progress → Done` board), post the verification summary comment and move directly to `Done`.
+2. Ensure all verification details are documented before marking a card `Done`.
 
 ---
 
@@ -139,6 +140,8 @@ Comment on:
 | :--- | :--- |
 | `list_projects` | List all projects in the CAP database. |
 | `create_project` | Create a new project. Automatically seeds a default board, columns, and the collaboration spec design document. |
+| `update_project` | Update project name or description. |
+| `delete_project` | Delete a project and all associated boards, cards, and documents. |
 | `get_project_summary` | Fetch project telemetry: board count, card count, active agents, document count. |
 
 ### Board & Column Tools
@@ -148,6 +151,8 @@ Comment on:
 | `list_boards` | List boards within a project. |
 | `create_board` | Create a new Kanban board inside a project. |
 | `get_board` | Fetch full board details including all columns and their cards. |
+| `update_board` | Rename an existing Kanban board. |
+| `delete_board` | Delete a board (and all columns/cards in it). |
 | `create_column` | Add a new column to a board. Supports optional `wip_limit`. |
 | `update_column` | Rename a column or update its WIP limit. |
 | `move_column` | Reposition a column within the board. |

@@ -51,6 +51,7 @@ async function runBrowserUiTest() {
     env: {
       ...process.env,
       CAP_PORT: String(TEST_PORT),
+      CAP_HOST: '127.0.0.1',
       CAP_DB_PATH: TEST_DB_PATH,
     },
     stdio: 'ignore',
@@ -81,7 +82,7 @@ async function runBrowserUiTest() {
 
     // Verify main brand heading
     const headerTitle = await page.locator('header').textContent();
-    if (!headerTitle?.includes('Collaborative Agent Platform')) {
+    if (!headerTitle?.includes('MISSION CONTROL') && !headerTitle?.includes('CAP')) {
       throw new Error('Header title not found');
     }
     console.log('  ✓ Header rendered correctly.');
@@ -136,7 +137,7 @@ async function runBrowserUiTest() {
       const options = await authorSelect.locator('option').allInnerTexts();
       if (options.length > 1) {
         await authorSelect.selectOption({ index: 1 });
-        await page.fill('input[placeholder="Add comment..."]', 'Verified browser UI functionality.');
+        await page.fill('textarea[placeholder*="Add comment"]', 'Verified browser UI functionality.');
         await page.click('button[type="submit"]:has-text("Comment")');
         await page.waitForSelector('text=Verified browser UI functionality.');
         console.log('  ✓ Comment posted and rendered in modal.');
@@ -144,7 +145,8 @@ async function runBrowserUiTest() {
     }
 
     // Close card modal
-    await page.click('button:has(.w-5.h-5)');
+    await page.click('button[title="Close Task"]', { force: true });
+    await page.waitForTimeout(300);
     console.log('  ✓ Card details modal closed.');
 
     // Step 6: Agent Management View & Agent Removal
@@ -152,13 +154,12 @@ async function runBrowserUiTest() {
     await page.click('button:has-text("Agents")');
     await page.waitForSelector('text=Registered Agents');
 
-    await page.click('button:has-text("+ Agent")');
-    await page.waitForSelector('text=Register Agent / Operator');
+    await page.click('button:has-text("+ User"), button:has-text("Register Agent")');
+    await page.waitForSelector('text=Add Human User / Operator');
 
-    await page.fill('input[placeholder*="Claude-Backend"]', 'Browser-Testing-Bot');
-    await page.fill('input[placeholder*="backend, ts"]', 'e2e, browser, ui, playwright');
-    await page.click('button[type="submit"]:has-text("Register Agent")');
-    await page.waitForSelector('h3:has-text("Browser-Testing-Bot")');
+    await page.fill('input[placeholder*="Erik"]', 'Browser-Testing-Bot');
+    await page.click('button[type="submit"]:has-text("Add User")');
+    await page.waitForSelector('text=Browser-Testing-Bot');
     console.log('  ✓ New agent "Browser-Testing-Bot" registered and displayed in grid.');
 
     // Heartbeat test

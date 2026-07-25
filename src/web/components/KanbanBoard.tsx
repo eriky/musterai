@@ -2,9 +2,11 @@
 import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Board, Column, Card, Agent, CardDetails, Document } from '../types.js';
-import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink } from 'lucide-react';
+import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight } from 'lucide-react';
 import { marked } from 'marked';
 import { api } from '../api.js';
+import { EditColumnModal } from './Modals.js';
+import { DocumentReaderModal } from './DocumentReaderModal.js';
 
 
 interface KanbanBoardProps {
@@ -17,6 +19,7 @@ interface KanbanBoardProps {
   onOpenNewCard: (columnId?: string) => void;
   onOpenNewColumn: () => void;
   onDeleteBoard: (boardId: string) => void;
+  onOpenDocumentInVault?: (docId: string) => void;
   onRefresh: () => void;
 }
 
@@ -30,14 +33,37 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onOpenNewCard,
   onOpenNewColumn,
   onDeleteBoard,
+  onOpenDocumentInVault,
   onRefresh,
 }) => {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [cardDetails, setCardDetails] = useState<CardDetails | null>(null);
+  const [readerDocument, setReaderDocument] = useState<Document | null>(null);
   const [commentText, setCommentText] = useState('');
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('');
   const [assignAgentId, setAssignAgentId] = useState<string>('');
   const [linkDocumentId, setLinkDocumentId] = useState<string>('');
+  const [isEditingBoardName, setIsEditingBoardName] = useState(false);
+  const [boardNameInput, setBoardNameInput] = useState('');
+  const [editingColumn, setEditingColumn] = useState<Column | null>(null);
+
+  const [isEditingCard, setIsEditingCard] = useState(false);
+  const [editCardTitle, setEditCardTitle] = useState('');
+  const [editCardDescription, setEditCardDescription] = useState('');
+  const [editCardPriority, setEditCardPriority] = useState<'critical' | 'high' | 'medium' | 'low'>('medium');
+  const [editCardStatus, setEditCardStatus] = useState<'active' | 'blocked' | 'in_review'>('active');
+  const [editCardBlockedReason, setEditCardBlockedReason] = useState<string>('');
+
+  const handleRenameBoard = async () => {
+    if (!board || !boardNameInput.trim()) return;
+    try {
+      await api.updateBoard(board.id, boardNameInput.trim());
+      setIsEditingBoardName(false);
+      onRefresh();
+    } catch (err: any) {
+      alert(err.message || 'Failed to rename board');
+    }
+  };
 
   const handleDeleteCard = async (cardId: string, cardTitle: string) => {
     if (!confirm(`Are you sure you want to delete task "${cardTitle}"?`)) return;
@@ -46,6 +72,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       if (selectedCardId === cardId) {
         setSelectedCardId(null);
         setCardDetails(null);
+        setIsEditingCard(false);
       }
       onRefresh();
     } catch (err: any) {
@@ -62,13 +89,65 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     onMoveCard(draggableId, destination.droppableId);
   };
 
-  const handleOpenCard = async (cardId: string) => {
+  const handleOpenCard = async (cardId: string, editMode = false) => {
     setSelectedCardId(cardId);
     try {
       const details = await api.getCardDetails(cardId);
       setCardDetails(details);
+      setEditCardTitle(details.title);
+      setEditCardDescription(details.description || '');
+      setEditCardPriority(details.priority);
+      setEditCardStatus(details.status || 'active');
+      setEditCardBlockedReason(details.blocked_reason || '');
+      setIsEditingCard(editMode);
     } catch (err) {
       console.error('Failed to load card details:', err);
+    }
+  };
+
+  const handleStartEditingCard = () => {
+    if (!cardDetails) return;
+    setEditCardTitle(cardDetails.title);
+    setEditCardDescription(cardDetails.description || '');
+    setEditCardPriority(cardDetails.priority);
+    setEditCardStatus(cardDetails.status || 'active');
+    setEditCardBlockedReason(cardDetails.blocked_reason || '');
+    setIsEditingCard(true);
+  };
+
+  const handleSaveCard = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!cardDetails || !editCardTitle.trim()) return;
+
+    try {
+      const updated = await api.updateCard(cardDetails.id, {
+        title: editCardTitle.trim(),
+        description: editCardDescription,
+        priority: editCardPriority,
+        status: editCardStatus,
+        blocked_reason: editCardStatus !== 'active' ? editCardBlockedReason.trim() : null,
+      });
+      setCardDetails(updated);
+      setIsEditingCard(false);
+      onRefresh();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update card text');
+    }
+  };
+
+  const handleUpdateCardStatus = async (status: 'active' | 'blocked' | 'in_review', blocked_reason?: string | null) => {
+    if (!cardDetails) return;
+    try {
+      const updated = await api.updateCard(cardDetails.id, {
+        status,
+        blocked_reason: status !== 'active' ? (blocked_reason ?? cardDetails.blocked_reason) : null,
+      });
+      setCardDetails(updated);
+      setEditCardStatus(updated.status);
+      setEditCardBlockedReason(updated.blocked_reason || '');
+      onRefresh();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update card status');
     }
   };
 
@@ -162,12 +241,63 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       
       {/* Board Controls */}
       <div className="flex-none flex items-center justify-between border-b border-command-border pb-3">
-        <div className="flex items-center space-x-3">
-          <Layout className="w-5 h-5 text-cyan-400" />
-          <h2 className="text-base font-sans font-bold text-zinc-100 uppercase tracking-wide">
-            Board: {board.name}
-          </h2>
-        </div>
+        {isEditingBoardName ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleRenameBoard();
+            }}
+            className="flex items-center space-x-2"
+          >
+            <Layout className="w-5 h-5 text-cyan-400" />
+            <span className="text-base font-sans font-bold text-zinc-400 uppercase tracking-wide">
+              Board:
+            </span>
+            <input
+              type="text"
+              autoFocus
+              value={boardNameInput}
+              onChange={(e) => setBoardNameInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setIsEditingBoardName(false);
+              }}
+              className="bg-command-card border border-cyan-500 text-zinc-100 text-sm font-sans font-bold px-2 py-1 rounded focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            />
+            <button
+              type="submit"
+              disabled={!boardNameInput.trim()}
+              className="p-1.5 hover:bg-cyan-950 text-cyan-400 hover:text-cyan-300 rounded transition-colors cursor-pointer disabled:opacity-50"
+              title="Save Board Name"
+            >
+              <Check className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsEditingBoardName(false)}
+              className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 rounded transition-colors cursor-pointer"
+              title="Cancel"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </form>
+        ) : (
+          <div className="flex items-center space-x-2">
+            <Layout className="w-5 h-5 text-cyan-400" />
+            <h2 className="text-base font-sans font-bold text-zinc-100 uppercase tracking-wide">
+              Board: {board.name}
+            </h2>
+            <button
+              onClick={() => {
+                setBoardNameInput(board.name);
+                setIsEditingBoardName(true);
+              }}
+              className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-cyan-400 rounded transition-colors cursor-pointer"
+              title="Rename Board"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         <div className="flex items-center space-x-2">
           <button
@@ -242,6 +372,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     </button>
 
                     <button
+                      onClick={() => setEditingColumn(column)}
+                      className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-cyan-400 rounded transition-colors cursor-pointer"
+                      title="Edit column settings"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
                       onClick={() => handleDeleteColumn(column.id)}
                       className="p-1 hover:bg-zinc-800 text-zinc-500 hover:text-rose-400 rounded transition-colors cursor-pointer"
                       title="Delete column"
@@ -284,6 +422,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      handleOpenCard(card.id, true);
+                                    }}
+                                    className="p-0.5 hover:bg-zinc-800 text-zinc-600 hover:text-cyan-400 rounded transition-colors cursor-pointer"
+                                    title="Edit Task"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       handleDeleteCard(card.id, card.title);
                                     }}
                                     className="p-0.5 hover:bg-zinc-800 text-zinc-600 hover:text-rose-400 rounded transition-colors cursor-pointer"
@@ -294,6 +442,24 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                 </div>
                               </div>
 
+
+                              {/* Card Status Banner / Badge */}
+                              {(card.status === 'blocked' || card.status === 'in_review') && (
+                                <div className="mb-2">
+                                  {card.status === 'blocked' && (
+                                    <div className="flex items-center space-x-1.5 px-2 py-1 rounded bg-rose-950/80 text-rose-300 border border-rose-500/50 text-[11px] font-medium">
+                                      <AlertTriangle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
+                                      <span className="truncate">{card.blocked_reason ? `Blocked: ${card.blocked_reason}` : 'Blocked'}</span>
+                                    </div>
+                                  )}
+                                  {card.status === 'in_review' && (
+                                    <div className="flex items-center space-x-1.5 px-2 py-1 rounded bg-amber-950/80 text-amber-300 border border-amber-500/50 text-[11px] font-medium">
+                                      <Eye className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                                      <span className="truncate">{card.blocked_reason || 'Waiting for Human Review'}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
 
                               <h4 className="text-xs font-sans font-semibold text-zinc-100 group-hover:text-cyan-200 line-clamp-2 mb-2">
                                 {card.title}
@@ -327,7 +493,15 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       {selectedCardId && cardDetails && (
         <div
           className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => { setSelectedCardId(null); setCardDetails(null); }}
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setSelectedCardId(null);
+              setCardDetails(null);
+              setIsEditingCard(false);
+            }
+          }}
+          onClick={() => { setSelectedCardId(null); setCardDetails(null); setIsEditingCard(false); }}
         >
           <div
             className="bg-command-surface border border-cyan-500/40 rounded-xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl"
@@ -335,11 +509,28 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           >
             
             <div className="p-4 border-b border-command-border flex items-center justify-between">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 flex-wrap">
                 <span className="font-mono text-xs text-cyan-400 font-bold">Card #{cardDetails.id}</span>
                 {getPriorityBadge(cardDetails.priority)}
+                {cardDetails.status === 'blocked' && (
+                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-rose-950/80 text-rose-300 border border-rose-500/50 flex items-center">
+                    <AlertTriangle className="w-3 h-3 mr-1 text-rose-400" /> Blocked
+                  </span>
+                )}
+                {cardDetails.status === 'in_review' && (
+                  <span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-950/80 text-amber-300 border border-amber-500/50 flex items-center">
+                    <Eye className="w-3 h-3 mr-1 text-amber-400" /> Human Review
+                  </span>
+                )}
               </div>
               <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleStartEditingCard}
+                  className="inline-flex items-center px-2.5 py-1 bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/40 rounded text-xs font-semibold transition-all cursor-pointer"
+                  title="Edit Task Text & Properties"
+                >
+                  <Edit2 className="w-3.5 h-3.5 mr-1" /> Edit Task
+                </button>
                 <button
                   onClick={() => handleDeleteCard(cardDetails.id, cardDetails.title)}
                   className="inline-flex items-center px-2.5 py-1 bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-500/40 rounded text-xs font-semibold transition-all cursor-pointer"
@@ -348,8 +539,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete Task
                 </button>
                 <button
-                  onClick={() => { setSelectedCardId(null); setCardDetails(null); }}
+                  onClick={() => { setSelectedCardId(null); setCardDetails(null); setIsEditingCard(false); }}
                   className="p-1 text-zinc-400 hover:text-zinc-100 rounded cursor-pointer"
+                  title="Close Task"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -358,13 +550,173 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
 
             <div className="p-5 overflow-y-auto space-y-5 flex-1 font-sans">
-              <div>
-                <h3 className="text-base font-bold text-zinc-100">{cardDetails.title}</h3>
-                <div
-                  className="markdown-render text-xs text-zinc-300 mt-2 bg-command-card p-3 rounded-lg border border-command-border leading-relaxed overflow-x-auto [&>p:last-child]:mb-0"
-                  dangerouslySetInnerHTML={{ __html: marked.parse(cardDetails.description || 'No description provided.') as string }}
-                />
-              </div>
+              
+              {/* Prominent Card Status Banners */}
+              {cardDetails.status === 'blocked' && !isEditingCard && (
+                <div className="p-3 bg-rose-950/70 border border-rose-500/60 rounded-lg flex items-center justify-between text-xs text-rose-200">
+                  <div className="flex items-start space-x-2">
+                    <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold uppercase tracking-wider text-rose-400">Card Blocked:</span>{' '}
+                      <span className="font-medium">{cardDetails.blocked_reason || 'Requires resolution before proceeding.'}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleUpdateCardStatus('active', null)}
+                    className="ml-3 px-2.5 py-1 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/50 rounded text-xs font-semibold cursor-pointer transition-colors flex-shrink-0"
+                  >
+                    Unblock Card
+                  </button>
+                </div>
+              )}
+
+              {cardDetails.status === 'in_review' && !isEditingCard && (
+                <div className="p-3 bg-amber-950/70 border border-amber-500/60 rounded-lg flex items-center justify-between text-xs text-amber-200">
+                  <div className="flex items-start space-x-2">
+                    <Eye className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold uppercase tracking-wider text-amber-400">Waiting for Human Review:</span>{' '}
+                      <span className="font-medium">{cardDetails.blocked_reason || 'Pending operator review and signoff.'}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleUpdateCardStatus('active', null)}
+                    className="ml-3 px-2.5 py-1 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/50 rounded text-xs font-semibold cursor-pointer transition-colors flex-shrink-0"
+                  >
+                    Approve / Activate
+                  </button>
+                </div>
+              )}
+
+              {isEditingCard ? (
+                <form onSubmit={handleSaveCard} className="space-y-3 bg-command-card p-4 rounded-lg border border-cyan-500/40">
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Task Title</label>
+                    <input
+                      type="text"
+                      required
+                      value={editCardTitle}
+                      onChange={(e) => setEditCardTitle(e.target.value)}
+                      className="w-full bg-command-bg border border-command-border text-zinc-100 font-sans font-semibold text-xs rounded p-2 focus:border-cyan-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Priority</label>
+                      <select
+                        value={editCardPriority}
+                        onChange={(e) => setEditCardPriority(e.target.value as any)}
+                        className="w-full bg-command-bg border border-command-border text-zinc-100 text-xs rounded p-2"
+                      >
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Card Status</label>
+                      <select
+                        value={editCardStatus}
+                        onChange={(e) => setEditCardStatus(e.target.value as any)}
+                        className="w-full bg-command-bg border border-command-border text-zinc-100 text-xs rounded p-2"
+                      >
+                        <option value="active">Active (Normal)</option>
+                        <option value="in_review">In Review (Waiting for Human)</option>
+                        <option value="blocked">Blocked</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {editCardStatus !== 'active' && (
+                    <div>
+                      <label className="block text-xs font-semibold text-zinc-400 mb-1">
+                        {editCardStatus === 'blocked' ? 'Blocked Reason' : 'Review Reason / Note'}
+                      </label>
+                      <div className="space-y-1.5">
+                        <input
+                          type="text"
+                          value={editCardBlockedReason}
+                          onChange={(e) => setEditCardBlockedReason(e.target.value)}
+                          placeholder={editCardStatus === 'blocked' ? 'e.g. Requires human review' : 'e.g. Waiting on operator signoff'}
+                          className="w-full bg-command-bg border border-command-border text-zinc-100 text-xs rounded p-2 focus:border-cyan-500 focus:outline-none"
+                        />
+                        <div className="flex flex-wrap gap-1">
+                          {['Requires Human Review', 'Waiting on Dependency', 'Environment Issue', 'Waiting on Input'].map((preset) => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => setEditCardBlockedReason(preset)}
+                              className="px-2 py-0.5 bg-zinc-800 hover:bg-zinc-700 text-[10px] text-zinc-300 rounded border border-zinc-700 transition-colors cursor-pointer"
+                            >
+                              + {preset}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">Description (Markdown)</label>
+                    <textarea
+                      rows={5}
+                      value={editCardDescription}
+                      onChange={(e) => setEditCardDescription(e.target.value)}
+                      placeholder="Task description (markdown supported)..."
+                      className="w-full bg-command-bg border border-command-border text-zinc-100 font-sans text-xs rounded p-2.5 focus:border-cyan-500 focus:outline-none resize-y"
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingCard(false)}
+                      className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-xs cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!editCardTitle.trim()}
+                      className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-zinc-800 text-zinc-950 font-bold rounded text-xs cursor-pointer"
+                    >
+                      Save Task
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base font-bold text-zinc-100">{cardDetails.title}</h3>
+                    <div className="flex items-center space-x-2">
+                      {/* Direct status switcher pill */}
+                      <select
+                        value={cardDetails.status || 'active'}
+                        onChange={(e) => handleUpdateCardStatus(e.target.value as any)}
+                        className="bg-command-card border border-command-border text-zinc-200 text-xs rounded px-2 py-1"
+                      >
+                        <option value="active">🟢 Active</option>
+                        <option value="in_review">👁️ Waiting for Human Review</option>
+                        <option value="blocked">⛔ Blocked</option>
+                      </select>
+                      <button
+                        onClick={handleStartEditingCard}
+                        className="p-1 text-zinc-500 hover:text-cyan-400 transition-colors cursor-pointer"
+                        title="Edit Title & Description"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    className="markdown-render text-xs text-zinc-300 mt-2 bg-command-card p-3 rounded-lg border border-command-border leading-relaxed overflow-x-auto [&>p:last-child]:mb-0"
+                    dangerouslySetInnerHTML={{ __html: marked.parse(cardDetails.description || 'No description provided.') as string }}
+                  />
+                </div>
+              )}
 
               {/* Assignees & Assign Control */}
               <div className="grid grid-cols-2 gap-4">
@@ -421,31 +773,48 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
               {/* Linked Documents */}
               <div>
-                <h4 className="text-xs font-bold text-zinc-300 uppercase mb-3 flex items-center">
-                  <FileText className="w-4 h-4 mr-1.5 text-amber-400" />
-                  Linked Documents ({(cardDetails.linked_documents || []).length})
+                <h4 className="text-xs font-bold text-zinc-300 uppercase mb-3 flex items-center justify-between">
+                  <span className="flex items-center">
+                    <FileText className="w-4 h-4 mr-1.5 text-amber-400" />
+                    Linked Documents ({(cardDetails.linked_documents || []).length})
+                  </span>
+                  <span className="text-[10px] text-zinc-500 font-normal">Click document to read</span>
                 </h4>
 
                 <div className="space-y-2 mb-3">
                   {(cardDetails.linked_documents || []).length > 0 ? (
                     cardDetails.linked_documents.map((doc) => (
-                      <div key={doc.id} className="flex items-center justify-between bg-command-card p-2.5 rounded-lg border border-amber-500/20 group">
+                      <div
+                        key={doc.id}
+                        onClick={() => setReaderDocument(doc)}
+                        className="flex items-center justify-between bg-command-card p-2.5 rounded-lg border border-amber-500/20 hover:border-amber-500/60 hover:bg-zinc-900/90 group cursor-pointer transition-all"
+                      >
                         <div className="flex items-center space-x-2 min-w-0">
-                          <FileText className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-                          <span className="text-xs font-sans text-zinc-200 truncate">{doc.title}</span>
+                          <FileText className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                          <span className="text-xs font-sans text-zinc-200 group-hover:text-amber-300 truncate font-semibold">
+                            {doc.title}
+                          </span>
                           <span className={`px-1.5 py-0.5 text-[10px] font-mono rounded flex-shrink-0 ${
                             doc.status === 'approved' ? 'bg-emerald-950 text-emerald-400 border border-emerald-600/40' :
                             doc.status === 'in_review' ? 'bg-amber-950 text-amber-400 border border-amber-600/40' :
                             'bg-zinc-900 text-zinc-400 border border-zinc-700'
                           }`}>{doc.status}</span>
                         </div>
-                        <button
-                          onClick={() => handleUnlinkDocument(doc.id)}
-                          className="p-1 text-zinc-600 hover:text-rose-400 rounded transition-colors cursor-pointer flex-shrink-0 opacity-0 group-hover:opacity-100"
-                          title="Unlink document"
-                        >
-                          <Unlink className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center space-x-2 flex-shrink-0">
+                          <span className="text-[11px] text-amber-400 font-medium opacity-80 group-hover:opacity-100 flex items-center">
+                            Read <Eye className="w-3 h-3 ml-1" />
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUnlinkDocument(doc.id);
+                            }}
+                            className="p-1 text-zinc-600 hover:text-rose-400 rounded transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+                            title="Unlink document"
+                          >
+                            <Unlink className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     ))
                   ) : (
@@ -538,6 +907,24 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
           </div>
         </div>
+      )}
+
+      {/* Document Reader Modal */}
+      {readerDocument && (
+        <DocumentReaderModal
+          document={readerDocument}
+          onClose={() => setReaderDocument(null)}
+          onOpenInVault={onOpenDocumentInVault}
+        />
+      )}
+
+      {/* Edit Column Modal */}
+      {editingColumn && (
+        <EditColumnModal
+          column={editingColumn}
+          onClose={() => setEditingColumn(null)}
+          onSuccess={onRefresh}
+        />
       )}
 
     </div>

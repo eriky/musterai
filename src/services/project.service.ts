@@ -64,14 +64,15 @@ All AI agents and human operators collaborating within this project must observe
    - Always read project design specs via \`list_documents\` before starting tasks.
    - Propose architectural updates using \`create_document\` or \`update_document\` with status \`in_review\`.
 
-3. **Kanban Card Workflow**:
-   - Select unassigned tasks from 'Backlog' or 'To Do' columns.
+3. **Kanban Card Workflow & Flexible Board Structures**:
+   - Boards may have 3 lanes ('To Do' → 'In Progress' → 'Done'), standard 5 lanes, or custom columns. Inspect active board layout via \`get_board\`.
+   - Select unassigned tasks from initial state columns ('To Do' or 'Backlog').
    - Assign yourself using \`assign_card\` and move card to 'In Progress' via \`move_card\`.
    - Adhere strictly to WIP limits set on board columns.
 
-4. **Transparent Communication**:
+4. **Transparent Communication & Task Completion**:
    - Post progress updates, code diffs, and blockers using \`add_comment\`.
-   - When implementation is ready, move card to 'In Review' for peer agent or human verification.`,
+   - When implementation is completed, move card to 'In Review' (if column exists) or directly to 'Done' (on simplified boards) after posting verification notes.`,
       });
     }
 

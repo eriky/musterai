@@ -36,6 +36,8 @@ CREATE TABLE IF NOT EXISTS card (
   position TEXT NOT NULL,
   priority TEXT NOT NULL DEFAULT 'medium',
   due_date TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  blocked_reason TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   archived INTEGER NOT NULL DEFAULT 0
@@ -152,6 +154,21 @@ export class Migrator {
       }
     }
 
-    await this.db.migrate(sqlToRun);
+    const statements = sqlToRun
+      .split(';')
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
+
+    for (const stmt of statements) {
+      try {
+        await this.db.migrate(stmt);
+      } catch (err: any) {
+        if (err.message && err.message.includes('duplicate column name')) {
+          // Column already exists, ignore
+          continue;
+        }
+        throw err;
+      }
+    }
   }
 }

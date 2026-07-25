@@ -10,6 +10,7 @@ import { TacticalTerminal } from './components/TacticalTerminal.js';
 import { KnowledgeBaseView } from './components/KnowledgeBase.js';
 import {
   NewProjectModal,
+  EditProjectModal,
   NewBoardModal,
   NewColumnModal,
   NewAgentModal,
@@ -81,6 +82,7 @@ export const App: React.FC = () => {
 
   // Modals visibility
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [showEditProjectModal, setShowEditProjectModal] = useState(false);
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [showNewColumnModal, setShowNewColumnModal] = useState(false);
   const [showRegisterAgentModal, setShowRegisterAgentModal] = useState(false);
@@ -318,6 +320,7 @@ export const App: React.FC = () => {
         selectedProjectId={selectedProjectId}
         onSelectProject={handleSelectProject}
         onDeleteProject={handleDeleteProject}
+        onOpenEditProject={() => setShowEditProjectModal(true)}
         summary={summary}
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
@@ -358,6 +361,10 @@ export const App: React.FC = () => {
             onOpenNewCard={handleOpenNewCardModal}
             onOpenNewColumn={() => setShowNewColumnModal(true)}
             onDeleteBoard={handleDeleteBoard}
+            onOpenDocumentInVault={(docId) => {
+              setActiveTab('docs');
+              handleSelectDoc(docId);
+            }}
             onRefresh={loadProjectData}
           />
         )}
@@ -406,6 +413,17 @@ export const App: React.FC = () => {
           onSuccess={(newId) => {
             handleSelectProject(newId);
             loadProjects(newId);
+          }}
+        />
+      )}
+
+      {showEditProjectModal && selectedProjectId && projects.some((p) => p.id === selectedProjectId) && (
+        <EditProjectModal
+          project={projects.find((p) => p.id === selectedProjectId)!}
+          onClose={() => setShowEditProjectModal(false)}
+          onSuccess={() => {
+            loadProjects(selectedProjectId);
+            loadProjectData();
           }}
         />
       )}

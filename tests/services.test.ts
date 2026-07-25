@@ -68,6 +68,65 @@ describe('Domain Services Integration Tests', () => {
     expect(columns.map(c => c.name)).toEqual(['Backlog', 'To Do', 'In Progress', 'In Review', 'Done']);
   });
 
+  it('Feature: project update (name and description) works correctly and emits event', async () => {
+    const project = await projectService.create({ name: 'Old Project Name', description: 'Old Desc' });
+    const updated = await projectService.update(project.id, { name: 'New Project Name', description: 'Updated Desc' });
+
+    expect(updated.name).toBe('New Project Name');
+    expect(updated.description).toBe('Updated Desc');
+
+    const fetched = await projectService.getById(project.id);
+    expect(fetched?.name).toBe('New Project Name');
+    expect(fetched?.description).toBe('Updated Desc');
+
+    const events = await eventService.list(project.id);
+    const updateEvt = events.find(e => e.entity_type === 'project' && e.action === 'updated');
+    expect(updateEvt).toBeDefined();
+  });
+
+  it('Feature: board creation supports simple 3-lane template and custom columns', async () => {
+    const project = await projectService.create({ name: 'Simplified Project' });
+
+    // 3-lane board
+    const simpleBoard = await boardService.create({ project_id: project.id, name: 'Simple Board', template: 'simple' });
+    const simpleCols = await columnService.list(simpleBoard.id);
+    expect(simpleCols.length).toBe(3);
+    expect(simpleCols.map(c => c.name)).toEqual(['To Do', 'In Progress', 'Done']);
+
+    // Custom columns board
+    const customBoard = await boardService.create({
+      project_id: project.id,
+      name: 'Custom Board',
+      columns: ['Idea', 'Building', 'QA', 'Shipped'],
+    });
+    const customCols = await columnService.list(customBoard.id);
+    expect(customCols.length).toBe(4);
+    expect(customCols.map(c => c.name)).toEqual(['Idea', 'Building', 'QA', 'Shipped']);
+  });
+
+  it('Feature: board update (rename) works correctly and emits event', async () => {
+    const project = await projectService.create({ name: 'P' });
+    const agent = await agentService.register({
+      project_id: project.id,
+      name: 'Agent 1',
+      type: 'ai_agent',
+      role: 'contributor',
+    });
+    const boards = await boardService.list(project.id);
+    const initialBoard = boards[0];
+
+    const updated = await boardService.update(initialBoard.id, { name: 'Sprint 1 - Renamed' }, agent.id);
+    expect(updated.name).toBe('Sprint 1 - Renamed');
+
+    const fetched = await boardService.getById(initialBoard.id);
+    expect(fetched?.name).toBe('Sprint 1 - Renamed');
+
+    const events = await eventService.list(project.id);
+    const renameEvent = events.find(e => e.entity_type === 'board' && e.action === 'updated');
+    expect(renameEvent).toBeDefined();
+    expect(renameEvent?.actor_id).toBe(agent.id);
+  });
+
   it('Bug 1.2: column wip_limit works correctly', async () => {
     const project = await projectService.create({ name: 'P' });
     const boards = await boardService.list(project.id);
@@ -205,6 +264,50 @@ describe('Domain Services Integration Tests', () => {
     expect(updatedAgent.capabilities).toEqual(['code', 'architecture', 'review']);
     expect(updatedAgent.role).toBe('owner');
     expect(updatedAgent.owner_id).toBe('human_erik');
+  });
+
+  it('Feature: card status (active, blocked, in_review) and blocked_reason management', async () => {
+    const project = await projectService.create({ name: 'Card Status Project' });
+    const boards = await boardService.list(project.id);
+    const columns = await columnService.list(boards[0].id);
+    const colId = columns[0].id;
+
+    // Create card with blocked status
+    const card = await cardService.create({
+      column_id: colId,
+      title: 'Blocked Task',
+      status: 'blocked',
+      blocked_reason: 'Requires human review',
+    });
+
+    expect(card.status).toBe('blocked');
+    expect(card.blocked_reason).toBe('Requires human review');
+
+    // Fetch details
+    const details = await cardService.getById(card.id);
+    expect(details.status).toBe('blocked');
+    expect(details.blocked_reason).toBe('Requires human review');
+
+    // Update status to in_review
+    const updated = await cardService.update(card.id, {
+      status: 'in_review',
+      blocked_reason: 'Waiting for operator signoff',
+    });
+    expect(updated.status).toBe('in_review');
+    expect(updated.blocked_reason).toBe('Waiting for operator signoff');
+
+    // Filter list by status
+    const blockedCards = await cardService.list({ board_id: boards[0].id, status: 'in_review' });
+    expect(blockedCards.length).toBe(1);
+    expect(blockedCards[0].id).toBe(card.id);
+
+    // Unblock card to active
+    const unblocked = await cardService.update(card.id, {
+      status: 'active',
+      blocked_reason: null,
+    });
+    expect(unblocked.status).toBe('active');
+    expect(unblocked.blocked_reason).toBeNull();
   });
 });
 

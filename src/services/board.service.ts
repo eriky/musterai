@@ -30,14 +30,29 @@ export class BoardService {
       updated_at,
     };
 
-    // Default columns
-    const defaultCols = [
-      { name: 'Backlog', wip_limit: null },
-      { name: 'To Do', wip_limit: null },
-      { name: 'In Progress', wip_limit: 3 },
-      { name: 'In Review', wip_limit: 2 },
-      { name: 'Done', wip_limit: null },
-    ];
+    // Default or custom columns
+    let defaultCols: { name: string; wip_limit: number | null }[] = [];
+
+    if (data.columns && data.columns.length > 0) {
+      defaultCols = data.columns.map((colName) => ({
+        name: colName,
+        wip_limit: colName.toLowerCase() === 'in progress' ? 3 : null,
+      }));
+    } else if (data.template === 'simple') {
+      defaultCols = [
+        { name: 'To Do', wip_limit: null },
+        { name: 'In Progress', wip_limit: 3 },
+        { name: 'Done', wip_limit: null },
+      ];
+    } else {
+      defaultCols = [
+        { name: 'Backlog', wip_limit: null },
+        { name: 'To Do', wip_limit: null },
+        { name: 'In Progress', wip_limit: 3 },
+        { name: 'In Review', wip_limit: 2 },
+        { name: 'Done', wip_limit: null },
+      ];
+    }
 
     let lastRank = '';
     for (const col of defaultCols) {

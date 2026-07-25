@@ -1,7 +1,6 @@
-// File: src/web/components/Modals.tsx
 import React, { useState } from 'react';
-import { Column } from '../types.js';
-import { X, Bot, Plus, FileText, FolderPlus, Layers, AlertCircle, UserPlus } from 'lucide-react';
+import { Column, Project } from '../types.js';
+import { X, Bot, Plus, FileText, FolderPlus, Layers, AlertCircle, UserPlus, Edit2 } from 'lucide-react';
 
 import { api } from '../api.js';
 
@@ -99,14 +98,15 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({ onClose, onSuc
   );
 };
 
-interface NewBoardModalProps {
-  projectId: string;
+interface EditProjectModalProps {
+  project: Project;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export const NewBoardModal: React.FC<NewBoardModalProps> = ({ projectId, onClose, onSuccess }) => {
-  const [name, setName] = useState('');
+export const EditProjectModal: React.FC<EditProjectModalProps> = ({ project, onClose, onSuccess }) => {
+  const [name, setName] = useState(project.name);
+  const [description, setDescription] = useState(project.description || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -117,7 +117,102 @@ export const NewBoardModal: React.FC<NewBoardModalProps> = ({ projectId, onClose
     setIsSubmitting(true);
     setError(null);
     try {
-      await api.createBoard(projectId, name);
+      await api.updateProject(project.id, { name: name.trim(), description: description.trim() || undefined });
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      console.error('Failed to edit project:', err);
+      setError(err.message || 'Failed to edit project. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-command-surface border border-emerald-500/40 rounded-xl w-full max-w-md p-5 shadow-2xl space-y-4 font-sans">
+        <div className="flex items-center justify-between border-b border-command-border pb-3">
+          <h3 className="text-sm font-bold text-zinc-100 flex items-center">
+            <Edit2 className="w-4 h-4 mr-2 text-emerald-400" /> Edit Project Details
+          </h3>
+          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-100 cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {error && (
+          <div className="p-3 bg-rose-950/80 border border-rose-500/50 rounded-lg text-rose-300 text-xs flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+          <div>
+            <label className="block text-zinc-400 mb-1 font-semibold">Project Name</label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Collaborative Platform v2"
+              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2.5 focus:border-emerald-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-zinc-400 mb-1 font-semibold">Description</label>
+            <textarea
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Project goals, scope, and target deliverables..."
+              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 focus:border-emerald-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="pt-3 flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting || !name.trim()}
+              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 text-zinc-950 font-bold rounded cursor-pointer transition-all"
+            >
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+interface NewBoardModalProps {
+  projectId: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export const NewBoardModal: React.FC<NewBoardModalProps> = ({ projectId, onClose, onSuccess }) => {
+  const [name, setName] = useState('');
+  const [template, setTemplate] = useState<'simple' | 'standard'>('simple');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await api.createBoard(projectId, name, template);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -158,6 +253,18 @@ export const NewBoardModal: React.FC<NewBoardModalProps> = ({ projectId, onClose
               placeholder="e.g. Sprint 2, Feature Roadmap"
               className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2.5 focus:border-cyan-500 focus:outline-none"
             />
+          </div>
+
+          <div>
+            <label className="block text-zinc-400 mb-1 font-semibold">Board Structure / Lanes</label>
+            <select
+              value={template}
+              onChange={(e) => setTemplate(e.target.value as 'simple' | 'standard')}
+              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 focus:border-cyan-500 focus:outline-none"
+            >
+              <option value="simple">⚡ 3 Lanes (To Do → In Progress → Done)</option>
+              <option value="standard">📋 5 Lanes (Backlog → To Do → In Progress → In Review → Done)</option>
+            </select>
           </div>
 
           <div className="pt-3 flex justify-end space-x-2">
@@ -271,6 +378,103 @@ export const NewColumnModal: React.FC<NewColumnModalProps> = ({ boardId, onClose
               className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-zinc-800 text-zinc-950 font-bold rounded cursor-pointer"
             >
               {isSubmitting ? 'Adding...' : 'Add Column'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+interface EditColumnModalProps {
+  column: Column;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClose, onSuccess }) => {
+  const [name, setName] = useState(column.name);
+  const [wipLimit, setWipLimit] = useState<string>(column.wip_limit !== null && column.wip_limit !== undefined ? String(column.wip_limit) : '');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const limit = wipLimit.trim() !== '' ? parseInt(wipLimit, 10) : null;
+      await api.updateColumn(column.id, { name: name.trim(), wip_limit: limit });
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      console.error('Failed to update column:', err);
+      setError(err.message || 'Failed to update column.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-command-surface border border-cyan-500/40 rounded-xl w-full max-w-md p-5 shadow-2xl space-y-4 font-sans">
+        <div className="flex items-center justify-between border-b border-command-border pb-3">
+          <h3 className="text-sm font-bold text-zinc-100 flex items-center">
+            <Edit2 className="w-4 h-4 mr-2 text-cyan-400" /> Edit Column Settings
+          </h3>
+          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-100 cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {error && (
+          <div className="p-3 bg-rose-950/80 border border-rose-500/50 rounded-lg text-rose-300 text-xs flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+          <div>
+            <label className="block text-zinc-400 mb-1 font-semibold">Column Name</label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. In Testing, Blocked, Done"
+              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2.5 focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-zinc-400 mb-1 font-semibold">WIP Limit (Optional)</label>
+            <input
+              type="number"
+              min="1"
+              value={wipLimit}
+              onChange={(e) => setWipLimit(e.target.value)}
+              placeholder="e.g. 3 (leave empty for unlimited)"
+              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 focus:border-cyan-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="pt-3 flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting || !name.trim()}
+              className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-zinc-800 text-zinc-950 font-bold rounded cursor-pointer"
+            >
+              {isSubmitting ? 'Saving...' : 'Save Column'}
             </button>
           </div>
         </form>
@@ -416,6 +620,8 @@ export const NewCardModal: React.FC<NewCardModalProps> = ({ columns, defaultColu
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'critical' | 'high' | 'medium' | 'low'>('medium');
+  const [status, setStatus] = useState<'active' | 'blocked' | 'in_review'>('active');
+  const [blockedReason, setBlockedReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -426,7 +632,13 @@ export const NewCardModal: React.FC<NewCardModalProps> = ({ columns, defaultColu
     setIsSubmitting(true);
     setError(null);
     try {
-      await api.createCard(columnId, { title, description, priority });
+      await api.createCard(columnId, {
+        title,
+        description,
+        priority,
+        status,
+        blocked_reason: status !== 'active' ? blockedReason.trim() : null
+      });
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -482,19 +694,49 @@ export const NewCardModal: React.FC<NewCardModalProps> = ({ columns, defaultColu
             />
           </div>
 
-          <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Priority</label>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as any)}
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2"
-            >
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-zinc-400 mb-1 font-semibold">Priority</label>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as any)}
+                className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2"
+              >
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-zinc-400 mb-1 font-semibold">Initial Status</label>
+              <select
+                value={status}
+                onChange={(e) => setStatus(e.target.value as any)}
+                className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2"
+              >
+                <option value="active">Active (Normal)</option>
+                <option value="in_review">In Review (Waiting for Human)</option>
+                <option value="blocked">Blocked</option>
+              </select>
+            </div>
           </div>
+
+          {status !== 'active' && (
+            <div>
+              <label className="block text-zinc-400 mb-1 font-semibold">
+                {status === 'blocked' ? 'Blocked Reason' : 'Review Reason / Note'}
+              </label>
+              <input
+                type="text"
+                value={blockedReason}
+                onChange={(e) => setBlockedReason(e.target.value)}
+                placeholder={status === 'blocked' ? 'e.g. Waiting on API credentials' : 'e.g. Requires human review'}
+                className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 focus:border-cyan-500 focus:outline-none"
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-zinc-400 mb-1 font-semibold">Description (Markdown)</label>

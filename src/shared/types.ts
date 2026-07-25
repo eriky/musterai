@@ -29,6 +29,8 @@ export interface Board {
 export interface CreateBoard {
   project_id: string;
   name: string;
+  columns?: string[];
+  template?: 'simple' | 'standard';
 }
 
 export interface UpdateBoard {
@@ -64,6 +66,8 @@ export interface Card {
   position: string;
   priority: 'critical' | 'high' | 'medium' | 'low';
   due_date: string | null;
+  status: 'active' | 'blocked' | 'in_review';
+  blocked_reason: string | null;
   created_at: string;
   updated_at: string;
   archived: number;
@@ -76,6 +80,8 @@ export interface CreateCard {
   priority?: 'critical' | 'high' | 'medium' | 'low';
   position?: string;
   due_date?: string;
+  status?: 'active' | 'blocked' | 'in_review';
+  blocked_reason?: string | null;
   labels?: string[];
   assignees?: string[];
 }
@@ -85,6 +91,8 @@ export interface UpdateCard {
   description?: string;
   priority?: 'critical' | 'high' | 'medium' | 'low';
   due_date?: string | null;
+  status?: 'active' | 'blocked' | 'in_review';
+  blocked_reason?: string | null;
   archived?: number;
 }
 

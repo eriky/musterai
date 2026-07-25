@@ -25,11 +25,13 @@ export class CardService {
     const priority = data.priority || 'medium';
     const description = data.description || null;
     const due_date = data.due_date || null;
+    const status = data.status || 'active';
+    const blocked_reason = data.blocked_reason !== undefined ? data.blocked_reason : null;
 
     await this.db.execute(
-      `INSERT INTO card (id, column_id, title, description, position, priority, due_date, created_at, updated_at, archived)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-      [id, data.column_id, data.title, description, position, priority, due_date, created_at, updated_at]
+      `INSERT INTO card (id, column_id, title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at, archived)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      [id, data.column_id, data.title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at]
     );
 
     if (data.labels && data.labels.length > 0) {
@@ -52,6 +54,8 @@ export class CardService {
       position,
       priority,
       due_date,
+      status,
+      blocked_reason,
       created_at,
       updated_at,
       archived: 0,
@@ -120,7 +124,7 @@ export class CardService {
     };
   }
 
-  async list(filters: { column_id?: string; board_id?: string; assignee_id?: string; label?: string; archived?: boolean } = {}): Promise<Card[]> {
+  async list(filters: { column_id?: string; board_id?: string; assignee_id?: string; label?: string; status?: string; archived?: boolean } = {}): Promise<Card[]> {
     let sql = 'SELECT DISTINCT c.* FROM card c';
     const joins: string[] = [];
     const conditions: string[] = [];
@@ -135,6 +139,11 @@ export class CardService {
     if (filters.column_id) {
       conditions.push('c.column_id = ?');
       params.push(filters.column_id);
+    }
+
+    if (filters.status) {
+      conditions.push('c.status = ?');
+      params.push(filters.status);
     }
 
     if (filters.assignee_id) {
@@ -176,11 +185,13 @@ export class CardService {
     const description = data.description !== undefined ? data.description : existing.description;
     const priority = data.priority !== undefined ? data.priority : existing.priority;
     const due_date = data.due_date !== undefined ? data.due_date : existing.due_date;
+    const status = data.status !== undefined ? data.status : existing.status;
+    const blocked_reason = data.blocked_reason !== undefined ? data.blocked_reason : existing.blocked_reason;
     const updated_at = new Date().toISOString();
 
     await this.db.execute(
-      `UPDATE card SET title = ?, description = ?, priority = ?, due_date = ?, updated_at = ? WHERE id = ?`,
-      [title, description, priority, due_date, updated_at, id]
+      `UPDATE card SET title = ?, description = ?, priority = ?, due_date = ?, status = ?, blocked_reason = ?, updated_at = ? WHERE id = ?`,
+      [title, description, priority, due_date, status, blocked_reason, updated_at, id]
     );
 
     if (this.eventService) {

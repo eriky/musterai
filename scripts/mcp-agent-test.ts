@@ -82,6 +82,7 @@ async function runMcpAgentTestSuite() {
     env: {
       ...process.env,
       CAP_PORT: String(TEST_PORT),
+      CAP_HOST: '127.0.0.1',
       CAP_DB_PATH: TEST_DB_PATH,
     },
     stdio: 'pipe',
@@ -94,7 +95,7 @@ async function runMcpAgentTestSuite() {
     const match = str.match(/REST API:\s*http:\/\/[^:]+:(\d+)/);
     if (match) {
       activePort = parseInt(match[1], 10);
-      APP_URL = `http://localhost:${activePort}`;
+      APP_URL = `http://127.0.0.1:${activePort}`;
       MCP_ENDPOINT = `${APP_URL}/mcp`;
     }
   });
@@ -108,7 +109,7 @@ async function runMcpAgentTestSuite() {
     const start = Date.now();
     while (Date.now() - start < 15000) {
       try {
-        const res = await fetch(`http://localhost:${activePort}/api/v1/health`, { signal: AbortSignal.timeout(1500) });
+        const res = await fetch(`http://127.0.0.1:${activePort}/api/v1/health`, { signal: AbortSignal.timeout(1500) });
         if (res.ok) {
           healthy = true;
           break;

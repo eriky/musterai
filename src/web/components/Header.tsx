@@ -1,6 +1,6 @@
 import React from 'react';
 import { Project, ProjectSummary, Agent } from '../types.js';
-import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, User, UserCheck, UserPlus, Trash2 } from 'lucide-react';
+import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, User, UserCheck, UserPlus, Trash2, Edit2 } from 'lucide-react';
 
 
 interface HeaderProps {
@@ -8,6 +8,7 @@ interface HeaderProps {
   selectedProjectId: string | null;
   onSelectProject: (id: string) => void;
   onDeleteProject: (id: string) => void;
+  onOpenEditProject?: () => void;
   summary: ProjectSummary | null;
   activeTab: 'agents' | 'board' | 'docs' | 'activity' | 'kb';
   onSelectTab: (tab: 'agents' | 'board' | 'docs' | 'activity' | 'kb') => void;
@@ -28,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
   selectedProjectId,
   onSelectProject,
   onDeleteProject,
+  onOpenEditProject,
   summary,
   activeTab,
   onSelectTab,
@@ -80,7 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             <span className="text-zinc-700">|</span>
 
-            {/* Project Selector Dropdown & Delete Button */}
+            {/* Project Selector Dropdown, Edit & Delete Buttons */}
             <div className="flex items-center space-x-1.5">
               <select
                 value={selectedProjectId || ''}
@@ -93,6 +95,16 @@ export const Header: React.FC<HeaderProps> = ({
                   </option>
                 ))}
               </select>
+
+              {selectedProjectId && projects.length > 0 && onOpenEditProject && (
+                <button
+                  onClick={onOpenEditProject}
+                  className="p-1.5 hover:bg-zinc-800 text-zinc-400 hover:text-emerald-400 rounded transition-colors cursor-pointer"
+                  title="Edit Selected Project Details"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+              )}
 
               {selectedProjectId && projects.length > 0 && (
                 <button
