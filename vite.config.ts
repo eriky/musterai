@@ -12,11 +12,13 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': {
+      // Anchored regexes: a bare '/api' prefix match also swallows the
+      // `/api.ts` source module and leaves the dev UI blank.
+      '^/api/': {
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
-      '/mcp': {
+      '^/mcp(/|$)': {
         target: 'http://localhost:3000',
         changeOrigin: true,
       },

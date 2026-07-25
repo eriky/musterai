@@ -79,7 +79,7 @@ Before starting **any** work on a task:
 
 1. Call `list_documents` for the project to retrieve all design docs.
 2. Read all documents with `status === 'approved'` to understand architectural constraints.
-3. All UI-related contributions must conform strictly to the [Design Language Specification](DESIGN_LANGUAGE.md).
+3. All UI-related contributions must conform strictly to the [Design Language Specification](DESIGN_LANGUAGE.md). In short: use the `cap-*` component classes and semantic tokens, never hardcoded colours, `dark:` variants or per-section button styles — and verify WCAG AA contrast in both appearance modes before calling the work done.
 4. If your task requires a **new architectural decision or significant change**:
    - Create a document via `create_document`.
    - Submit it for review via `set_document_status` (`status: 'in_review'`).

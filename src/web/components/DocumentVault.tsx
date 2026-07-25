@@ -99,20 +99,20 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
     switch (status) {
       case 'approved':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-sans font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-500/40">
+          <span className="cap-badge cap-badge-success">
             <CheckCircle className="w-3 h-3 mr-1" /> Approved
           </span>
         );
       case 'in_review':
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-sans font-medium bg-amber-950/80 text-amber-400 border border-amber-500/40">
+          <span className="cap-badge cap-badge-warning">
             <Clock className="w-3 h-3 mr-1 animate-pulse" /> In Review
           </span>
         );
       case 'draft':
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-sans font-medium bg-zinc-900 text-zinc-400 border border-zinc-700">
+          <span className="cap-badge cap-badge-neutral">
             Draft (v{selectedDoc?.version || 1})
           </span>
         );
@@ -132,7 +132,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
         </div>
         <button
           onClick={onOpenNewDoc}
-          className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-zinc-950 transition-all cursor-pointer shadow-sm"
+          className="cap-btn cap-btn-primary"
         >
           <Plus className="w-3.5 h-3.5 mr-1" /> Create Document
         </button>
@@ -140,7 +140,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
 
       {/* Main View (Stretches 100% height!) */}
       {documents.length === 0 ? (
-        <div className="text-center py-16 bg-command-surface rounded-xl tactical-border">
+        <div className="text-center py-16 bg-command-surface rounded-lg tactical-border">
           <FileText className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
           <h3 className="text-sm text-zinc-300 font-semibold">No Design Documents</h3>
           <p className="text-xs text-zinc-500 max-w-sm mx-auto mt-1 mb-4">
@@ -148,7 +148,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
           </p>
           <button
             onClick={onOpenNewDoc}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-zinc-950 text-xs font-bold rounded-md cursor-pointer"
+            className="cap-btn cap-btn-lg cap-btn-primary"
           >
             Create Document
           </button>
@@ -157,7 +157,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
         <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 min-h-0 h-full overflow-hidden">
           
           {/* Document Tree Sidebar */}
-          <div className="md:col-span-1 bg-command-surface rounded-xl p-4 tactical-border flex flex-col h-full min-h-0 overflow-y-auto space-y-2">
+          <div className="md:col-span-1 bg-command-surface rounded-lg p-4 tactical-border flex flex-col h-full min-h-0 overflow-y-auto space-y-2">
             <h3 className="flex-none text-xs font-bold text-zinc-400 uppercase mb-3 tracking-wider">
               Documents ({documents.length})
             </h3>
@@ -187,7 +187,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
           </div>
 
           {/* Document Reader / Editor */}
-          <div className="md:col-span-3 bg-command-surface rounded-xl p-6 tactical-border flex flex-col h-full min-h-0 overflow-y-auto">
+          <div className="md:col-span-3 bg-command-surface rounded-lg p-6 tactical-border flex flex-col h-full min-h-0 overflow-y-auto">
 
             {selectedDoc ? (
               <div className="space-y-5">
@@ -211,7 +211,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                     {selectedDoc.status === 'draft' && !isEditing && (
                       <button
                         onClick={() => handleStatusChange('in_review')}
-                        className="px-2.5 py-1 bg-amber-600/20 text-amber-300 border border-amber-500/40 text-xs rounded hover:bg-amber-600/30 transition-colors cursor-pointer"
+                        className="cap-btn cap-btn-soft"
                       >
                         Submit for Review
                       </button>
@@ -219,7 +219,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                     {selectedDoc.status === 'in_review' && !isEditing && (
                       <button
                         onClick={() => handleStatusChange('approved')}
-                        className="px-2.5 py-1 bg-emerald-600/20 text-emerald-300 border border-emerald-500/40 text-xs rounded hover:bg-emerald-600/30 transition-colors cursor-pointer"
+                        className="cap-btn cap-btn-soft"
                       >
                         Approve
                       </button>
@@ -230,31 +230,31 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                       <>
                         <button
                           onClick={handleSaveEdit}
-                          className="inline-flex items-center px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold text-xs rounded transition-colors cursor-pointer"
+                          className="cap-btn cap-btn-primary"
                         >
-                          <Save className="w-3.5 h-3.5 mr-1.5 text-zinc-950" /> Save Version
+                          <Save className="w-3.5 h-3.5" /> Save Version
                         </button>
 
                         <button
                           onClick={handleCancelEdit}
-                          className="inline-flex items-center px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-600 text-xs rounded transition-colors cursor-pointer"
+                          className="cap-btn cap-btn-secondary"
                           title="Discard changes and exit editor"
                         >
-                          <X className="w-3.5 h-3.5 mr-1 text-rose-400" /> Cancel
+                          <X className="w-3.5 h-3.5 mr-1" /> Cancel
                         </button>
                       </>
                     ) : (
                       <>
                         <button
                           onClick={handleStartEdit}
-                          className="inline-flex items-center px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-600 text-xs rounded transition-colors cursor-pointer"
+                          className="cap-btn cap-btn-secondary"
                         >
-                          <Edit3 className="w-3.5 h-3.5 mr-1.5 text-amber-400" /> Edit Document
+                          <Edit3 className="w-3.5 h-3.5 mr-1.5" /> Edit Document
                         </button>
 
                         <button
                           onClick={handleLoadHistory}
-                          className="p-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-amber-400 border border-zinc-700 rounded transition-colors cursor-pointer"
+                          className="cap-btn cap-btn-icon cap-btn-ghost"
                           title="Version History"
                         >
                           <History className="w-4 h-4" />
@@ -268,31 +268,31 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                 {isEditing ? (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Title</label>
+                      <label className="cap-label">Title</label>
                       <input
                         type="text"
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
-                        className="w-full bg-command-card border border-command-border text-zinc-100 text-sm rounded p-2.5 focus:border-amber-500 focus:outline-none"
+                        className="cap-input cap-input-lg"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Change Summary</label>
+                      <label className="cap-label">Change Summary</label>
                       <input
                         type="text"
                         value={changeSummary}
                         onChange={(e) => setChangeSummary(e.target.value)}
                         placeholder="Summary of changes..."
-                        className="w-full bg-command-card border border-command-border text-zinc-100 text-xs rounded p-2 focus:border-amber-500 focus:outline-none"
+                        className="cap-input"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-zinc-400 mb-1">Markdown Body</label>
+                      <label className="cap-label">Markdown Body</label>
                       <textarea
                         rows={16}
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
-                        className="w-full bg-command-card border border-command-border text-zinc-100 font-mono text-xs p-3 rounded leading-relaxed focus:border-amber-500 focus:outline-none"
+                        className="cap-input font-mono p-3 leading-relaxed"
                       />
                     </div>
                   </div>

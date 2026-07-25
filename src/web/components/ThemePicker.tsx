@@ -1,6 +1,6 @@
 // File: src/web/components/ThemePicker.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { Moon, Sun, Palette } from 'lucide-react';
+import { Moon, Sun, Palette, Check } from 'lucide-react';
 import { useTheme } from '../ThemeContext.js';
 import { COLOR_PROFILES } from '../theme.js';
 
@@ -29,12 +29,8 @@ export const ThemePicker: React.FC = () => {
       <button
         onClick={() => setOpen(v => !v)}
         title="Theme & Appearance"
-        className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-mono border transition-all cursor-pointer"
-        style={{
-          backgroundColor: 'var(--color-accent-subtle)',
-          borderColor: 'var(--color-accent-border)',
-          color: 'var(--color-accent)',
-        }}
+        aria-expanded={open}
+        className="cap-btn cap-btn-soft font-mono"
       >
         <Palette className="w-3.5 h-3.5" />
         <span className="hidden sm:inline">{activeProfile.name}</span>
@@ -47,30 +43,13 @@ export const ThemePicker: React.FC = () => {
 
       {/* Dropdown panel */}
       {open && (
-        <div
-          className="absolute right-0 top-full mt-1.5 z-50 rounded-lg shadow-2xl border p-3 w-56 flex flex-col gap-3 animate-in"
-          style={{
-            backgroundColor: 'var(--color-surface-elevated)',
-            borderColor: 'var(--color-border-subtle)',
-          }}
-        >
+        <div className="cap-panel absolute right-0 top-full mt-1.5 z-50 shadow-2xl p-3 w-56 flex flex-col gap-3">
           {/* Mode toggle */}
           <div className="flex items-center justify-between">
-            <span
-              className="text-xs font-semibold uppercase tracking-wide"
-              style={{ color: 'var(--color-text-muted)' }}
-            >
+            <span className="text-xs font-semibold uppercase tracking-wide cap-text-muted">
               Appearance
             </span>
-            <button
-              onClick={toggleMode}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono border transition-all cursor-pointer"
-              style={{
-                backgroundColor: 'var(--color-surface-hover)',
-                borderColor: 'var(--color-border-hover)',
-                color: 'var(--color-text-secondary)',
-              }}
-            >
+            <button onClick={toggleMode} className="cap-btn cap-btn-secondary font-mono">
               {theme.mode === 'dark' ? (
                 <>
                   <Moon className="w-3.5 h-3.5" />
@@ -85,60 +64,41 @@ export const ThemePicker: React.FC = () => {
             </button>
           </div>
 
-          {/* Divider */}
-          <div style={{ height: '1px', backgroundColor: 'var(--color-border-subtle)' }} />
+          <div className="cap-divider h-px" aria-hidden="true" />
 
           {/* Profile selection */}
           <div>
-            <span
-              className="text-xs font-semibold uppercase tracking-wide block mb-2"
-              style={{ color: 'var(--color-text-muted)' }}
-            >
+            <span className="text-xs font-semibold uppercase tracking-wide block mb-2 cap-text-muted">
               Color Profile
             </span>
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="Color profile">
               {COLOR_PROFILES.map(profile => {
                 const isActive = theme.profile === profile.id;
                 return (
                   <button
                     key={profile.id}
+                    role="radio"
+                    aria-checked={isActive}
                     onClick={() => { setProfile(profile.id); setOpen(false); }}
-                    className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-xs text-left transition-all cursor-pointer"
-                    style={isActive ? {
-                      backgroundColor: 'var(--color-accent-subtle)',
-                      border: '1px solid var(--color-accent-border)',
-                      color: 'var(--color-text-primary)',
-                    } : {
-                      backgroundColor: 'transparent',
-                      border: '1px solid transparent',
-                      color: 'var(--color-text-secondary)',
-                    }}
+                    className={`cap-btn justify-start text-left w-full font-normal ${
+                      isActive ? 'cap-btn-soft' : 'cap-btn-ghost'
+                    }`}
                   >
+                    {/* The swatch is the one place a literal profile hue belongs:
+                        it previews the theme rather than being themed by it. */}
                     <span
                       className="w-4 h-4 rounded-full flex-shrink-0"
-                      style={{
-                        backgroundColor: profile.accent,
-                        outline: isActive ? `2px solid ${profile.accent}` : '2px solid transparent',
-                        outlineOffset: '2px',
-                      }}
+                      style={{ backgroundColor: profile.accent }}
                     />
-                    <div className="min-w-0">
-                      <div className="font-semibold leading-none mb-0.5">{profile.name}</div>
-                      <div
-                        className="text-[10px] leading-none truncate"
-                        style={{ color: 'var(--color-text-muted)' }}
-                      >
-                        {profile.description}
-                      </div>
-                    </div>
-                    {isActive && (
-                      <span
-                        className="ml-auto text-[10px] font-bold uppercase"
-                        style={{ color: 'var(--color-accent)' }}
-                      >
-                        ✓
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold leading-none mb-0.5 cap-text-primary">
+                        {profile.name}
                       </span>
-                    )}
+                      <span className="block text-[10px] leading-none truncate cap-text-muted">
+                        {profile.description}
+                      </span>
+                    </span>
+                    {isActive && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
                   </button>
                 );
               })}

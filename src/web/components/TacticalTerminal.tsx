@@ -365,7 +365,7 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
       <div className="flex-1 overflow-y-auto min-h-0 space-y-2 pr-1">
 
         {filteredEvents.length === 0 ? (
-          <div className="text-center py-16 bg-command-surface rounded-xl tactical-border">
+          <div className="text-center py-16 bg-command-surface rounded-lg tactical-border">
             <Terminal className="w-8 h-8 mx-auto mb-3 text-zinc-600 opacity-50" />
             <p className="text-sm text-zinc-500 font-sans">No activity logged yet.</p>
             <p className="text-xs text-zinc-600 mt-1">Events appear here as agents and users take actions.</p>
@@ -396,7 +396,7 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
                     <span className="text-[10px] font-mono text-zinc-500 flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5" />
                       {relativeTime(evt.created_at)}
-                      <span className="text-zinc-700 mx-0.5">·</span>
+                      <span className="cap-divider w-0.5 h-0.5 rounded-full shrink-0 mx-1" aria-hidden="true" />
                       {new Date(evt.created_at).toLocaleTimeString()}
                     </span>
                   </div>

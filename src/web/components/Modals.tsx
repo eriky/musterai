@@ -34,45 +34,45 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({ onClose, onSuc
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-command-surface border border-emerald-500/40 rounded-xl w-full max-w-md p-5 shadow-2xl space-y-4 font-sans">
+    <div className="cap-scrim">
+      <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-command-border pb-3">
-          <h3 className="text-sm font-bold text-zinc-100 flex items-center">
-            <FolderPlus className="w-4 h-4 mr-2 text-emerald-400" /> Create New Project
+          <h3 className="text-sm font-bold cap-text-primary flex items-center">
+            <FolderPlus className="w-4 h-4 mr-2 cap-accent" /> Create New Project
           </h3>
-          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-100 cursor-pointer">
+          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-950/80 border border-rose-500/50 rounded-lg text-rose-300 text-xs flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Project Name</label>
+            <label className="cap-label">Project Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Collaborative Platform v2"
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2.5 focus:border-emerald-500 focus:outline-none"
+              className="cap-input cap-input-lg"
             />
           </div>
 
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Description</label>
+            <label className="cap-label">Description</label>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Project goals, scope, and target deliverables..."
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 focus:border-emerald-500 focus:outline-none"
+              className="cap-input"
             />
           </div>
 
@@ -80,14 +80,14 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({ onClose, onSuc
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded cursor-pointer"
+              className="cap-btn cap-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim()}
-              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 text-zinc-950 font-bold rounded cursor-pointer transition-all"
+              className="cap-btn cap-btn-primary"
             >
               {isSubmitting ? 'Creating...' : 'Create Project'}
             </button>
@@ -129,45 +129,45 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ project, onC
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-command-surface border border-emerald-500/40 rounded-xl w-full max-w-md p-5 shadow-2xl space-y-4 font-sans">
+    <div className="cap-scrim">
+      <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-command-border pb-3">
-          <h3 className="text-sm font-bold text-zinc-100 flex items-center">
-            <Edit2 className="w-4 h-4 mr-2 text-emerald-400" /> Edit Project Details
+          <h3 className="text-sm font-bold cap-text-primary flex items-center">
+            <Edit2 className="w-4 h-4 mr-2 cap-accent" /> Edit Project Details
           </h3>
-          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-100 cursor-pointer">
+          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-950/80 border border-rose-500/50 rounded-lg text-rose-300 text-xs flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Project Name</label>
+            <label className="cap-label">Project Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Collaborative Platform v2"
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2.5 focus:border-emerald-500 focus:outline-none"
+              className="cap-input cap-input-lg"
             />
           </div>
 
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Description</label>
+            <label className="cap-label">Description</label>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Project goals, scope, and target deliverables..."
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 focus:border-emerald-500 focus:outline-none"
+              className="cap-input"
             />
           </div>
 
@@ -175,14 +175,14 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ project, onC
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded cursor-pointer"
+              className="cap-btn cap-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim()}
-              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:bg-zinc-800 text-zinc-950 font-bold rounded cursor-pointer transition-all"
+              className="cap-btn cap-btn-primary"
             >
               {isSubmitting ? 'Saving...' : 'Save Changes'}
             </button>
@@ -224,43 +224,43 @@ export const NewBoardModal: React.FC<NewBoardModalProps> = ({ projectId, onClose
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-command-surface border border-cyan-500/40 rounded-xl w-full max-w-md p-5 shadow-2xl space-y-4 font-sans">
+    <div className="cap-scrim">
+      <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-command-border pb-3">
-          <h3 className="text-sm font-bold text-zinc-100 flex items-center">
-            <Layers className="w-4 h-4 mr-2 text-cyan-400" /> Create New Board
+          <h3 className="text-sm font-bold cap-text-primary flex items-center">
+            <Layers className="w-4 h-4 mr-2 cap-accent" /> Create New Board
           </h3>
-          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-100 cursor-pointer">
+          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-950/80 border border-rose-500/50 rounded-lg text-rose-300 text-xs flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Board Name</label>
+            <label className="cap-label">Board Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Sprint 2, Feature Roadmap"
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2.5 focus:border-cyan-500 focus:outline-none"
+              className="cap-input cap-input-lg"
             />
           </div>
 
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Board Structure / Lanes</label>
+            <label className="cap-label">Board Structure / Lanes</label>
             <select
               value={template}
               onChange={(e) => setTemplate(e.target.value as 'simple' | 'standard')}
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 focus:border-cyan-500 focus:outline-none"
+              className="cap-input"
             >
               <option value="simple">⚡ 3 Lanes (To Do → In Progress → Done)</option>
               <option value="standard">📋 5 Lanes (Backlog → To Do → In Progress → In Review → Done)</option>
@@ -271,14 +271,14 @@ export const NewBoardModal: React.FC<NewBoardModalProps> = ({ projectId, onClose
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded cursor-pointer"
+              className="cap-btn cap-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim()}
-              className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-zinc-800 text-zinc-950 font-bold rounded cursor-pointer"
+              className="cap-btn cap-btn-primary"
             >
               {isSubmitting ? 'Creating...' : 'Create Board'}
             </button>
@@ -321,46 +321,46 @@ export const NewColumnModal: React.FC<NewColumnModalProps> = ({ boardId, onClose
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-command-surface border border-cyan-500/40 rounded-xl w-full max-w-md p-5 shadow-2xl space-y-4 font-sans">
+    <div className="cap-scrim">
+      <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-command-border pb-3">
-          <h3 className="text-sm font-bold text-zinc-100 flex items-center">
-            <Plus className="w-4 h-4 mr-2 text-cyan-400" /> Add Column
+          <h3 className="text-sm font-bold cap-text-primary flex items-center">
+            <Plus className="w-4 h-4 mr-2 cap-accent" /> Add Column
           </h3>
-          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-100 cursor-pointer">
+          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-950/80 border border-rose-500/50 rounded-lg text-rose-300 text-xs flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Column Name</label>
+            <label className="cap-label">Column Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. In Testing, Blocked, Done"
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2.5 focus:border-cyan-500 focus:outline-none"
+              className="cap-input cap-input-lg"
             />
           </div>
 
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">WIP Limit (Optional)</label>
+            <label className="cap-label">WIP Limit (Optional)</label>
             <input
               type="number"
               min="1"
               value={wipLimit}
               onChange={(e) => setWipLimit(e.target.value)}
               placeholder="e.g. 3 (leave empty for unlimited)"
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 focus:border-cyan-500 focus:outline-none"
+              className="cap-input"
             />
           </div>
 
@@ -368,14 +368,14 @@ export const NewColumnModal: React.FC<NewColumnModalProps> = ({ boardId, onClose
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded cursor-pointer"
+              className="cap-btn cap-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim()}
-              className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-zinc-800 text-zinc-950 font-bold rounded cursor-pointer"
+              className="cap-btn cap-btn-primary"
             >
               {isSubmitting ? 'Adding...' : 'Add Column'}
             </button>
@@ -418,46 +418,46 @@ export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClos
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-command-surface border border-cyan-500/40 rounded-xl w-full max-w-md p-5 shadow-2xl space-y-4 font-sans">
+    <div className="cap-scrim">
+      <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-command-border pb-3">
-          <h3 className="text-sm font-bold text-zinc-100 flex items-center">
-            <Edit2 className="w-4 h-4 mr-2 text-cyan-400" /> Edit Column Settings
+          <h3 className="text-sm font-bold cap-text-primary flex items-center">
+            <Edit2 className="w-4 h-4 mr-2 cap-accent" /> Edit Column Settings
           </h3>
-          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-100 cursor-pointer">
+          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-950/80 border border-rose-500/50 rounded-lg text-rose-300 text-xs flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Column Name</label>
+            <label className="cap-label">Column Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. In Testing, Blocked, Done"
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2.5 focus:border-cyan-500 focus:outline-none"
+              className="cap-input cap-input-lg"
             />
           </div>
 
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">WIP Limit (Optional)</label>
+            <label className="cap-label">WIP Limit (Optional)</label>
             <input
               type="number"
               min="1"
               value={wipLimit}
               onChange={(e) => setWipLimit(e.target.value)}
               placeholder="e.g. 3 (leave empty for unlimited)"
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 focus:border-cyan-500 focus:outline-none"
+              className="cap-input"
             />
           </div>
 
@@ -465,14 +465,14 @@ export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClos
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded cursor-pointer"
+              className="cap-btn cap-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim()}
-              className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-zinc-800 text-zinc-950 font-bold rounded cursor-pointer"
+              className="cap-btn cap-btn-primary"
             >
               {isSubmitting ? 'Saving...' : 'Save Column'}
             </button>
@@ -515,58 +515,58 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-command-surface border border-emerald-500/40 rounded-xl w-full max-w-md p-5 shadow-2xl space-y-4 font-sans">
+    <div className="cap-scrim">
+      <div className="cap-dialog w-full max-w-md p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-command-border pb-3">
-          <h3 className="text-sm font-bold text-zinc-100 flex items-center">
-            <UserPlus className="w-4 h-4 mr-2 text-emerald-400" /> Add Human User / Operator
+          <h3 className="text-sm font-bold cap-text-primary flex items-center">
+            <UserPlus className="w-4 h-4 mr-2 cap-accent" /> Add Human User / Operator
           </h3>
-          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-100 cursor-pointer">
+          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-950/80 border border-rose-500/50 rounded-lg text-rose-300 text-xs flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <div className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg text-[11px] text-zinc-400">
-          💡 <span className="font-semibold text-zinc-200">Note:</span> Manual registration is for human operators. AI agents (Claude, Cursor, Antigravity) register themselves programmatically over MCP using the Human Owner Secret Token.
+        <div className="p-3 bg-command-bg border border-command-border rounded-md text-[11px] cap-text-muted">
+          💡 <span className="font-semibold cap-text-primary">Note:</span> Manual registration is for human operators. AI agents (Claude, Cursor, Antigravity) register themselves programmatically over MCP using the Human Owner Secret Token.
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">User Name</label>
+            <label className="cap-label">User Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Erik, Alice"
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2.5 focus:border-emerald-500 focus:outline-none"
+              className="cap-input cap-input-lg"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-zinc-400 mb-1 font-semibold">Account Type</label>
+              <label className="cap-label">Account Type</label>
               <input
                 type="text"
                 disabled
                 value="Human Operator"
-                className="w-full bg-zinc-900 border border-command-border text-emerald-400 font-bold rounded p-2 opacity-80"
+                className="cap-input font-mono font-bold"
               />
             </div>
 
             <div>
-              <label className="block text-zinc-400 mb-1 font-semibold">Role</label>
+              <label className="cap-label">Role</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as any)}
-                className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 cursor-pointer"
+                className="cap-input cursor-pointer"
               >
                 <option value="owner">Owner</option>
                 <option value="contributor">Contributor</option>
@@ -576,13 +576,13 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
           </div>
 
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Capabilities (comma-separated)</label>
+            <label className="cap-label">Capabilities (comma-separated)</label>
             <input
               type="text"
               value={capabilities}
               onChange={(e) => setCapabilities(e.target.value)}
               placeholder="e.g. management, architecture, review"
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 focus:border-emerald-500 focus:outline-none"
+              className="cap-input"
             />
           </div>
 
@@ -590,14 +590,14 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded cursor-pointer"
+              className="cap-btn cap-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold rounded cursor-pointer disabled:opacity-50"
+              className="cap-btn cap-btn-primary"
             >
               {isSubmitting ? 'Adding...' : 'Add User'}
             </button>
@@ -650,31 +650,31 @@ export const NewCardModal: React.FC<NewCardModalProps> = ({ columns, defaultColu
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-command-surface border border-cyan-500/40 rounded-xl w-full max-w-lg p-5 shadow-2xl space-y-4 font-sans">
+    <div className="cap-scrim">
+      <div className="cap-dialog w-full max-w-lg p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-command-border pb-3">
-          <h3 className="text-sm font-bold text-zinc-100 flex items-center">
-            <Plus className="w-4 h-4 mr-2 text-cyan-400" /> Create Card
+          <h3 className="text-sm font-bold cap-text-primary flex items-center">
+            <Plus className="w-4 h-4 mr-2 cap-accent" /> Create Card
           </h3>
-          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-100 cursor-pointer">
+          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-950/80 border border-rose-500/50 rounded-lg text-rose-300 text-xs flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Column</label>
+            <label className="cap-label">Column</label>
             <select
               value={columnId}
               onChange={(e) => setColumnId(e.target.value)}
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2"
+              className="cap-input"
             >
               {columns.map((col) => (
                 <option key={col.id} value={col.id}>{col.name}</option>
@@ -683,24 +683,24 @@ export const NewCardModal: React.FC<NewCardModalProps> = ({ columns, defaultColu
           </div>
 
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Title</label>
+            <label className="cap-label">Title</label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Implement OAuth 2.0 Auth Handler"
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2.5 focus:border-cyan-500 focus:outline-none"
+              className="cap-input cap-input-lg"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-zinc-400 mb-1 font-semibold">Priority</label>
+              <label className="cap-label">Priority</label>
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as any)}
-                className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2"
+                className="cap-input"
               >
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
@@ -710,11 +710,11 @@ export const NewCardModal: React.FC<NewCardModalProps> = ({ columns, defaultColu
             </div>
 
             <div>
-              <label className="block text-zinc-400 mb-1 font-semibold">Initial Status</label>
+              <label className="cap-label">Initial Status</label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as any)}
-                className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2"
+                className="cap-input"
               >
                 <option value="active">Active (Normal)</option>
                 <option value="in_review">In Review (Waiting for Human)</option>
@@ -725,7 +725,7 @@ export const NewCardModal: React.FC<NewCardModalProps> = ({ columns, defaultColu
 
           {status !== 'active' && (
             <div>
-              <label className="block text-zinc-400 mb-1 font-semibold">
+              <label className="cap-label">
                 {status === 'blocked' ? 'Blocked Reason' : 'Review Reason / Note'}
               </label>
               <input
@@ -733,19 +733,19 @@ export const NewCardModal: React.FC<NewCardModalProps> = ({ columns, defaultColu
                 value={blockedReason}
                 onChange={(e) => setBlockedReason(e.target.value)}
                 placeholder={status === 'blocked' ? 'e.g. Waiting on API credentials' : 'e.g. Requires human review'}
-                className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 focus:border-cyan-500 focus:outline-none"
+                className="cap-input"
               />
             </div>
           )}
 
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Description (Markdown)</label>
+            <label className="cap-label">Description (Markdown)</label>
             <textarea
               rows={4}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Detailed instructions for assigned agents..."
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2 focus:border-cyan-500 focus:outline-none"
+              className="cap-input"
             />
           </div>
 
@@ -753,14 +753,14 @@ export const NewCardModal: React.FC<NewCardModalProps> = ({ columns, defaultColu
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded cursor-pointer"
+              className="cap-btn cap-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !title.trim()}
-              className="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-zinc-800 text-zinc-950 font-bold rounded cursor-pointer"
+              className="cap-btn cap-btn-primary"
             >
               {isSubmitting ? 'Creating...' : 'Create Card'}
             </button>
@@ -802,44 +802,44 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ projectId, onClose, on
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-command-surface border border-amber-500/40 rounded-xl w-full max-w-lg p-5 shadow-2xl space-y-4 font-sans">
+    <div className="cap-scrim">
+      <div className="cap-dialog w-full max-w-lg p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-command-border pb-3">
-          <h3 className="text-sm font-bold text-zinc-100 flex items-center">
-            <FileText className="w-4 h-4 mr-2 text-amber-400" /> Create Design Document
+          <h3 className="text-sm font-bold cap-text-primary flex items-center">
+            <FileText className="w-4 h-4 mr-2 cap-accent" /> Create Design Document
           </h3>
-          <button onClick={onClose} className="p-1 text-zinc-400 hover:text-zinc-100 cursor-pointer">
+          <button onClick={onClose} className="cap-btn cap-btn-icon cap-btn-ghost">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {error && (
-          <div className="p-3 bg-rose-950/80 border border-rose-500/50 rounded-lg text-rose-300 text-xs flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
+          <div className="cap-badge cap-badge-danger normal-case tracking-normal text-xs p-3 w-full">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Document Title</label>
+            <label className="cap-label">Document Title</label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Architecture Overview & Schemas"
-              className="w-full bg-command-card border border-command-border text-zinc-100 rounded p-2.5 focus:border-amber-500 focus:outline-none"
+              className="cap-input cap-input-lg"
             />
           </div>
 
           <div>
-            <label className="block text-zinc-400 mb-1 font-semibold">Markdown Content</label>
+            <label className="cap-label">Markdown Content</label>
             <textarea
               rows={8}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="w-full bg-command-card border border-command-border text-zinc-100 font-mono text-xs rounded p-2 focus:border-amber-500 focus:outline-none"
+              className="cap-input font-mono"
             />
           </div>
 
@@ -847,14 +847,14 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ projectId, onClose, on
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded cursor-pointer"
+              className="cap-btn cap-btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !title.trim()}
-              className="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-800 text-zinc-950 font-bold rounded cursor-pointer"
+              className="cap-btn cap-btn-primary"
             >
               {isSubmitting ? 'Creating...' : 'Create Document'}
             </button>
