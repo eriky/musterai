@@ -1,8 +1,8 @@
 // File: src/web/components/KanbanBoard.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { Board, Column, Card, Agent, CardDetails, Document } from '../types.js';
-import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Board, Column, Card, Agent, CardDetails, Document, CardLinkRelationType } from '../types.js';
+import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch } from 'lucide-react';
 import { marked } from 'marked';
 import { api } from '../api.js';
 import { EditColumnModal } from './Modals.js';
@@ -15,6 +15,7 @@ interface KanbanBoardProps {
   cards: Card[];
   agents: Agent[];
   documents: Document[];
+  projectId: string | null;
   onMoveCard: (cardId: string, targetColumnId: string, position?: string) => void;
   onOpenNewCard: (columnId?: string) => void;
   onOpenNewColumn: () => void;
@@ -23,12 +24,27 @@ interface KanbanBoardProps {
   onRefresh: () => void;
 }
 
+const CARD_LINK_RELATION_LABELS: Record<CardLinkRelationType, string> = {
+  blocks: 'Blocks',
+  blocked_by: 'Blocked by',
+  relates_to: 'Relates to',
+  duplicates: 'Duplicates',
+};
+
+const CARD_LINK_BADGE_CLASSES: Record<CardLinkRelationType, string> = {
+  blocks: 'bg-rose-950 text-rose-400 border-rose-600/40',
+  blocked_by: 'bg-amber-950 text-amber-400 border-amber-600/40',
+  relates_to: 'bg-cyan-950 text-cyan-400 border-cyan-600/40',
+  duplicates: 'bg-violet-950 text-violet-400 border-violet-600/40',
+};
+
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   board,
   columns,
   cards,
   agents,
   documents,
+  projectId,
   onMoveCard,
   onOpenNewCard,
   onOpenNewColumn,
@@ -43,6 +59,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('');
   const [assignAgentId, setAssignAgentId] = useState<string>('');
   const [linkDocumentId, setLinkDocumentId] = useState<string>('');
+  const [linkCardRelationType, setLinkCardRelationType] = useState<CardLinkRelationType>('relates_to');
+  const [linkCardQuery, setLinkCardQuery] = useState('');
+  const [linkCardResults, setLinkCardResults] = useState<Card[]>([]);
+  const [isSearchingLinkCards, setIsSearchingLinkCards] = useState(false);
   const [isEditingBoardName, setIsEditingBoardName] = useState(false);
   const [boardNameInput, setBoardNameInput] = useState('');
   const [editingColumn, setEditingColumn] = useState<Column | null>(null);
@@ -53,6 +73,25 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [editCardPriority, setEditCardPriority] = useState<'critical' | 'high' | 'medium' | 'low'>('medium');
   const [editCardStatus, setEditCardStatus] = useState<'active' | 'blocked' | 'in_review'>('active');
   const [editCardBlockedReason, setEditCardBlockedReason] = useState<string>('');
+
+  useEffect(() => {
+    if (!projectId || !selectedCardId || !linkCardQuery.trim()) {
+      setLinkCardResults([]);
+      return;
+    }
+    setIsSearchingLinkCards(true);
+    const handle = setTimeout(async () => {
+      try {
+        const results = await api.searchCards(projectId, linkCardQuery.trim(), selectedCardId);
+        setLinkCardResults(results);
+      } catch (err) {
+        console.error('Failed to search cards:', err);
+      } finally {
+        setIsSearchingLinkCards(false);
+      }
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [linkCardQuery, projectId, selectedCardId]);
 
   const handleRenameBoard = async () => {
     if (!board || !boardNameInput.trim()) return;
@@ -100,6 +139,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       setEditCardStatus(details.status || 'active');
       setEditCardBlockedReason(details.blocked_reason || '');
       setIsEditingCard(editMode);
+      setLinkCardQuery('');
+      setLinkCardResults([]);
     } catch (err) {
       console.error('Failed to load card details:', err);
     }
@@ -199,6 +240,28 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       setCardDetails(updated);
     } catch (err) {
       console.error('Failed to unlink document:', err);
+    }
+  };
+
+  const handleLinkCard = async (targetCardId: string) => {
+    if (!selectedCardId) return;
+    try {
+      const updated = await api.linkCard(selectedCardId, targetCardId, linkCardRelationType);
+      setCardDetails(updated);
+      setLinkCardQuery('');
+      setLinkCardResults([]);
+    } catch (err: any) {
+      alert(err.message || 'Failed to link card');
+    }
+  };
+
+  const handleUnlinkCard = async (linkId: string) => {
+    if (!selectedCardId) return;
+    try {
+      const updated = await api.unlinkCard(selectedCardId, linkId);
+      setCardDetails(updated);
+    } catch (err) {
+      console.error('Failed to unlink card:', err);
     }
   };
 
@@ -847,6 +910,92 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     </button>
                   </div>
                 )}
+              </div>
+
+              {/* Linked Cards */}
+              <div>
+                <h4 className="text-xs font-bold text-zinc-300 uppercase mb-3 flex items-center">
+                  <GitBranch className="w-4 h-4 mr-1.5 text-violet-400" />
+                  Linked Cards ({(cardDetails.linked_cards || []).length})
+                </h4>
+
+                <div className="space-y-2 mb-3">
+                  {(cardDetails.linked_cards || []).length > 0 ? (
+                    cardDetails.linked_cards.map((link) => (
+                      <div
+                        key={link.id}
+                        onClick={() => handleOpenCard(link.card.id)}
+                        className="flex items-center justify-between bg-command-card p-2.5 rounded-lg border border-violet-500/20 hover:border-violet-500/60 hover:bg-zinc-900/90 group cursor-pointer transition-all"
+                      >
+                        <div className="flex items-center space-x-2 min-w-0">
+                          <span className={`px-1.5 py-0.5 text-[10px] font-mono font-bold rounded border flex-shrink-0 ${CARD_LINK_BADGE_CLASSES[link.relation_type]}`}>
+                            {CARD_LINK_RELATION_LABELS[link.relation_type]}
+                          </span>
+                          <span className="text-xs font-sans text-zinc-200 group-hover:text-violet-300 truncate font-semibold">
+                            {link.card.title}
+                          </span>
+                          {link.card.archived ? (
+                            <span className="px-1.5 py-0.5 text-[10px] font-mono rounded flex-shrink-0 bg-zinc-900 text-zinc-500 border border-zinc-700">archived</span>
+                          ) : null}
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnlinkCard(link.id);
+                          }}
+                          className="p-1 text-zinc-600 hover:text-rose-400 rounded transition-colors cursor-pointer opacity-0 group-hover:opacity-100 flex-shrink-0"
+                          title="Unlink card"
+                        >
+                          <Unlink className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-zinc-500 italic">No linked cards.</p>
+                  )}
+                </div>
+
+                {/* Relation type + card title search */}
+                <div className="flex space-x-1.5">
+                  <select
+                    value={linkCardRelationType}
+                    onChange={(e) => setLinkCardRelationType(e.target.value as CardLinkRelationType)}
+                    className="bg-command-card border border-command-border text-zinc-200 text-xs rounded px-2 py-1 flex-shrink-0"
+                  >
+                    <option value="blocks">Blocks</option>
+                    <option value="blocked_by">Blocked by</option>
+                    <option value="relates_to">Relates to</option>
+                    <option value="duplicates">Duplicates</option>
+                  </select>
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={linkCardQuery}
+                      onChange={(e) => setLinkCardQuery(e.target.value)}
+                      placeholder="Search cards by title..."
+                      className="w-full bg-command-card border border-command-border text-zinc-200 text-xs rounded px-2 py-1"
+                    />
+                    {linkCardQuery.trim() && (
+                      <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-command-card border border-command-border rounded-lg shadow-lg">
+                        {isSearchingLinkCards ? (
+                          <div className="px-2.5 py-2 text-xs text-zinc-500 italic">Searching...</div>
+                        ) : linkCardResults.length > 0 ? (
+                          linkCardResults.map((c) => (
+                            <div
+                              key={c.id}
+                              onClick={() => handleLinkCard(c.id)}
+                              className="px-2.5 py-1.5 text-xs text-zinc-200 hover:bg-violet-950/60 hover:text-violet-300 cursor-pointer truncate"
+                            >
+                              {c.title}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="px-2.5 py-2 text-xs text-zinc-500 italic">No matching cards</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Comments Section */}

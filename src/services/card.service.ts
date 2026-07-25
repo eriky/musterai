@@ -1,6 +1,6 @@
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Card, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document } from '../shared/types.js';
+import { Card, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document, CardLinkRelationType, LinkedCardSummary } from '../shared/types.js';
 import { EventService } from './event.service.js';
 import { rankAfter } from '../shared/lexorank.js';
 
@@ -112,6 +112,8 @@ export class CardService {
       [id]
     );
 
+    const linked_cards = await this.getLinkedCards(id);
+
     return {
       ...card,
       assignees: assignees.map(a => ({
@@ -121,7 +123,44 @@ export class CardService {
       labels,
       comments,
       linked_documents,
+      linked_cards,
     };
+  }
+
+  private async getLinkedCards(cardId: string): Promise<LinkedCardSummary[]> {
+    type LinkRow = { id: string; relation_type: string; other_id: string; other_title: string; other_column_id: string; other_status: string; other_priority: string; other_archived: number };
+
+    const outgoing = await this.db.query<LinkRow>(
+      `SELECT cl.id, cl.relation_type, c.id as other_id, c.title as other_title, c.column_id as other_column_id, c.status as other_status, c.priority as other_priority, c.archived as other_archived
+       FROM card_link cl JOIN card c ON c.id = cl.target_card_id
+       WHERE cl.source_card_id = ?`,
+      [cardId]
+    );
+
+    const incoming = await this.db.query<LinkRow>(
+      `SELECT cl.id, cl.relation_type, c.id as other_id, c.title as other_title, c.column_id as other_column_id, c.status as other_status, c.priority as other_priority, c.archived as other_archived
+       FROM card_link cl JOIN card c ON c.id = cl.source_card_id
+       WHERE cl.target_card_id = ?`,
+      [cardId]
+    );
+
+    const toSummary = (row: LinkRow, relation_type: CardLinkRelationType): LinkedCardSummary => ({
+      id: row.id,
+      relation_type,
+      card: {
+        id: row.other_id,
+        title: row.other_title,
+        column_id: row.other_column_id,
+        status: row.other_status as LinkedCardSummary['card']['status'],
+        priority: row.other_priority as LinkedCardSummary['card']['priority'],
+        archived: row.other_archived,
+      },
+    });
+
+    return [
+      ...outgoing.map(r => toSummary(r, r.relation_type as CardLinkRelationType)),
+      ...incoming.map(r => toSummary(r, r.relation_type === 'blocks' ? 'blocked_by' : (r.relation_type as CardLinkRelationType))),
+    ];
   }
 
   async list(filters: { column_id?: string; board_id?: string; assignee_id?: string; label?: string; status?: string; archived?: boolean } = {}): Promise<Card[]> {
@@ -323,6 +362,78 @@ export class CardService {
     );
   }
 
+  async linkCard(cardId: string, targetCardId: string, relationType: CardLinkRelationType, actorId?: string): Promise<void> {
+    if (cardId === targetCardId) throw new Error('A card cannot be linked to itself');
+
+    let sourceCardId = cardId;
+    let destCardId = targetCardId;
+    let storedType: 'blocks' | 'relates_to' | 'duplicates' = relationType === 'blocked_by' ? 'blocks' : relationType;
+
+    if (relationType === 'blocked_by') {
+      sourceCardId = targetCardId;
+      destCardId = cardId;
+    } else if (storedType === 'relates_to' || storedType === 'duplicates') {
+      // Symmetric relations: canonicalize direction so A-B and B-A collapse to one row.
+      if (sourceCardId > destCardId) {
+        [sourceCardId, destCardId] = [destCardId, sourceCardId];
+      }
+    }
+
+    const id = ulid();
+    const created_at = new Date().toISOString();
+    await this.db.execute(
+      `INSERT OR IGNORE INTO card_link (id, source_card_id, target_card_id, relation_type, created_at) VALUES (?, ?, ?, ?, ?)`,
+      [id, sourceCardId, destCardId, storedType, created_at]
+    );
+
+    if (this.eventService) {
+      const card = await this.getById(cardId);
+      const projectId = await this.getProjectIdForColumn(card.column_id);
+      if (projectId) {
+        await this.eventService.create({
+          project_id: projectId,
+          entity_type: 'card',
+          entity_id: cardId,
+          action: 'card_linked',
+          actor_id: actorId,
+          payload: { target_card_id: targetCardId, relation_type: relationType },
+        });
+      }
+    }
+  }
+
+  async unlinkCard(cardId: string, linkId: string, actorId?: string): Promise<void> {
+    await this.db.execute(
+      `DELETE FROM card_link WHERE id = ? AND (source_card_id = ? OR target_card_id = ?)`,
+      [linkId, cardId, cardId]
+    );
+  }
+
+  async searchByTitle(projectId: string, query: string, opts: { excludeCardId?: string; limit?: number } = {}): Promise<Card[]> {
+    const limit = opts.limit ?? 20;
+    const params: unknown[] = [projectId];
+
+    let sql = `SELECT c.* FROM card c
+      JOIN "column" col ON c.column_id = col.id
+      JOIN board b ON col.board_id = b.id
+      WHERE b.project_id = ? AND c.archived = 0`;
+
+    if (query.trim()) {
+      sql += ' AND c.title LIKE ?';
+      params.push(`%${query.trim()}%`);
+    }
+
+    if (opts.excludeCardId) {
+      sql += ' AND c.id != ?';
+      params.push(opts.excludeCardId);
+    }
+
+    sql += ' ORDER BY c.updated_at DESC LIMIT ?';
+    params.push(limit);
+
+    return this.db.query<Card>(sql, params);
+  }
+
   async archive(cardId: string, actorId?: string): Promise<void> {
     const updated_at = new Date().toISOString();
     await this.db.execute(`UPDATE card SET archived = 1, updated_at = ? WHERE id = ?`, [updated_at, cardId]);
@@ -337,6 +448,7 @@ export class CardService {
     await this.db.execute('DELETE FROM card_assignee WHERE card_id = ?', [cardId]);
     await this.db.execute('DELETE FROM card_label WHERE card_id = ?', [cardId]);
     await this.db.execute('DELETE FROM card_document WHERE card_id = ?', [cardId]);
+    await this.db.execute('DELETE FROM card_link WHERE source_card_id = ? OR target_card_id = ?', [cardId, cardId]);
     await this.db.execute('DELETE FROM comment WHERE card_id = ?', [cardId]);
     await this.db.execute('DELETE FROM card WHERE id = ?', [cardId]);
 

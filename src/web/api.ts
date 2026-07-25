@@ -1,5 +1,5 @@
 // File: src/web/api.ts
-import { Project, Board, Column, Card, CardDetails, Document, Agent, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree } from './types.js';
+import { Project, Board, Column, Card, CardDetails, Document, Agent, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType } from './types.js';
 
 const API_BASE = '/api/v1';
 
@@ -85,6 +85,14 @@ export const api = {
   addComment: (cardId: string, authorId: string, content: string) => fetchJSON<any>(`/cards/${cardId}/comments`, { method: 'POST', body: JSON.stringify({ author_id: authorId, content }) }),
   linkDocument: (cardId: string, documentId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/documents`, { method: 'POST', body: JSON.stringify({ document_id: documentId }) }),
   unlinkDocument: (cardId: string, documentId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/documents/${documentId}`, { method: 'DELETE' }),
+  searchCards: (projectId: string, query: string, excludeCardId?: string) => {
+    let url = `/projects/${projectId}/cards/search?q=${encodeURIComponent(query)}`;
+    if (excludeCardId) url += `&exclude_card_id=${excludeCardId}`;
+    return fetchJSON<Card[]>(url);
+  },
+  linkCard: (cardId: string, targetCardId: string, relationType: CardLinkRelationType) =>
+    fetchJSON<CardDetails>(`/cards/${cardId}/links`, { method: 'POST', body: JSON.stringify({ target_card_id: targetCardId, relation_type: relationType }) }),
+  unlinkCard: (cardId: string, linkId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/links/${linkId}`, { method: 'DELETE' }),
   deleteCard: (id: string) => fetchJSON<void>(`/cards/${id}`, { method: 'DELETE' }),
 
 

@@ -300,6 +300,22 @@ All AI agents and human operators collaborating within CAP must follow this prot
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
   });
 
+  server.tool('link_card', {
+    card_id: z.string(),
+    target_card_id: z.string(),
+    relation_type: z.enum(['blocks', 'blocked_by', 'relates_to', 'duplicates']),
+  }, async ({ card_id, target_card_id, relation_type }) => {
+    await services.cardService.linkCard(card_id, target_card_id, relation_type, getActorId({ card_id }));
+    const details = await services.cardService.getById(card_id);
+    return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
+  });
+
+  server.tool('unlink_card', { card_id: z.string(), link_id: z.string() }, async ({ card_id, link_id }) => {
+    await services.cardService.unlinkCard(card_id, link_id, getActorId({ card_id }));
+    const details = await services.cardService.getById(card_id);
+    return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
+  });
+
   server.tool('create_label', { board_id: z.string(), name: z.string(), color: z.string() }, async (args) => {
     const result = await services.boardService.createLabel(args);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
