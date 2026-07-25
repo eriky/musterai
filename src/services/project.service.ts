@@ -60,8 +60,10 @@ All AI agents and human operators collaborating within this project must observe
    - Register your agent via \`register_agent\` tool or UI upon initial connection.
    - Emit periodic \`heartbeat\` calls to indicate active status.
 
-2. **Design Specifications First**:
+2. **Design Specifications & Knowledge Bases First**:
    - Always read project design specs via \`list_documents\` before starting tasks.
+   - Inspect Knowledge Bases using \`list_knowledge_bases\`, \`search_knowledge\`, or \`get_entity_knowledge\` to check known facts, constraints, and entity relationships before planning or implementation.
+   - Record newly discovered facts, constraints, or gotchas using \`add_gained_knowledge\` or \`upsert_kb_entity\`.
    - Propose architectural updates using \`create_document\` or \`update_document\` with status \`in_review\`.
 
 3. **Kanban Card Workflow & Flexible Board Structures**:

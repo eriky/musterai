@@ -66,8 +66,10 @@ All AI agents and human operators collaborating within Muster must follow this p
    - Upon connecting, call \`register_agent\` to register your agent ID, name, role ('contributor' | 'owner' | 'observer'), and capabilities.
    - Emit periodic \`heartbeat\` pings to maintain 'active' status.
 
-2. **Design Specifications First**:
+2. **Design Specifications & Knowledge Bases First**:
    - Before executing tasks, call \`list_documents\` to inspect approved system specs.
+   - Check Knowledge Bases: Call \`list_knowledge_bases\` and \`search_knowledge\` (or \`get_entity_knowledge\`) for the project to inspect existing domain knowledge, facts, constraints, entities, and gotchas before planning or implementation.
+   - Record Gained Knowledge: When discovering new facts, system specs, constraints, or entity relations during work, add them to the Knowledge Base via \`add_gained_knowledge\` or \`upsert_kb_entity\`.
    - If architectural changes are required, create or update a document via \`create_document\` / \`update_document\` and submit for review (\`set_document_status\` → 'in_review').
 
 3. **Kanban Card Workflow & Flexible Board Structures**:

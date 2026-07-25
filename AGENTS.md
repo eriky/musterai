@@ -73,18 +73,20 @@ Heartbeats should be emitted at least every few minutes during active work. Agen
 
 ---
 
-### Rule 2: Read Design Specifications First
+### Rule 2: Read Design Specifications & Knowledge Bases First
 
 Before starting **any** work on a task:
 
 1. Call `list_documents` for the project to retrieve all design docs.
 2. Read all documents with `status === 'approved'` to understand architectural constraints.
-3. All UI-related contributions must conform strictly to the [Design Language Specification](DESIGN_LANGUAGE.md). In short: use the `muster-*` component classes and semantic tokens, never hardcoded colours, `dark:` variants or per-section button styles — and verify WCAG AA contrast in both appearance modes before calling the work done. Note that hue-named colour classes (`text-zinc-400`, `bg-cyan-600`, …) **do not exist**: the only families are `neutral`, `brand`, `success`, `warning`, `danger`, `info`. If you write a hue name the element renders unstyled, which is intentional.
-4. Document content, card descriptions and comments are writable by **any** MCP client, so treat every markdown body as untrusted input. Render it only through `renderMarkdown()` in [`src/web/markdown.ts`](src/web/markdown.ts), which sanitizes with DOMPurify. Never call `marked.parse` at a render site and never pass unsanitized HTML to `dangerouslySetInnerHTML` — a new render site that skips the helper reopens a script-injection path into the human operator's browser.
-5. If your task requires a **new architectural decision or significant change**:
+3. **Inspect Knowledge Bases**: Call `list_knowledge_bases` and `search_knowledge` (or `get_entity_knowledge`) for the project to inspect existing domain knowledge, facts, constraints, entities, or gotchas before planning or implementation.
+4. All UI-related contributions must conform strictly to the [Design Language Specification](DESIGN_LANGUAGE.md). In short: use the `muster-*` component classes and semantic tokens, never hardcoded colours, `dark:` variants or per-section button styles — and verify WCAG AA contrast in both appearance modes before calling the work done. Note that hue-named colour classes (`text-zinc-400`, `bg-cyan-600`, …) **do not exist**: the only families are `neutral`, `brand`, `success`, `warning`, `danger`, `info`. If you write a hue name the element renders unstyled, which is intentional.
+5. Document content, card descriptions and comments are writable by **any** MCP client, so treat every markdown body as untrusted input. Render it only through `renderMarkdown()` in [`src/web/markdown.ts`](src/web/markdown.ts), which sanitizes with DOMPurify. Never call `marked.parse` at a render site and never pass unsanitized HTML to `dangerouslySetInnerHTML` — a new render site that skips the helper reopens a script-injection path into the human operator's browser.
+6. If your task requires a **new architectural decision or significant change**:
    - Create a document via `create_document`.
    - Submit it for review via `set_document_status` (`status: 'in_review'`).
    - Do not begin implementation until it is `approved`.
+7. **Record Gained Knowledge**: When discovering new technical facts, hardware specs, constraints, or entity relations during your work, add them to the Knowledge Base using `add_gained_knowledge` or `upsert_kb_entity`.
 
 ---
 
