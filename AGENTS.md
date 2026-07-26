@@ -105,15 +105,17 @@ Agents **must adapt dynamically** to the column structure of the active board:
 
 ---
 
-### Rule 4: Transparent Execution & Progress Comments
+### Rule 4: Transparent Execution & Human-Readable Task Descriptions
 
-As you work, log **all meaningful progress, blockers, and decisions** using `add_comment`:
+When communicating progress, subagent tasks, or conversation updates:
+- **State Task Titles Out Loud**: Always write out the full task title and summary of work clearly (e.g. `Working on Muster Task "Create user authentication middleware"`). **Never** refer to work using raw database ID strings like `Work on card #01J3K8...` or `card #123`.
+- **Log Meaningful Updates**: As you work, log **all meaningful progress, blockers, and decisions** using `add_comment`:
 
 ```json
 {
   "card_id": "<card_id>",
   "author_id": "<your_agent_id>",
-  "content": "Implemented auth middleware. Unit tests green. Moving to integration testing next."
+  "content": "Implemented auth middleware for Muster Task \"Create user authentication middleware\". Unit tests green."
 }
 ```
 

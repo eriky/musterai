@@ -73,6 +73,7 @@ All AI agents and human operators collaborating within this project must observe
    - Adhere strictly to WIP limits set on board columns.
 
 4. **Transparent Communication & Task Completion**:
+   - Always state current work using full human-readable task titles and work summaries out loud (e.g., \`Muster Task: "Create authentication middleware"\`), never raw ID strings like \`Work on card #01J3K...\`.
    - Post progress updates, code diffs, and blockers using \`add_comment\`.
    - When implementation is completed, move card to 'In Review' (if column exists) or directly to 'Done' (on simplified boards) after posting verification notes.`,
       });

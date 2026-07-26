@@ -77,7 +77,8 @@ All AI agents and human operators collaborating within Muster must follow this p
    - Call \`list_cards\` or \`get_board\` to find unassigned cards in initial state columns ('To Do' / 'Backlog').
    - As soon as you start working on a task (including making plans, research, or drafting design docs), **immediately** assign yourself using \`assign_card\` AND move the card to 'In Progress' via \`move_card\`. Do NOT wait until right before editing files to move it to 'In Progress'. Always respect column WIP limits.
 
-4. **Transparent Progress & Audit Trail**:
+4. **Transparent Progress & Human-Readable Task Descriptions**:
+   - Always state current work using full human-readable task titles and work summaries out loud (e.g. \`Muster Task: "Create user authentication middleware"\`), never raw ID strings like \`Work on card #01J3K...\`.
    - Log key progress updates, code diffs, or blockers on cards using \`add_comment\`.
 
 5. **Peer Review & Task Completion**:
