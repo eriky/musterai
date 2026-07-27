@@ -71,6 +71,7 @@ export const api = {
   // Columns
   createColumn: (boardId: string, name: string, wipLimit?: number) => fetchJSON<Column>(`/boards/${boardId}/columns`, { method: 'POST', body: JSON.stringify({ name, wip_limit: wipLimit }) }),
   updateColumn: (id: string, data: Partial<Column>) => fetchJSON<Column>(`/columns/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  moveColumn: (id: string, position: string) => fetchJSON<Column>(`/columns/${id}`, { method: 'PUT', body: JSON.stringify({ position }) }),
   deleteColumn: (id: string) => fetchJSON<void>(`/columns/${id}`, { method: 'DELETE' }),
 
   // Cards

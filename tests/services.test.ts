@@ -15,6 +15,7 @@ import {
   AgentService,
   EventService
 } from '../src/services/index.js';
+import { rankBetween } from '../src/shared/lexorank.js';
 
 const TEST_DB = path.join(process.cwd(), 'data', 'test.db');
 
@@ -136,6 +137,28 @@ describe('Domain Services Integration Tests', () => {
 
     const updated = await columnService.update(col.id, { wip_limit: 10 });
     expect(updated.wip_limit).toBe(10);
+  });
+
+  it('MUS-19: reordering a column via position moves it in list() order', async () => {
+    const project = await projectService.create({ name: 'P' });
+    const boards = await boardService.list(project.id);
+    const columns = await columnService.list(boards[0].id);
+    expect(columns.length).toBeGreaterThanOrEqual(3);
+
+    const [first, second, third] = columns;
+
+    // Move the last of the three columns to the front.
+    const newPosition = rankBetween(null, first.position);
+    await columnService.update(third.id, { position: newPosition });
+
+    const reordered = await columnService.list(boards[0].id);
+    expect(reordered[0].id).toBe(third.id);
+    expect(reordered[1].id).toBe(first.id);
+    expect(reordered[2].id).toBe(second.id);
+
+    const events = await eventService.list(project.id);
+    const moveEvent = events.find(e => e.entity_type === 'column' && e.entity_id === third.id && e.action === 'updated');
+    expect(moveEvent).toBeDefined();
   });
 
   it('Bug 1.3: commentService.create executes without SQL syntax error', async () => {
