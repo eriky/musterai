@@ -23,7 +23,7 @@ export function createRouter(services: Services, sseManager: SSEManager, db: Dat
   v1.use(createColumnRouter(services.columnService));
   v1.use(createCardRouter(services.cardService, services.commentService));
   v1.use(createDocumentRouter(services.documentService));
-  v1.use(createAgentRouter(services.agentService));
+  v1.use(createAgentRouter(services.agentService, services.cardService));
   v1.use(createEventRouter(services.eventService, sseManager));
   v1.use(createKBRouter(services.kbService));
 

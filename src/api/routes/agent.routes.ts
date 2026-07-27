@@ -1,8 +1,9 @@
 // File: src/api/routes/agent.routes.ts
 import { Router, Request, Response, NextFunction } from 'express';
 import { AgentService } from '../../services/agent.service.js';
+import { CardService } from '../../services/card.service.js';
 
-export function createAgentRouter(agentService: AgentService): Router {
+export function createAgentRouter(agentService: AgentService, cardService: CardService): Router {
   const router = Router();
 
   // Get Human Owner Secret Token (for UI display)
@@ -38,6 +39,7 @@ export function createAgentRouter(agentService: AgentService): Router {
   router.post('/agents/:id/heartbeat', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const agent = await agentService.heartbeat(req.params.id);
+      await cardService.renewClaims(req.params.id);
       res.json(agent);
     } catch (err) {
       next(err);

@@ -1,8 +1,10 @@
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document, CardLinkRelationType, LinkedCardSummary } from '../shared/types.js';
+import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document, CardLinkRelationType, LinkedCardSummary, ClaimRefusal } from '../shared/types.js';
 import { EventService } from './event.service.js';
 import { rankAfter } from '../shared/lexorank.js';
+
+const DEFAULT_CLAIM_TTL_SECONDS = 600;
 
 export class CardService {
   constructor(
@@ -59,6 +61,9 @@ export class CardService {
       created_at,
       updated_at,
       archived: 0,
+      claimed_by: null,
+      claimed_at: null,
+      claim_expires_at: null,
     };
 
     if (this.eventService) {
@@ -344,6 +349,106 @@ export class CardService {
       `DELETE FROM card_assignee WHERE card_id = ? AND agent_id = ?`,
       [cardId, agentId]
     );
+  }
+
+  /**
+   * Atomically claim a card: succeeds only if unclaimed, held by the same agent,
+   * or the existing lease has expired. Runs as a compare-and-swap inside a
+   * transaction so two concurrent claims can never both succeed.
+   */
+  async claim(cardId: string, agentId: string, ttlSeconds: number = DEFAULT_CLAIM_TTL_SECONDS): Promise<CardDetails | ClaimRefusal> {
+    return this.db.transaction(async (tx) => {
+      const rows = await tx.query<Card>('SELECT * FROM card WHERE id = ?', [cardId]);
+      const card = rows[0];
+      if (!card) throw new Error(`Card with ID ${cardId} not found`);
+
+      const now = new Date();
+      const nowIso = now.toISOString();
+      const heldByOther = card.claimed_by && card.claimed_by !== agentId
+        && card.claim_expires_at && card.claim_expires_at > nowIso;
+
+      if (heldByOther) {
+        const holderRows = await tx.query<{ name: string }>(
+          'SELECT name FROM agent_registration WHERE id = ?',
+          [card.claimed_by]
+        );
+        const refusal: ClaimRefusal = {
+          success: false,
+          reason: 'already_claimed',
+          card_id: cardId,
+          held_by: { id: card.claimed_by as string, name: holderRows[0]?.name ?? null },
+          claim_expires_at: card.claim_expires_at as string,
+        };
+        return refusal;
+      }
+
+      const expiresIso = new Date(now.getTime() + ttlSeconds * 1000).toISOString();
+      await tx.execute(
+        `UPDATE card SET claimed_by = ?, claimed_at = ?, claim_expires_at = ?, updated_at = ? WHERE id = ?`,
+        [agentId, nowIso, expiresIso, nowIso, cardId]
+      );
+      await tx.execute(
+        `INSERT OR IGNORE INTO card_assignee (card_id, agent_id) VALUES (?, ?)`,
+        [cardId, agentId]
+      );
+
+      if (this.eventService) {
+        const projectId = await this.getProjectIdForColumn(card.column_id);
+        if (projectId) {
+          await this.eventService.create({
+            project_id: projectId,
+            entity_type: 'card',
+            entity_id: cardId,
+            action: 'claimed',
+            actor_id: agentId,
+            payload: { claim_expires_at: expiresIso },
+          });
+        }
+      }
+
+      return this.getById(cardId);
+    });
+  }
+
+  /** Extend the claim lease on every card currently held by this agent — called on heartbeat. */
+  async renewClaims(agentId: string, ttlSeconds: number = DEFAULT_CLAIM_TTL_SECONDS): Promise<void> {
+    const expiresIso = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+    await this.db.execute(
+      `UPDATE card SET claim_expires_at = ? WHERE claimed_by = ?`,
+      [expiresIso, agentId]
+    );
+  }
+
+  /** Release leases past their expiry so the board doesn't hold a card forever for a dead agent. */
+  async releaseExpiredLeases(): Promise<string[]> {
+    const nowIso = new Date().toISOString();
+    const expired = await this.db.query<Card>(
+      `SELECT * FROM card WHERE claimed_by IS NOT NULL AND claim_expires_at IS NOT NULL AND claim_expires_at <= ?`,
+      [nowIso]
+    );
+
+    for (const card of expired) {
+      const updated_at = new Date().toISOString();
+      await this.db.execute(
+        `UPDATE card SET claimed_by = NULL, claimed_at = NULL, claim_expires_at = NULL, updated_at = ? WHERE id = ?`,
+        [updated_at, card.id]
+      );
+
+      if (this.eventService) {
+        const projectId = await this.getProjectIdForColumn(card.column_id);
+        if (projectId) {
+          await this.eventService.create({
+            project_id: projectId,
+            entity_type: 'card',
+            entity_id: card.id,
+            action: 'claim_expired',
+            payload: { previously_claimed_by: card.claimed_by },
+          });
+        }
+      }
+    }
+
+    return expired.map(c => c.id);
   }
 
   async addLabel(cardId: string, labelId: string, actorId?: string): Promise<void> {

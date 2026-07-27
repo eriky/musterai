@@ -78,6 +78,20 @@ export function createCardRouter(cardService: CardService, commentService: Comme
     }
   });
 
+  router.post('/cards/:id/claim', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const agentId = req.body.agent_id || (req.headers['x-agent-id'] as string | undefined);
+      if (!agentId) {
+        res.status(400).json({ error: 'agent_id is required to claim a card' });
+        return;
+      }
+      const result = await cardService.claim(req.params.id, agentId, req.body.ttl_seconds);
+      res.status('success' in result && result.success === false ? 409 : 200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.post('/cards/:id/assignees', async (req: Request, res: Response, next: NextFunction) => {
     try {
       await cardService.assign(req.params.id, req.body.agent_id);
