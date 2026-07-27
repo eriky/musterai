@@ -14,7 +14,8 @@ import {
   DocumentService,
   AgentService,
   EventService,
-  KBService
+  KBService,
+  RoleService,
 } from './services/index.js';
 import { SSEManager } from './realtime/sse.js';
 import { createRouter } from './api/router.js';
@@ -42,6 +43,7 @@ async function main() {
   const boardService = new BoardService(db, eventService);
   const documentService = new DocumentService(db, eventService);
   const kbService = new KBService(db, eventService);
+  const roleService = new RoleService(db, eventService);
   const services: Services = {
     projectService: new ProjectService(db, eventService, boardService, documentService),
     boardService,
@@ -52,6 +54,7 @@ async function main() {
     agentService: new AgentService(db, eventService),
     eventService,
     kbService,
+    roleService,
   };
 
   // Bootstrap: create default workspace and project if empty
@@ -64,6 +67,15 @@ async function main() {
       [wsId, 'Default Workspace', 'default', now, now]
     );
     console.log('Created default workspace');
+  }
+
+  // Seed preset roles into the default workspace and backfill agent roles
+  const wsRows = await db.query<{ id: string }>('SELECT id FROM workspace LIMIT 1');
+  if (wsRows.length > 0) {
+    const wsId = wsRows[0].id;
+    const seeded = await roleService.seedPreset(wsId);
+    const backfilled = await roleService.backfillAgentRoles(wsId);
+    console.log(`Seeded ${seeded.length} preset roles; backfilled ${backfilled} agents`);
   }
 
   const existingProjects = await services.projectService.list();

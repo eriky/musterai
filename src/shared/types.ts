@@ -29,6 +29,35 @@ export interface User {
   created_at: string;
 }
 
+export interface Role {
+  id: string;
+  workspace_id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  permissions: string[];
+  is_system: number;
+  rank: number;
+  created_at?: string;
+}
+
+export interface CreateRole {
+  workspace_id: string;
+  key: string;
+  name: string;
+  description?: string;
+  permissions: string[];
+  is_system?: boolean;
+  rank?: number;
+}
+
+export interface UpdateRole {
+  name?: string;
+  description?: string;
+  permissions?: string[];
+  rank?: number;
+}
+
 export interface Agent {
   id: string;
   name: string;

@@ -10,7 +10,8 @@ import {
   DocumentService,
   AgentService,
   EventService,
-  KBService
+  KBService,
+  RoleService,
 } from '../services/index.js';
 import { AuthContext, OPEN_AUTH_CONTEXT } from '../shared/auth-context.js';
 
@@ -26,6 +27,7 @@ export interface Services {
   agentService: AgentService;
   eventService: EventService;
   kbService: KBService;
+  roleService: RoleService;
 }
 
 import { Request } from 'express';
@@ -589,6 +591,55 @@ All AI agents and human operators collaborating within Muster must follow this p
     const actorId = resolveActor(auth, args);
     const relation = await services.kbService.addRelation(args, actorId);
     return { content: [{ type: 'text', text: JSON.stringify(relation, null, 2) }] };
+  });
+
+  // --- Role Management Tools ---
+  server.tool('list_roles', { workspace_id: z.string() }, async ({ workspace_id }) => {
+    const roles = await services.roleService.list(workspace_id);
+    return { content: [{ type: 'text', text: JSON.stringify(roles, null, 2) }] };
+  });
+
+  server.tool('get_role', { role_id: z.string() }, async ({ role_id }) => {
+    const role = await services.roleService.getById(role_id);
+    if (!role) throw new Error(`Role ${role_id} not found`);
+    return { content: [{ type: 'text', text: JSON.stringify(role, null, 2) }] };
+  });
+
+  server.tool('create_role', {
+    workspace_id: z.string(),
+    key: z.string(),
+    name: z.string(),
+    description: z.string().optional(),
+    permissions: z.array(z.string()),
+    rank: z.number().optional(),
+  }, async (args) => {
+    const role = await services.roleService.create(args);
+    return { content: [{ type: 'text', text: JSON.stringify(role, null, 2) }] };
+  });
+
+  server.tool('update_role', {
+    role_id: z.string(),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    permissions: z.array(z.string()).optional(),
+    rank: z.number().optional(),
+  }, async ({ role_id, ...data }) => {
+    const role = await services.roleService.update(role_id, data);
+    return { content: [{ type: 'text', text: JSON.stringify(role, null, 2) }] };
+  });
+
+  server.tool('delete_role', { role_id: z.string() }, async ({ role_id }) => {
+    await services.roleService.delete(role_id);
+    return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Role ${role_id} deleted` }) }] };
+  });
+
+  server.tool('clone_role', {
+    role_id: z.string(),
+    new_key: z.string(),
+    new_name: z.string().optional(),
+  }, async ({ role_id, new_key, new_name }) => {
+    const role = await services.roleService.clone(role_id, new_key, new_name);
+    return { content: [{ type: 'text', text: JSON.stringify(role, null, 2) }] };
   });
 
   return server;
