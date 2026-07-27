@@ -431,5 +431,59 @@ describe('Domain Services Integration Tests', () => {
     const detailsA4 = await cardService.getById(cardA.id);
     expect(detailsA4.linked_cards.some(l => l.card.id === cardC.id)).toBe(false);
   });
+
+  it('Feature: work links can be attached, listed, removed, reject unsafe schemes, and cascade on delete', async () => {
+    const project = await projectService.create({ name: 'Work Links Project' });
+    const boards = await boardService.list(project.id);
+    const columns = await columnService.list(boards[0].id);
+
+    const card = await cardService.create({ column_id: columns[0].id, title: 'Implement atomic claim' });
+
+    const branchLink = await cardService.addWorkLink(card.id, {
+      kind: 'branch',
+      provider: 'forgejo',
+      url: 'https://forgejo.example/org/repo/src/branch/feat/atomic-claim',
+      external_ref: 'feat/atomic-claim',
+    });
+    expect(branchLink.id).toBeTruthy();
+
+    await cardService.addWorkLink(card.id, {
+      kind: 'pull_request',
+      provider: 'forgejo',
+      url: 'https://forgejo.example/org/repo/pulls/42',
+      external_ref: '#42',
+      title: 'Atomic card claiming',
+    });
+
+    const details = await cardService.getById(card.id);
+    expect(details.work_links).toHaveLength(2);
+    expect(details.work_links.map(l => l.kind).sort()).toEqual(['branch', 'pull_request']);
+
+    const listed = await cardService.listWorkLinks(card.id);
+    expect(listed).toHaveLength(2);
+
+    // Reject unsafe URL schemes at the service layer
+    await expect(cardService.addWorkLink(card.id, {
+      kind: 'commit',
+      provider: 'github',
+      url: 'javascript:alert(1)',
+    })).rejects.toThrow();
+
+    await expect(cardService.addWorkLink(card.id, {
+      kind: 'commit',
+      provider: 'github',
+      url: 'data:text/html,<script>alert(1)</script>',
+    })).rejects.toThrow();
+
+    // Removing a link drops it from the list
+    await cardService.removeWorkLink(card.id, branchLink.id);
+    const afterRemove = await cardService.getById(card.id);
+    expect(afterRemove.work_links.some(l => l.id === branchLink.id)).toBe(false);
+    expect(afterRemove.work_links).toHaveLength(1);
+
+    // Deleting a card cleans up its work links
+    await cardService.delete(card.id);
+    await expect(cardService.getById(card.id)).rejects.toThrow();
+  });
 });
 

@@ -1,8 +1,8 @@
 // File: src/web/components/KanbanBoard.tsx
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { Board, Column, Card, Agent, CardDetails, Document, CardLinkRelationType } from '../types.js';
-import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, Bot, UserRound } from 'lucide-react';
+import { Board, Column, Card, Agent, CardDetails, Document, CardLinkRelationType, CardWorkLinkKind, CardWorkLinkProvider } from '../types.js';
+import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, Bot, UserRound, GitPullRequest, GitCommit, Workflow, ExternalLink } from 'lucide-react';
 import { renderMarkdown } from '../markdown.js';
 import { api } from '../api.js';
 import {
@@ -45,6 +45,29 @@ const CARD_LINK_BADGE_CLASSES: Record<CardLinkRelationType, string> = {
   duplicates: 'muster-badge-neutral',
 };
 
+const WORK_LINK_KIND_LABELS: Record<CardWorkLinkKind, string> = {
+  branch: 'Branches',
+  pull_request: 'Pull Requests',
+  commit: 'Commits',
+  pipeline: 'Pipelines',
+};
+
+const WORK_LINK_KIND_ICONS: Record<CardWorkLinkKind, React.ComponentType<{ className?: string }>> = {
+  branch: GitBranch,
+  pull_request: GitPullRequest,
+  commit: GitCommit,
+  pipeline: Workflow,
+};
+
+const WORK_LINK_KIND_ORDER: CardWorkLinkKind[] = ['branch', 'pull_request', 'commit', 'pipeline'];
+
+const WORK_LINK_PROVIDER_LABELS: Record<CardWorkLinkProvider, string> = {
+  forgejo: 'Forgejo',
+  github: 'GitHub',
+  gitlab: 'GitLab',
+  other: 'Other',
+};
+
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   board,
   columns,
@@ -72,6 +95,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [linkCardQuery, setLinkCardQuery] = useState('');
   const [linkCardResults, setLinkCardResults] = useState<Card[]>([]);
   const [isSearchingLinkCards, setIsSearchingLinkCards] = useState(false);
+  const [workLinkKind, setWorkLinkKind] = useState<CardWorkLinkKind>('branch');
+  const [workLinkProvider, setWorkLinkProvider] = useState<CardWorkLinkProvider>('forgejo');
+  const [workLinkUrl, setWorkLinkUrl] = useState('');
+  const [workLinkRef, setWorkLinkRef] = useState('');
+  const [workLinkError, setWorkLinkError] = useState<string | null>(null);
   const [isEditingBoardName, setIsEditingBoardName] = useState(false);
   const [boardNameInput, setBoardNameInput] = useState('');
   const [editingColumn, setEditingColumn] = useState<Column | null>(null);
@@ -210,6 +238,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       setIsEditingCard(editMode);
       setLinkCardQuery('');
       setLinkCardResults([]);
+      setWorkLinkUrl('');
+      setWorkLinkRef('');
+      setWorkLinkError(null);
     } catch (err) {
       console.error('Failed to load card details:', err);
     }
@@ -345,6 +376,35 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       setCardDetails(updated);
     } catch (err) {
       console.error('Failed to unlink card:', err);
+    }
+  };
+
+  const handleAddWorkLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCardId || !workLinkUrl.trim()) return;
+    setWorkLinkError(null);
+    try {
+      const updated = await api.addWorkLink(selectedCardId, {
+        kind: workLinkKind,
+        provider: workLinkProvider,
+        url: workLinkUrl.trim(),
+        external_ref: workLinkRef.trim() || undefined,
+      });
+      setCardDetails(updated);
+      setWorkLinkUrl('');
+      setWorkLinkRef('');
+    } catch (err: any) {
+      setWorkLinkError(err.message || 'Failed to add work link');
+    }
+  };
+
+  const handleRemoveWorkLink = async (linkId: string) => {
+    if (!selectedCardId) return;
+    try {
+      const updated = await api.removeWorkLink(selectedCardId, linkId);
+      setCardDetails(updated);
+    } catch (err) {
+      console.error('Failed to remove work link:', err);
     }
   };
 
@@ -1202,6 +1262,117 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     )}
                   </div>
                 </div>
+              </div>
+
+              {/* Work Links */}
+              <div>
+                <h4 className="text-xs font-bold muster-text-secondary uppercase mb-3 flex items-center">
+                  <GitCommit className="w-4 h-4 mr-1.5 muster-text-success" />
+                  Work Links ({(cardDetails.work_links || []).length})
+                </h4>
+
+                <div className="space-y-3 mb-3">
+                  {(cardDetails.work_links || []).length > 0 ? (
+                    WORK_LINK_KIND_ORDER.filter((kind) =>
+                      (cardDetails.work_links || []).some((l) => l.kind === kind)
+                    ).map((kind) => {
+                      const KindIcon = WORK_LINK_KIND_ICONS[kind];
+                      const links = (cardDetails.work_links || []).filter((l) => l.kind === kind);
+                      return (
+                        <div key={kind}>
+                          <div className="text-[10px] font-semibold muster-text-muted uppercase mb-1.5">
+                            {WORK_LINK_KIND_LABELS[kind]}
+                          </div>
+                          <div className="space-y-2">
+                            {links.map((link) => (
+                              <div
+                                key={link.id}
+                                className="flex items-center justify-between bg-muster-surface p-2.5 rounded-lg border border-success-500/20 hover:border-success-500/60 hover:bg-neutral-900/90 group transition-all"
+                              >
+                                <a
+                                  href={link.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center space-x-2 min-w-0 flex-1"
+                                >
+                                  <KindIcon className="w-3.5 h-3.5 muster-text-success flex-shrink-0 group-hover:scale-110 transition-transform" />
+                                  <span className="px-1.5 py-0.5 text-[10px] font-mono rounded flex-shrink-0 bg-neutral-900 muster-text-muted border border-neutral-700">
+                                    {WORK_LINK_PROVIDER_LABELS[link.provider]}
+                                  </span>
+                                  <span className="text-xs font-mono text-neutral-200 group-hover:text-success-300 truncate">
+                                    {link.external_ref || link.title || link.url}
+                                  </span>
+                                  <ExternalLink className="w-3 h-3 muster-text-muted flex-shrink-0 opacity-0 group-hover:opacity-100" />
+                                </a>
+                                <button
+                                  onClick={() => handleRemoveWorkLink(link.id)}
+                                  className="muster-btn muster-btn-icon muster-btn-ghost-danger opacity-0 group-hover:opacity-100 flex-shrink-0"
+                                  title="Remove work link"
+                                >
+                                  <Unlink className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="text-xs text-neutral-500 italic">No work linked to this card yet.</p>
+                  )}
+                </div>
+
+                <form onSubmit={handleAddWorkLink} className="space-y-1.5">
+                  <div className="flex space-x-1.5">
+                    <select
+                      value={workLinkKind}
+                      onChange={(e) => setWorkLinkKind(e.target.value as CardWorkLinkKind)}
+                      className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1 flex-shrink-0"
+                    >
+                      <option value="branch">Branch</option>
+                      <option value="pull_request">Pull Request</option>
+                      <option value="commit">Commit</option>
+                      <option value="pipeline">Pipeline</option>
+                    </select>
+                    <select
+                      value={workLinkProvider}
+                      onChange={(e) => setWorkLinkProvider(e.target.value as CardWorkLinkProvider)}
+                      className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1 flex-shrink-0"
+                    >
+                      <option value="forgejo">Forgejo</option>
+                      <option value="github">GitHub</option>
+                      <option value="gitlab">GitLab</option>
+                      <option value="other">Other</option>
+                    </select>
+                    <input
+                      type="text"
+                      value={workLinkRef}
+                      onChange={(e) => setWorkLinkRef(e.target.value)}
+                      placeholder="Ref (feat/x, #42, 98bb52e)"
+                      className="w-32 bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1"
+                    />
+                  </div>
+                  <div className="flex space-x-1.5">
+                    <input
+                      type="text"
+                      value={workLinkUrl}
+                      onChange={(e) => setWorkLinkUrl(e.target.value)}
+                      placeholder="https://forgejo.example/org/repo/pulls/42"
+                      className="flex-1 bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!workLinkUrl.trim()}
+                      className="muster-btn muster-btn-primary"
+                    >
+                      <Link2 className="w-3 h-3" />
+                      <span>Attach</span>
+                    </button>
+                  </div>
+                  {workLinkError && (
+                    <p className="text-[11px] muster-text-danger">{workLinkError}</p>
+                  )}
+                </form>
               </div>
 
               {/* Comments Section */}

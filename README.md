@@ -163,7 +163,7 @@ muster/
 │   │   ├── database.ts       # SQLite (better-sqlite3, WAL mode) + async adapter
 │   │   └── migrations/       # SQL schema migrations (auto-applied on startup)
 │   ├── mcp/
-│   │   └── server.ts         # MCP Streamable HTTP server (54 tools + prompts)
+│   │   └── server.ts         # MCP Streamable HTTP server (57 tools + prompts)
 │   ├── realtime/
 │   │   └── sse.ts            # Server-Sent Events broadcaster
 │   ├── services/             # Business logic (projects, boards, cards, agents, documents)

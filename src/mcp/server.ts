@@ -82,6 +82,7 @@ All AI agents and human operators collaborating within Muster must follow this p
    - Log key progress updates, code diffs, or blockers on cards using \`add_comment\`.
 
 5. **Peer Review & Task Completion**:
+   - Before moving a card to 'In Review', attach the branch, pull request, or commit you worked on via \`add_work_link\` — the human operator should never have to go find the work themselves.
    - When implementation is completed, if an 'In Review' column exists on the board, move the card to 'In Review' for verification. If no 'In Review' column exists (e.g. 3-lane board), post verification notes and move directly to 'Done'.`,
         },
       },
@@ -316,6 +317,31 @@ All AI agents and human operators collaborating within Muster must follow this p
     await services.cardService.unlinkCard(card_id, link_id, getActorId({ card_id }));
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
+  });
+
+  server.tool('add_work_link', {
+    card_id: z.string(),
+    kind: z.enum(['branch', 'pull_request', 'commit', 'pipeline']),
+    provider: z.enum(['forgejo', 'github', 'gitlab', 'other']),
+    url: z.string(),
+    external_ref: z.string().optional(),
+    title: z.string().optional(),
+    status: z.string().optional(),
+  }, async ({ card_id, ...data }) => {
+    await services.cardService.addWorkLink(card_id, data, getActorId({ card_id }));
+    const details = await services.cardService.getById(card_id);
+    return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
+  });
+
+  server.tool('remove_work_link', { card_id: z.string(), link_id: z.string() }, async ({ card_id, link_id }) => {
+    await services.cardService.removeWorkLink(card_id, link_id, getActorId({ card_id }));
+    const details = await services.cardService.getById(card_id);
+    return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
+  });
+
+  server.tool('list_work_links', { card_id: z.string() }, async ({ card_id }) => {
+    const links = await services.cardService.listWorkLinks(card_id);
+    return { content: [{ type: 'text', text: JSON.stringify(links, null, 2) }] };
   });
 
   server.tool('create_label', { board_id: z.string(), name: z.string(), color: z.string() }, async (args) => {

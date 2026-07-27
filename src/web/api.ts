@@ -1,5 +1,5 @@
 // File: src/web/api.ts
-import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType } from './types.js';
+import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType, CreateCardWorkLink } from './types.js';
 
 const API_BASE = '/api/v1';
 
@@ -94,6 +94,9 @@ export const api = {
   linkCard: (cardId: string, targetCardId: string, relationType: CardLinkRelationType) =>
     fetchJSON<CardDetails>(`/cards/${cardId}/links`, { method: 'POST', body: JSON.stringify({ target_card_id: targetCardId, relation_type: relationType }) }),
   unlinkCard: (cardId: string, linkId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/links/${linkId}`, { method: 'DELETE' }),
+  addWorkLink: (cardId: string, data: CreateCardWorkLink) =>
+    fetchJSON<CardDetails>(`/cards/${cardId}/work-links`, { method: 'POST', body: JSON.stringify(data) }),
+  removeWorkLink: (cardId: string, linkId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/work-links/${linkId}`, { method: 'DELETE' }),
   deleteCard: (id: string) => fetchJSON<void>(`/cards/${id}`, { method: 'DELETE' }),
 
 

@@ -1,8 +1,21 @@
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document, CardLinkRelationType, LinkedCardSummary } from '../shared/types.js';
+import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document, CardLinkRelationType, LinkedCardSummary, CardWorkLink, CreateCardWorkLink } from '../shared/types.js';
 import { EventService } from './event.service.js';
 import { rankAfter } from '../shared/lexorank.js';
+import { ValidationError } from '../shared/errors.js';
+
+function assertHttpUrl(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new ValidationError(`Work link URL is not a valid URL: ${url}`);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new ValidationError(`Work link URL must use http or https, got: ${parsed.protocol}`);
+  }
+}
 
 export class CardService {
   constructor(
@@ -113,6 +126,7 @@ export class CardService {
     );
 
     const linked_cards = await this.getLinkedCards(id);
+    const work_links = await this.listWorkLinks(id);
 
     return {
       ...card,
@@ -124,6 +138,7 @@ export class CardService {
       comments,
       linked_documents,
       linked_cards,
+      work_links,
     };
   }
 
@@ -437,6 +452,68 @@ export class CardService {
     );
   }
 
+  async addWorkLink(cardId: string, data: CreateCardWorkLink, actorId?: string): Promise<CardWorkLink> {
+    assertHttpUrl(data.url);
+
+    const id = ulid();
+    const created_at = new Date().toISOString();
+    const external_ref = data.external_ref ?? null;
+    const title = data.title ?? null;
+    const status = data.status ?? null;
+
+    await this.db.execute(
+      `INSERT INTO card_work_link (id, card_id, kind, provider, url, external_ref, title, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, cardId, data.kind, data.provider, data.url, external_ref, title, status, created_at]
+    );
+
+    if (this.eventService) {
+      const card = await this.getById(cardId);
+      const projectId = await this.getProjectIdForColumn(card.column_id);
+      if (projectId) {
+        await this.eventService.create({
+          project_id: projectId,
+          entity_type: 'card',
+          entity_id: cardId,
+          action: 'work_link_added',
+          actor_id: actorId,
+          payload: { kind: data.kind, provider: data.provider, url: data.url },
+        });
+      }
+    }
+
+    return { id, card_id: cardId, kind: data.kind, provider: data.provider, url: data.url, external_ref, title, status, created_at };
+  }
+
+  async removeWorkLink(cardId: string, linkId: string, actorId?: string): Promise<void> {
+    await this.db.execute(
+      `DELETE FROM card_work_link WHERE id = ? AND card_id = ?`,
+      [linkId, cardId]
+    );
+
+    if (this.eventService) {
+      const card = await this.getById(cardId);
+      const projectId = await this.getProjectIdForColumn(card.column_id);
+      if (projectId) {
+        await this.eventService.create({
+          project_id: projectId,
+          entity_type: 'card',
+          entity_id: cardId,
+          action: 'work_link_removed',
+          actor_id: actorId,
+          payload: { link_id: linkId },
+        });
+      }
+    }
+  }
+
+  async listWorkLinks(cardId: string): Promise<CardWorkLink[]> {
+    return this.db.query<CardWorkLink>(
+      `SELECT * FROM card_work_link WHERE card_id = ? ORDER BY created_at ASC`,
+      [cardId]
+    );
+  }
+
   async searchByTitle(projectId: string, query: string, opts: { excludeCardId?: string; limit?: number } = {}): Promise<Card[]> {
     const limit = opts.limit ?? 20;
     const params: unknown[] = [projectId];
@@ -477,6 +554,7 @@ export class CardService {
     await this.db.execute('DELETE FROM card_label WHERE card_id = ?', [cardId]);
     await this.db.execute('DELETE FROM card_document WHERE card_id = ?', [cardId]);
     await this.db.execute('DELETE FROM card_link WHERE source_card_id = ? OR target_card_id = ?', [cardId, cardId]);
+    await this.db.execute('DELETE FROM card_work_link WHERE card_id = ?', [cardId]);
     await this.db.execute('DELETE FROM comment WHERE card_id = ?', [cardId]);
     await this.db.execute('DELETE FROM card WHERE id = ?', [cardId]);
 

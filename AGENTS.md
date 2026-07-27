@@ -129,14 +129,15 @@ Comment on:
 
 ### Rule 5: Peer Review & Task Completion
 
-1. When implementation and local verification are complete:
+1. **Attach the work before moving to review.** Before moving a card to `In Review`, attach the branch you worked on (and, once opened, the pull request) via `add_work_link`. A card with no linked branch or PR is not ready for review — the human operator should never have to go find the work themselves in Forgejo or GitHub.
+2. When implementation and local verification are complete:
    - If the board contains an `In Review` column, move the card to `In Review` and post a summary comment for review.
    - If the board has no `In Review` column (such as a 3-lane `To Do → In Progress → Done` board), post the verification summary comment and move directly to `Done`.
-2. Ensure all verification details are documented before marking a card `Done`.
+3. Ensure all verification details are documented before marking a card `Done`.
 
 ---
 
-## 🛠️ Complete MCP Tool Registry (54 Tools)
+## 🛠️ Complete MCP Tool Registry (57 Tools)
 
 ### Project Tools
 
@@ -184,6 +185,9 @@ Comment on:
 | `unlink_card` | Remove a card-to-card relation by `link_id`. |
 | `link_document_to_card` | Attach a design document to a card. |
 | `unlink_document_from_card` | Detach a design document from a card. |
+| `add_work_link` | Attach a branch, pull request, commit, or pipeline URL (Forgejo/GitHub/GitLab/other) to a card. |
+| `remove_work_link` | Detach a work link from a card by `link_id`. |
+| `list_work_links` | List all work links attached to a card. |
 
 ### Document Tools
 
@@ -240,7 +244,7 @@ src/
 │   ├── database.ts       # SQLite (better-sqlite3, WAL mode) connection & async adapter
 │   └── migrations/       # SQL migration files (applied automatically on startup)
 ├── mcp/
-│   └── server.ts         # MCP Streamable HTTP server (54 tools + collaboration_protocol prompt)
+│   └── server.ts         # MCP Streamable HTTP server (57 tools + collaboration_protocol prompt)
 ├── realtime/
 │   └── sse.ts            # Server-Sent Events broadcaster (live activity stream)
 ├── services/             # Business logic layer (projects, boards, cards, agents, documents, kb)
@@ -254,7 +258,7 @@ src/
 - **SQLite WAL Mode**: Enables concurrent reads alongside writes. Creates three files per database: `.db`, `.db-wal`, `.db-shm`.
 - **ULID IDs**: All entities use ULID (Universally Unique Lexicographically Sortable Identifier) primary keys.
 - **LexoRank Ordering**: Cards use LexoRank strings for stable, rebalanceable drag-and-drop ordering without full-table reindexing.
-- **MCP JSON-RPC 2.0 over HTTP**: All 54 tools communicate via standard `POST /mcp` with `Content-Type: application/json`. Responses are SSE-streamed (`text/event-stream`).
+- **MCP JSON-RPC 2.0 over HTTP**: All 57 tools communicate via standard `POST /mcp` with `Content-Type: application/json`. Responses are SSE-streamed (`text/event-stream`).
 
 ---
 

@@ -173,5 +173,37 @@ export function createCardRouter(cardService: CardService, commentService: Comme
     }
   });
 
+  // Work links (branches, PRs, commits, pipelines)
+  router.get('/cards/:id/work-links', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const links = await cardService.listWorkLinks(req.params.id);
+      res.json(links);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/cards/:id/work-links', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const actorId = (req.headers['x-agent-id'] || req.headers['x-actor-id']) as string | undefined;
+      await cardService.addWorkLink(req.params.id, req.body, actorId);
+      const card = await cardService.getById(req.params.id);
+      res.status(201).json(card);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete('/cards/:id/work-links/:linkId', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const actorId = (req.headers['x-agent-id'] || req.headers['x-actor-id']) as string | undefined;
+      await cardService.removeWorkLink(req.params.id, req.params.linkId, actorId);
+      const card = await cardService.getById(req.params.id);
+      res.json(card);
+    } catch (err) {
+      next(err);
+    }
+  });
+
   return router;
 }

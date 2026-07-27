@@ -73,6 +73,7 @@ export interface CardDetails extends Card {
   labels: Label[];
   linked_documents: Document[];
   linked_cards: LinkedCardSummary[];
+  work_links: CardWorkLink[];
   comments: {
     id: string;
     card_id: string;
@@ -81,6 +82,30 @@ export interface CardDetails extends Card {
     content: string;
     created_at: string;
   }[];
+}
+
+export type CardWorkLinkKind = 'branch' | 'pull_request' | 'commit' | 'pipeline';
+export type CardWorkLinkProvider = 'forgejo' | 'github' | 'gitlab' | 'other';
+
+export interface CardWorkLink {
+  id: string;
+  card_id: string;
+  kind: CardWorkLinkKind;
+  provider: CardWorkLinkProvider;
+  url: string;
+  external_ref: string | null;
+  title: string | null;
+  status: string | null;
+  created_at: string;
+}
+
+export interface CreateCardWorkLink {
+  kind: CardWorkLinkKind;
+  provider: CardWorkLinkProvider;
+  url: string;
+  external_ref?: string;
+  title?: string;
+  status?: string;
 }
 
 // Stored relation types are directional; 'blocked_by' is the inverse view of
