@@ -110,7 +110,10 @@ async function main() {
 
   app.use(errorHandler);
 
-  const statusTimer = setInterval(() => services.agentService.updateStatus().catch(console.error), 60000);
+  const statusTimer = setInterval(() => {
+    services.agentService.updateStatus().catch(console.error);
+    services.cardService.releaseExpiredLeases().catch(console.error);
+  }, 60000);
 
   const initialPort = config.port;
 

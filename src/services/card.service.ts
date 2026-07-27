@@ -1,9 +1,24 @@
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document, CardLinkRelationType, LinkedCardSummary } from '../shared/types.js';
+import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document, CardLinkRelationType, LinkedCardSummary, CardWorkLink, CreateCardWorkLink, ClaimRefusal } from '../shared/types.js';
 import { EventService } from './event.service.js';
 import { rankAfter } from '../shared/lexorank.js';
 import { formatCardKey } from '../shared/card-key.js';
+import { ValidationError } from '../shared/errors.js';
+
+function assertHttpUrl(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new ValidationError(`Work link URL is not a valid URL: ${url}`);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new ValidationError(`Work link URL must use http or https, got: ${parsed.protocol}`);
+  }
+}
+
+const DEFAULT_CLAIM_TTL_SECONDS = 600;
 
 export class CardService {
   constructor(
@@ -65,6 +80,9 @@ export class CardService {
       created_at,
       updated_at,
       archived: 0,
+      claimed_by: null,
+      claimed_at: null,
+      claim_expires_at: null,
     };
 
     if (this.eventService) {
@@ -129,6 +147,7 @@ export class CardService {
     );
 
     const linked_cards = await this.getLinkedCards(id);
+    const work_links = await this.listWorkLinks(id);
 
     return {
       ...card,
@@ -140,6 +159,7 @@ export class CardService {
       comments,
       linked_documents,
       linked_cards,
+      work_links,
     };
   }
 
@@ -362,6 +382,106 @@ export class CardService {
     );
   }
 
+  /**
+   * Atomically claim a card: succeeds only if unclaimed, held by the same agent,
+   * or the existing lease has expired. Runs as a compare-and-swap inside a
+   * transaction so two concurrent claims can never both succeed.
+   */
+  async claim(cardId: string, agentId: string, ttlSeconds: number = DEFAULT_CLAIM_TTL_SECONDS): Promise<CardDetails | ClaimRefusal> {
+    return this.db.transaction(async (tx) => {
+      const rows = await tx.query<Card>('SELECT * FROM card WHERE id = ?', [cardId]);
+      const card = rows[0];
+      if (!card) throw new Error(`Card with ID ${cardId} not found`);
+
+      const now = new Date();
+      const nowIso = now.toISOString();
+      const heldByOther = card.claimed_by && card.claimed_by !== agentId
+        && card.claim_expires_at && card.claim_expires_at > nowIso;
+
+      if (heldByOther) {
+        const holderRows = await tx.query<{ name: string }>(
+          'SELECT name FROM agent_registration WHERE id = ?',
+          [card.claimed_by]
+        );
+        const refusal: ClaimRefusal = {
+          success: false,
+          reason: 'already_claimed',
+          card_id: cardId,
+          held_by: { id: card.claimed_by as string, name: holderRows[0]?.name ?? null },
+          claim_expires_at: card.claim_expires_at as string,
+        };
+        return refusal;
+      }
+
+      const expiresIso = new Date(now.getTime() + ttlSeconds * 1000).toISOString();
+      await tx.execute(
+        `UPDATE card SET claimed_by = ?, claimed_at = ?, claim_expires_at = ?, updated_at = ? WHERE id = ?`,
+        [agentId, nowIso, expiresIso, nowIso, cardId]
+      );
+      await tx.execute(
+        `INSERT OR IGNORE INTO card_assignee (card_id, agent_id) VALUES (?, ?)`,
+        [cardId, agentId]
+      );
+
+      if (this.eventService) {
+        const projectId = await this.getProjectIdForColumn(card.column_id);
+        if (projectId) {
+          await this.eventService.create({
+            project_id: projectId,
+            entity_type: 'card',
+            entity_id: cardId,
+            action: 'claimed',
+            actor_id: agentId,
+            payload: { claim_expires_at: expiresIso },
+          });
+        }
+      }
+
+      return this.getById(cardId);
+    });
+  }
+
+  /** Extend the claim lease on every card currently held by this agent — called on heartbeat. */
+  async renewClaims(agentId: string, ttlSeconds: number = DEFAULT_CLAIM_TTL_SECONDS): Promise<void> {
+    const expiresIso = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+    await this.db.execute(
+      `UPDATE card SET claim_expires_at = ? WHERE claimed_by = ?`,
+      [expiresIso, agentId]
+    );
+  }
+
+  /** Release leases past their expiry so the board doesn't hold a card forever for a dead agent. */
+  async releaseExpiredLeases(): Promise<string[]> {
+    const nowIso = new Date().toISOString();
+    const expired = await this.db.query<Card>(
+      `SELECT * FROM card WHERE claimed_by IS NOT NULL AND claim_expires_at IS NOT NULL AND claim_expires_at <= ?`,
+      [nowIso]
+    );
+
+    for (const card of expired) {
+      const updated_at = new Date().toISOString();
+      await this.db.execute(
+        `UPDATE card SET claimed_by = NULL, claimed_at = NULL, claim_expires_at = NULL, updated_at = ? WHERE id = ?`,
+        [updated_at, card.id]
+      );
+
+      if (this.eventService) {
+        const projectId = await this.getProjectIdForColumn(card.column_id);
+        if (projectId) {
+          await this.eventService.create({
+            project_id: projectId,
+            entity_type: 'card',
+            entity_id: card.id,
+            action: 'claim_expired',
+            payload: { previously_claimed_by: card.claimed_by },
+          });
+        }
+      }
+    }
+
+    return expired.map(c => c.id);
+  }
+
   async addLabel(cardId: string, labelId: string, actorId?: string): Promise<void> {
     await this.db.execute(
       `INSERT OR IGNORE INTO card_label (card_id, label_id) VALUES (?, ?)`,
@@ -453,6 +573,68 @@ export class CardService {
     );
   }
 
+  async addWorkLink(cardId: string, data: CreateCardWorkLink, actorId?: string): Promise<CardWorkLink> {
+    assertHttpUrl(data.url);
+
+    const id = ulid();
+    const created_at = new Date().toISOString();
+    const external_ref = data.external_ref ?? null;
+    const title = data.title ?? null;
+    const status = data.status ?? null;
+
+    await this.db.execute(
+      `INSERT INTO card_work_link (id, card_id, kind, provider, url, external_ref, title, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, cardId, data.kind, data.provider, data.url, external_ref, title, status, created_at]
+    );
+
+    if (this.eventService) {
+      const card = await this.getById(cardId);
+      const projectId = await this.getProjectIdForColumn(card.column_id);
+      if (projectId) {
+        await this.eventService.create({
+          project_id: projectId,
+          entity_type: 'card',
+          entity_id: cardId,
+          action: 'work_link_added',
+          actor_id: actorId,
+          payload: { kind: data.kind, provider: data.provider, url: data.url },
+        });
+      }
+    }
+
+    return { id, card_id: cardId, kind: data.kind, provider: data.provider, url: data.url, external_ref, title, status, created_at };
+  }
+
+  async removeWorkLink(cardId: string, linkId: string, actorId?: string): Promise<void> {
+    await this.db.execute(
+      `DELETE FROM card_work_link WHERE id = ? AND card_id = ?`,
+      [linkId, cardId]
+    );
+
+    if (this.eventService) {
+      const card = await this.getById(cardId);
+      const projectId = await this.getProjectIdForColumn(card.column_id);
+      if (projectId) {
+        await this.eventService.create({
+          project_id: projectId,
+          entity_type: 'card',
+          entity_id: cardId,
+          action: 'work_link_removed',
+          actor_id: actorId,
+          payload: { link_id: linkId },
+        });
+      }
+    }
+  }
+
+  async listWorkLinks(cardId: string): Promise<CardWorkLink[]> {
+    return this.db.query<CardWorkLink>(
+      `SELECT * FROM card_work_link WHERE card_id = ? ORDER BY created_at ASC`,
+      [cardId]
+    );
+  }
+
   async searchByTitle(projectId: string, query: string, opts: { excludeCardId?: string; limit?: number } = {}): Promise<Card[]> {
     const limit = opts.limit ?? 20;
     const params: unknown[] = [projectId];
@@ -493,6 +675,7 @@ export class CardService {
     await this.db.execute('DELETE FROM card_label WHERE card_id = ?', [cardId]);
     await this.db.execute('DELETE FROM card_document WHERE card_id = ?', [cardId]);
     await this.db.execute('DELETE FROM card_link WHERE source_card_id = ? OR target_card_id = ?', [cardId, cardId]);
+    await this.db.execute('DELETE FROM card_work_link WHERE card_id = ?', [cardId]);
     await this.db.execute('DELETE FROM comment WHERE card_id = ?', [cardId]);
     await this.db.execute('DELETE FROM card WHERE id = ?', [cardId]);
 

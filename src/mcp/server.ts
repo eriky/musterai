@@ -30,14 +30,15 @@ export interface Services {
 
 import { Request } from 'express';
 
-let lastRegisteredAgentId: string | undefined;
-
 export function createMcpServer(services: Services, req?: Request): McpServer {
   const server = new McpServer({
     name: 'muster',
     version: '2.0.0',
   });
 
+  // Scoped to this single request's McpServer instance only — never a module-level
+  // global. With sessionIdGenerator: undefined every POST /mcp gets a fresh server,
+  // so this never leaks identity between concurrently-connected agents.
   let activeAgentId: string | undefined;
 
   const getActorId = (raw?: Record<string, unknown>): string | undefined => {
@@ -47,7 +48,7 @@ export function createMcpServer(services: Services, req?: Request): McpServer {
     if (raw?.source_agent_id && typeof raw.source_agent_id === 'string') return raw.source_agent_id;
     const headerAgentId = req?.headers?.['x-agent-id'] || req?.headers?.['x-actor-id'];
     if (typeof headerAgentId === 'string' && headerAgentId.trim()) return headerAgentId.trim();
-    return activeAgentId || lastRegisteredAgentId;
+    return activeAgentId;
   };
 
 
@@ -82,6 +83,7 @@ All AI agents and human operators collaborating within Muster must follow this p
    - Log key progress updates, code diffs, or blockers on cards using \`add_comment\`.
 
 5. **Peer Review & Task Completion**:
+   - Before moving a card to 'In Review', attach the branch, pull request, or commit you worked on via \`add_work_link\` — the human operator should never have to go find the work themselves.
    - When implementation is completed, if an 'In Review' column exists on the board, move the card to 'In Review' for verification. If no 'In Review' column exists (e.g. 3-lane board), post verification notes and move directly to 'Done'.`,
         },
       },
@@ -251,6 +253,15 @@ All AI agents and human operators collaborating within Muster must follow this p
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
   });
 
+  server.tool('claim_card', {
+    card_id: z.string(),
+    agent_id: z.string().describe('Required — the claim is denied loudly rather than guessing an actor'),
+    ttl_seconds: z.number().optional().describe('Lease duration in seconds; defaults to 600 (10 minutes)'),
+  }, async ({ card_id, agent_id, ttl_seconds }) => {
+    const result = await services.cardService.claim(card_id, agent_id, ttl_seconds);
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  });
+
   server.tool('assign_card', { card_id: z.string(), agent_id: z.string() }, async ({ card_id, agent_id }) => {
     await services.cardService.assign(card_id, agent_id, getActorId({ card_id, agent_id }));
     const details = await services.cardService.getById(card_id);
@@ -264,7 +275,10 @@ All AI agents and human operators collaborating within Muster must follow this p
   });
 
   server.tool('add_comment', { card_id: z.string(), author_id: z.string().optional(), content: z.string() }, async (args) => {
-    const author_id = args.author_id || getActorId(args) || 'system';
+    const author_id = args.author_id || getActorId(args);
+    if (!author_id) {
+      throw new Error('add_comment requires an author_id (or agent_id/X-Agent-Id) — no actor could be determined, and one will not be invented.');
+    }
     const comment = await services.commentService.create({ ...args, author_id });
     return { content: [{ type: 'text', text: JSON.stringify(comment, null, 2) }] };
   });
@@ -316,6 +330,31 @@ All AI agents and human operators collaborating within Muster must follow this p
     await services.cardService.unlinkCard(card_id, link_id, getActorId({ card_id }));
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
+  });
+
+  server.tool('add_work_link', {
+    card_id: z.string(),
+    kind: z.enum(['branch', 'pull_request', 'commit', 'pipeline']),
+    provider: z.enum(['forgejo', 'github', 'gitlab', 'other']),
+    url: z.string(),
+    external_ref: z.string().optional(),
+    title: z.string().optional(),
+    status: z.string().optional(),
+  }, async ({ card_id, ...data }) => {
+    await services.cardService.addWorkLink(card_id, data, getActorId({ card_id }));
+    const details = await services.cardService.getById(card_id);
+    return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
+  });
+
+  server.tool('remove_work_link', { card_id: z.string(), link_id: z.string() }, async ({ card_id, link_id }) => {
+    await services.cardService.removeWorkLink(card_id, link_id, getActorId({ card_id }));
+    const details = await services.cardService.getById(card_id);
+    return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
+  });
+
+  server.tool('list_work_links', { card_id: z.string() }, async ({ card_id }) => {
+    const links = await services.cardService.listWorkLinks(card_id);
+    return { content: [{ type: 'text', text: JSON.stringify(links, null, 2) }] };
   });
 
   server.tool('create_label', { board_id: z.string(), name: z.string(), color: z.string() }, async (args) => {
@@ -393,7 +432,6 @@ All AI agents and human operators collaborating within Muster must follow this p
   }, async (args) => {
     const result = await services.agentService.register(args);
     activeAgentId = result.id;
-    lastRegisteredAgentId = result.id;
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   });
 
@@ -420,6 +458,7 @@ All AI agents and human operators collaborating within Muster must follow this p
 
   server.tool('heartbeat', { agent_id: z.string() }, async ({ agent_id }) => {
     const result = await services.agentService.heartbeat(agent_id);
+    await services.cardService.renewClaims(agent_id);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   });
 

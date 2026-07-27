@@ -81,7 +81,23 @@ export interface Card {
   created_at: string;
   updated_at: string;
   archived: number;
+  claimed_by: string | null;
+  claimed_at: string | null;
+  claim_expires_at: string | null;
   assignees?: CardAssignee[];
+}
+
+export interface ClaimCard {
+  agent_id: string;
+  ttl_seconds?: number;
+}
+
+export interface ClaimRefusal {
+  success: false;
+  reason: 'already_claimed';
+  card_id: string;
+  held_by: { id: string; name: string | null };
+  claim_expires_at: string;
 }
 
 export interface CreateCard {
@@ -246,6 +262,31 @@ export interface CardDetails extends Card {
   comments: Comment[];
   linked_documents: Document[];
   linked_cards: LinkedCardSummary[];
+  work_links: CardWorkLink[];
+}
+
+export type CardWorkLinkKind = 'branch' | 'pull_request' | 'commit' | 'pipeline';
+export type CardWorkLinkProvider = 'forgejo' | 'github' | 'gitlab' | 'other';
+
+export interface CardWorkLink {
+  id: string;
+  card_id: string;
+  kind: CardWorkLinkKind;
+  provider: CardWorkLinkProvider;
+  url: string;
+  external_ref: string | null;
+  title: string | null;
+  status: string | null;
+  created_at: string;
+}
+
+export interface CreateCardWorkLink {
+  kind: CardWorkLinkKind;
+  provider: CardWorkLinkProvider;
+  url: string;
+  external_ref?: string;
+  title?: string;
+  status?: string;
 }
 
 // Stored relation types are directional; 'blocked_by' is the inverse view of
