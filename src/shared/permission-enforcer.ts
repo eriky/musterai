@@ -252,6 +252,11 @@ export const REST_ROUTE_PERMISSIONS: RoutePattern[] = [
   { method: 'GET', pattern: /\/tokens$/, permission: 'project.create', readOnly: true },
   { method: 'POST', pattern: /\/tokens$/, permission: 'project.create' },
   { method: 'DELETE', pattern: /\/tokens\/[^/]+$/, permission: 'project.create' },
+
+  // ── Invitations (MUS-25) — auth/login/callback/logout/me are exempted in permissionGuard ──
+  { method: 'GET', pattern: /\/workspaces\/[^/]+\/invitations$/, permission: 'member.invite', readOnly: true },
+  { method: 'POST', pattern: /\/workspaces\/[^/]+\/invitations$/, permission: 'member.invite' },
+  { method: 'DELETE', pattern: /\/invitations\/[^/]+$/, permission: 'member.invite' },
 ];
 
 // ============================================================

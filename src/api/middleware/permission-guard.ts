@@ -16,6 +16,22 @@ declare global {
 }
 
 export function permissionGuard(req: Request, res: Response, next: NextFunction): void {
+  // req.path is relative to wherever this middleware is mounted — inside the
+  // nested v1 router it comes back as e.g. "/health", not "/api/v1/health",
+  // which silently fails every anchored pattern in REST_ROUTE_PERMISSIONS.
+  // req.originalUrl is the one representation that is stable regardless of
+  // router nesting depth, so route matching (and the /auth/ exemption below)
+  // must use it, not req.path.
+  const fullPath = req.originalUrl.split('?')[0];
+
+  // The auth routes (login/callback/logout/me) are the mechanism by which a
+  // principal is established in the first place — they cannot themselves
+  // require a permission the caller has no way to hold yet.
+  if (fullPath.includes('/auth/')) {
+    next();
+    return;
+  }
+
   const auth = req.authContext;
   if (!auth) {
     // No auth context — unlikely but guard against it
@@ -27,7 +43,7 @@ export function permissionGuard(req: Request, res: Response, next: NextFunction)
   }
 
   try {
-    requireRestPermission(req.method, req.path, auth);
+    requireRestPermission(req.method, fullPath, auth);
     next();
   } catch (err) {
     if (err instanceof PermissionDeniedError) {

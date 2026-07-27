@@ -75,7 +75,20 @@ CREATE TABLE IF NOT EXISTS invitation (
   token_hash   TEXT NOT NULL,
   expires_at   TEXT NOT NULL,
   accepted_at  TEXT,
-  created_by   TEXT REFERENCES app_user(id) ON DELETE SET NULL
+  created_by   TEXT REFERENCES app_user(id) ON DELETE SET NULL,
+  created_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+
+-- Single-use, short-lived record of an in-flight OIDC authorization request.
+-- Holds the values that must be validated on callback (state/nonce/PKCE) and
+-- an optional post-login redirect target. Deleted once consumed.
+CREATE TABLE IF NOT EXISTS oidc_transaction (
+  state          TEXT PRIMARY KEY,
+  nonce          TEXT NOT NULL,
+  pkce_verifier  TEXT NOT NULL,
+  redirect_to    TEXT,
+  created_at     TEXT NOT NULL,
+  expires_at     TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS session (

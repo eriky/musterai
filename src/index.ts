@@ -26,6 +26,10 @@ import { config } from './config/index.js';
 import { OPEN_AUTH_CONTEXT } from './shared/auth-context.js';
 import { ulid } from 'ulid';
 import { TokenService } from './services/token.service.js';
+import { SessionService } from './services/session.service.js';
+import { OidcService } from './services/oidc.service.js';
+import { InvitationService } from './services/invitation.service.js';
+import { UserService } from './services/user.service.js';
 import { createAuthMiddleware } from './api/middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -47,6 +51,10 @@ async function main() {
   const kbService = new KBService(db, eventService);
   const roleService = new RoleService(db, eventService);
   const tokenService = new TokenService(db);
+  const sessionService = new SessionService(db);
+  const oidcService = new OidcService(db);
+  const invitationService = new InvitationService(db);
+  const userService = new UserService(db);
   const agentService = new AgentService(db, eventService);
   const services: Services = {
     projectService: new ProjectService(db, eventService, boardService, documentService),
@@ -60,6 +68,10 @@ async function main() {
     kbService,
     roleService,
     tokenService,
+    sessionService,
+    oidcService,
+    invitationService,
+    userService,
   };
 
   // Bootstrap: create default workspace and project if empty
@@ -92,7 +104,7 @@ async function main() {
     });
   }
 
-  const authMiddleware = createAuthMiddleware(db, tokenService, roleService, agentService);
+  const authMiddleware = createAuthMiddleware(db, tokenService, roleService, agentService, sessionService);
 
   const app = express();
   app.use(express.json());

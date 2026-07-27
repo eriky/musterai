@@ -17,8 +17,10 @@ function detectAuthMode(): 'open' | 'enforced' {
   return 'enforced';
 }
 
+const port = parseInt(process.env.MUSTER_PORT || '3000', 10);
+
 export const config = {
-  port: parseInt(process.env.MUSTER_PORT || '3000', 10),
+  port,
   host: process.env.MUSTER_HOST || 'localhost',
   auth: {
     mode: detectAuthMode() as 'open' | 'enforced',
@@ -29,4 +31,17 @@ export const config = {
   },
   attachmentsDir: process.env.MUSTER_ATTACHMENTS_DIR || path.join(projectRoot, 'data/attachments'),
   publicDir: path.join(projectRoot, 'public'),
+  oidc: {
+    issuer: process.env.MUSTER_OIDC_ISSUER || null,
+    clientId: process.env.MUSTER_OIDC_CLIENT_ID || null,
+    clientSecret: process.env.MUSTER_OIDC_CLIENT_SECRET || null,
+    publicUrl: process.env.MUSTER_PUBLIC_URL || `http://localhost:${port}`,
+    /** OIDC `sub` claim pinned in advance as the workspace owner, bypassing invitation admission. */
+    bootstrapOwnerSubject: process.env.MUSTER_BOOTSTRAP_OWNER_SUBJECT || null,
+  },
 };
+
+/** True when enough OIDC configuration is present to enable the auth routes. */
+export function isOidcConfigured(): boolean {
+  return !!(config.oidc.issuer && config.oidc.clientId && config.oidc.clientSecret);
+}
