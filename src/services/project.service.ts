@@ -5,6 +5,7 @@ import { Project, CreateProject, UpdateProject, ProjectSummary } from '../shared
 import { EventService } from './event.service.js';
 import { BoardService } from './board.service.js';
 import { DocumentService } from './document.service.js';
+import { deriveKeyPrefix } from '../shared/card-key.js';
 
 export class ProjectService {
   constructor(
@@ -19,16 +20,23 @@ export class ProjectService {
     const created_at = new Date().toISOString();
     const updated_at = created_at;
 
+    const existingPrefixes = await this.db.query<{ key_prefix: string }>(
+      `SELECT key_prefix FROM project WHERE key_prefix IS NOT NULL`
+    );
+    const key_prefix = deriveKeyPrefix(data.name, new Set(existingPrefixes.map(p => p.key_prefix)));
+
     await this.db.execute(
-      `INSERT INTO project (id, name, description, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?)`,
-      [id, data.name, data.description || null, created_at, updated_at]
+      `INSERT INTO project (id, name, description, key_prefix, card_seq, created_at, updated_at)
+       VALUES (?, ?, ?, ?, 0, ?, ?)`,
+      [id, data.name, data.description || null, key_prefix, created_at, updated_at]
     );
 
     const project: Project = {
       id,
       name: data.name,
       description: data.description || null,
+      key_prefix,
+      card_seq: 0,
       created_at,
       updated_at,
     };

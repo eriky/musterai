@@ -580,7 +580,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             >
                               <div className="flex items-center justify-between mb-2">
                                 <span className="font-mono text-[10px] text-neutral-500 group-hover:text-brand-400">
-                                  #{card.id.substring(card.id.length - 6)}
+                                  {card.key}
                                 </span>
                                 <div className="flex items-center space-x-1.5">
                                   {getPriorityBadge(card.priority)}
@@ -742,7 +742,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               <div className="flex items-center space-x-2 flex-wrap">
                 {cardDetails ? (
                   <>
-                    <span className="font-mono text-xs muster-accent font-bold">Card #{cardDetails.id}</span>
+                    <span className="font-mono text-xs muster-accent font-bold">{cardDetails.key}</span>
                     {getPriorityBadge(cardDetails.priority)}
                     {cardDetails.status === 'blocked' && (
                       <span className="px-2 py-0.5 rounded text-xs font-medium bg-danger-950/80 text-danger-300 border border-danger-500/50 flex items-center">

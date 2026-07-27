@@ -431,5 +431,59 @@ describe('Domain Services Integration Tests', () => {
     const detailsA4 = await cardService.getById(cardA.id);
     expect(detailsA4.linked_cards.some(l => l.card.id === cardC.id)).toBe(false);
   });
+
+  it('Card keys: cards get short, sequential, project-scoped keys', async () => {
+    const project = await projectService.create({ name: 'Collaborative Agent Platform' });
+    expect(project.key_prefix).toBe('CAP');
+
+    const boards = await boardService.list(project.id);
+    const columns = await columnService.list(boards[0].id);
+
+    const cardA = await cardService.create({ column_id: columns[0].id, title: 'A' });
+    const cardB = await cardService.create({ column_id: columns[0].id, title: 'B' });
+    expect(cardA.key).toBe('CAP-1');
+    expect(cardB.key).toBe('CAP-2');
+
+    // A second project with a colliding acronym gets a disambiguated prefix,
+    // and its card sequence starts independently from 1.
+    const otherProject = await projectService.create({ name: 'Client Approval Portal' });
+    expect(otherProject.key_prefix).toBe('CAP2');
+
+    const otherBoards = await boardService.list(otherProject.id);
+    const otherColumns = await columnService.list(otherBoards[0].id);
+    const otherCard = await cardService.create({ column_id: otherColumns[0].id, title: 'C' });
+    expect(otherCard.key).toBe('CAP2-1');
+
+    // Keys round-trip through getById/list.
+    const fetched = await cardService.getById(cardA.id);
+    expect(fetched.key).toBe('CAP-1');
+    const listed = await cardService.list({ column_id: columns[0].id });
+    expect(listed.map(c => c.key).sort()).toEqual(['CAP-1', 'CAP-2']);
+  });
+
+  it('Card keys: legacy rows without a key are backfilled on migrator startup', async () => {
+    const project = await projectService.create({ name: 'Muster' });
+    const boards = await boardService.list(project.id);
+    const columns = await columnService.list(boards[0].id);
+    const card = await cardService.create({ column_id: columns[0].id, title: 'Legacy' });
+    expect(card.key).toBe('MUS-1');
+
+    // Simulate rows written before migration 008 by wiping the derived columns.
+    await db.execute('UPDATE project SET key_prefix = NULL, card_seq = 0 WHERE id = ?', [project.id]);
+    await db.execute('UPDATE card SET key = NULL WHERE id = ?', [card.id]);
+
+    const migrator = new Migrator(db, path.join(process.cwd(), 'src/db/migrations'));
+    await migrator.run();
+
+    const backfilledProject = await projectService.getById(project.id);
+    expect(backfilledProject?.key_prefix).toBe('MUS');
+    const backfilledCard = await cardService.getById(card.id);
+    expect(backfilledCard.key).toBe('MUS-1');
+
+    // Running the migrator again must not change already-assigned keys.
+    await migrator.run();
+    const stableCard = await cardService.getById(card.id);
+    expect(stableCard.key).toBe('MUS-1');
+  });
 });
 

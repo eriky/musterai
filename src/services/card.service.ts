@@ -3,6 +3,7 @@ import { DatabaseAdapter } from '../db/adapter.js';
 import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document, CardLinkRelationType, LinkedCardSummary } from '../shared/types.js';
 import { EventService } from './event.service.js';
 import { rankAfter } from '../shared/lexorank.js';
+import { formatCardKey } from '../shared/card-key.js';
 
 export class CardService {
   constructor(
@@ -14,6 +15,10 @@ export class CardService {
     const id = ulid();
     const created_at = new Date().toISOString();
     const updated_at = created_at;
+
+    const projectId = await this.getProjectIdForColumn(data.column_id);
+    if (!projectId) throw new Error(`Column ${data.column_id} is not attached to a project`);
+    const key = await this.nextCardKey(projectId);
 
     let position = data.position;
     if (!position) {
@@ -29,9 +34,9 @@ export class CardService {
     const blocked_reason = data.blocked_reason !== undefined ? data.blocked_reason : null;
 
     await this.db.execute(
-      `INSERT INTO card (id, column_id, title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at, archived)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-      [id, data.column_id, data.title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at]
+      `INSERT INTO card (id, key, column_id, title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at, archived)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+      [id, key, data.column_id, data.title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at]
     );
 
     if (data.labels && data.labels.length > 0) {
@@ -48,6 +53,7 @@ export class CardService {
 
     const card: Card = {
       id,
+      key,
       column_id: data.column_id,
       title: data.title,
       description,
@@ -62,20 +68,30 @@ export class CardService {
     };
 
     if (this.eventService) {
-      const projectId = await this.getProjectIdForColumn(data.column_id);
-      if (projectId) {
-        await this.eventService.create({
-          project_id: projectId,
-          entity_type: 'card',
-          entity_id: id,
-          action: 'created',
-          actor_id: actorId,
-          payload: { title: card.title, column_id: card.column_id },
-        });
-      }
+      await this.eventService.create({
+        project_id: projectId,
+        entity_type: 'card',
+        entity_id: id,
+        action: 'created',
+        actor_id: actorId,
+        payload: { title: card.title, column_id: card.column_id },
+      });
     }
 
     return card;
+  }
+
+  /** Atomically claims the next per-project sequence number and formats it as e.g. "MUS-42". */
+  private async nextCardKey(projectId: string): Promise<string> {
+    return this.db.transaction(async tx => {
+      const rows = await tx.query<{ card_seq: number; key_prefix: string }>(
+        `UPDATE project SET card_seq = card_seq + 1 WHERE id = ? RETURNING card_seq, key_prefix`,
+        [projectId]
+      );
+      const row = rows[0];
+      if (!row) throw new Error(`Project ${projectId} not found`);
+      return formatCardKey(row.key_prefix, row.card_seq);
+    });
   }
 
   async getById(id: string): Promise<CardDetails> {

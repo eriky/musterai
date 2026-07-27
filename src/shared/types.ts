@@ -4,6 +4,8 @@ export interface Project {
   id: string;
   name: string;
   description: string | null;
+  key_prefix: string;
+  card_seq: number;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +69,7 @@ export interface CardAssignee {
 
 export interface Card {
   id: string;
+  key: string;
   column_id: string;
   title: string;
   description: string | null;
