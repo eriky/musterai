@@ -18,6 +18,7 @@ import { RoleService } from '../../services/role.service.js';
 import { AgentService } from '../../services/agent.service.js';
 import { AuthContext, OPEN_AUTH_CONTEXT } from '../../shared/auth-context.js';
 import { config } from '../../config/index.js';
+import { getRetryAfterMs, recordFailedAttempt, recordSuccessfulAttempt } from './rate-limiter.js';
 
 export function createAuthMiddleware(
   db: DatabaseAdapter,
@@ -28,6 +29,20 @@ export function createAuthMiddleware(
   return async function authMiddleware(req: Request, _res: Response, next: NextFunction): Promise<void> {
     try {
       const authHeader = req.headers.authorization;
+      const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+
+      // Locked out from prior failed bearer attempts — refuse before touching the token
+      if (authHeader) {
+        const retryAfterMs = getRetryAfterMs(clientIp);
+        if (retryAfterMs > 0) {
+          _res.setHeader('Retry-After', Math.ceil(retryAfterMs / 1000).toString());
+          _res.status(429).json({
+            error: 'rate_limited',
+            message: 'Too many failed authentication attempts. Try again later.',
+          });
+          return;
+        }
+      }
 
       // No auth header — use OPEN_AUTH_CONTEXT in open mode, 401 in enforced
       if (!authHeader) {
@@ -46,6 +61,7 @@ export function createAuthMiddleware(
       // Parse "Bearer <token>"
       const parts = authHeader.split(' ');
       if (parts.length !== 2 || parts[0] !== 'Bearer') {
+        recordFailedAttempt(clientIp);
         if (config.auth.mode === 'enforced') {
           _res.status(401).json({
             error: 'unauthorized',
@@ -64,6 +80,7 @@ export function createAuthMiddleware(
       const verification = await tokenService.verify(tokenString);
 
       if (!verification) {
+        recordFailedAttempt(clientIp);
         if (config.auth.mode === 'enforced') {
           _res.status(401).json({
             error: 'unauthorized',
@@ -75,6 +92,8 @@ export function createAuthMiddleware(
         next();
         return;
       }
+
+      recordSuccessfulAttempt(clientIp);
 
       // Resolve the principal kind from the principal table
       const principals = await db.query<{ kind: string }>(

@@ -1,9 +1,9 @@
 import React from 'react';
 import { Project, ProjectSummary, Agent } from '../types.js';
-import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, UserPlus, Trash2, Edit2 } from 'lucide-react';
+import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, UserPlus, Trash2, Edit2, KeyRound } from 'lucide-react';
 import { ThemePicker } from './ThemePicker.js';
 
-type TabId = 'agents' | 'board' | 'docs' | 'activity' | 'kb';
+type TabId = 'agents' | 'board' | 'docs' | 'activity' | 'kb' | 'tokens';
 
 interface HeaderProps {
   projects: Project[];
@@ -61,6 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'docs', icon: FileText, label: `Design Documents ${summary ? `(${summary.document_count})` : ''}` },
     { id: 'kb', icon: Database, label: 'Knowledge Base' },
     { id: 'activity', icon: Activity, label: 'Activity Log' },
+    { id: 'tokens', icon: KeyRound, label: 'Tokens' },
   ];
 
   return (

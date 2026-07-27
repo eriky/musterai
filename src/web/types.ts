@@ -259,3 +259,20 @@ export interface KBGraphTree {
   nodes: KBGraphNode[];
   links: KBGraphLink[];
 }
+
+export interface ApiToken {
+  id: string;
+  principal_id: string;
+  workspace_id: string;
+  name: string;
+  prefix: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+/** Returned only once, on creation — the plaintext secret is never retrievable again. */
+export interface CreatedApiToken extends ApiToken {
+  token: string;
+}

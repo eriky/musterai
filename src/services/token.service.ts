@@ -1,7 +1,7 @@
 // File: src/services/token.service.ts
 //
 // Personal Access Token (PAT) management for MUS-24.
-// Tokens are minted as "muster_<prefix>_<secret>" — only the SHA-256 hash
+// Tokens are minted as "muster_pat_<prefix>_<secret>" — only the SHA-256 hash
 // is stored. The plaintext secret is shown exactly once on creation.
 
 import crypto from 'node:crypto';
@@ -19,7 +19,7 @@ const SECRET_BYTES = 24;
 const LAST_USED_THROTTLE_MS = 60_000;
 
 /** The bearer-token prefix constant. */
-export const TOKEN_BRAND = 'muster';
+export const TOKEN_BRAND = 'muster_pat';
 
 /**
  * Compute SHA-256 hex digest of a token string.
@@ -102,9 +102,11 @@ export class TokenService {
    * Throttles last_used_at updates to once per minute per token.
    */
   async verify(tokenString: string): Promise<TokenVerification | null> {
-    // Parse token format: muster_<prefix>_<secret>
-    const parts = tokenString.split('_');
-    if (parts.length < 3 || parts[0] !== TOKEN_BRAND) return null;
+    // Parse token format: muster_pat_<prefix>_<secret>
+    if (!tokenString.startsWith(`${TOKEN_BRAND}_`)) return null;
+    const rest = tokenString.slice(TOKEN_BRAND.length + 1);
+    const parts = rest.split('_');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
 
     const hash = hashToken(tokenString);
 

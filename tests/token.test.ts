@@ -5,7 +5,9 @@
 // 2. A revoked token is refused on the very next request.
 // 3. An expired token is refused with an error distinct from revocation.
 // 4. The plaintext secret appears nowhere in the database after creation.
-// 5. last_used_at updates are throttled; N rapid requests produce at most one write.
+// 5. A token minted for an agent cannot perform actions the agent's effective
+//    permissions exclude.
+// 6. last_used_at updates are throttled; N rapid requests produce at most one write.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
@@ -18,6 +20,9 @@ import {
 } from '../src/services/token.service.js';
 import { RoleService, EventService } from '../src/services/index.js';
 import { PRESET_ROLES } from '../src/shared/permissions.js';
+import { requirePermission, PermissionDeniedError } from '../src/shared/permission-enforcer.js';
+import { AuthContext } from '../src/shared/auth-context.js';
+import { config } from '../src/config/index.js';
 
 const TEST_DB = path.join(process.cwd(), 'data', 'test-token.db');
 
@@ -82,8 +87,8 @@ describe('MUS-24: Token Service', () => {
       name: 'Test Token',
     });
 
-    // Token format: muster_<prefix>_<secret>
-    expect(created.token).toMatch(/^muster_[a-f0-9]{8}_[a-f0-9]{48}$/);
+    // Token format: muster_pat_<prefix>_<secret>
+    expect(created.token).toMatch(/^muster_pat_[a-f0-9]{8}_[a-f0-9]{48}$/);
     expect(created.principal_id).toBe(principalId);
     expect(created.workspace_id).toBe(workspaceId);
     expect(created.name).toBe('Test Token');
@@ -117,6 +122,8 @@ describe('MUS-24: Token Service', () => {
     expect(await tokenService.verify('not-a-token')).toBeNull();
     expect(await tokenService.verify('')).toBeNull();
     expect(await tokenService.verify('bearer_something')).toBeNull();
+    expect(await tokenService.verify('muster_pat_onlyoneprefix')).toBeNull();
+    expect(await tokenService.verify('muster_wrongbrand_aaaa_bbbb')).toBeNull();
   });
 
   // ============================================================
@@ -275,6 +282,65 @@ describe('MUS-24: Token Service', () => {
     const listed = await tokenService.list(principalId);
     for (const t of listed) {
       expect((t as any).token_hash).toBeUndefined();
+    }
+  });
+
+  // ============================================================
+  // Acceptance 5: a token minted for an agent cannot exceed the
+  // agent's effective (operator-intersected) permissions
+  // ============================================================
+
+  it('should refuse an action a token-authenticated agent lacks under the effective (intersected) permission set', async () => {
+    const now = new Date().toISOString();
+
+    // Operator holds only the observer role (kb.read only)
+    const observerRole = await roleService.getByKey(workspaceId, 'observer');
+    await db.execute(
+      'INSERT INTO workspace_member (workspace_id, user_id, role_id, joined_at) VALUES (?, ?, ?, ?)',
+      [workspaceId, userId, observerRole!.id, now],
+    );
+
+    // Agent holds senior_engineer (broad permissions, including card.create)
+    const seniorRole = await roleService.getByKey(workspaceId, 'senior_engineer');
+    const agentPrincipalId = 'test-agent-under-observer-op';
+    await db.execute('INSERT INTO principal (id, kind, created_at) VALUES (?, ?, ?)', [agentPrincipalId, 'agent', now]);
+    await db.execute(
+      'INSERT INTO agent (id, name, status, last_seen_at, role_id, operator_user_id, workspace_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [agentPrincipalId, 'Constrained Agent', 'active', now, seniorRole!.id, userId, workspaceId, now],
+    );
+
+    // Mint a token for the agent
+    const agentToken = await tokenService.create({
+      principal_id: agentPrincipalId,
+      workspace_id: workspaceId,
+      name: 'Agent Token',
+    });
+
+    // Verify the token resolves the agent principal
+    const verification = await tokenService.verify(agentToken.token);
+    expect(verification!.principal_id).toBe(agentPrincipalId);
+
+    // Effective permissions = senior_engineer ∩ observer = only kb.read survives
+    const effectivePerms = await roleService.getEffectivePermissions(agentPrincipalId);
+    expect(effectivePerms).toEqual(['kb.read']);
+
+    const auth: AuthContext = {
+      principal: { kind: 'agent', id: agentPrincipalId },
+      workspace_id: workspaceId,
+      permissions: effectivePerms,
+      is_operator_override: false,
+      role_name: seniorRole!.name,
+    };
+
+    const priorMode = config.auth.mode;
+    (config.auth as any).mode = 'enforced';
+    try {
+      // card.create is in the agent's nominal role, but not in the intersection
+      expect(() => requirePermission('create_card', auth)).toThrow(PermissionDeniedError);
+      // kb.read survives the intersection and is allowed
+      expect(() => requirePermission('search_knowledge', auth)).not.toThrow();
+    } finally {
+      (config.auth as any).mode = priorMode;
     }
   });
 });

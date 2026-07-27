@@ -1,5 +1,5 @@
 // File: src/web/api.ts
-import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType, CreateCardWorkLink } from './types.js';
+import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType, CreateCardWorkLink, ApiToken, CreatedApiToken } from './types.js';
 
 const API_BASE = '/api/v1';
 
@@ -145,5 +145,11 @@ export const api = {
     fetchJSON<KBEntity>(`/kbs/entities/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   addRelation: (data: { kb_id: string; source_entity_id: string; target_entity_id: string; relation_type: string; description?: string }) =>
     fetchJSON<KBRelation>('/kbs/relations', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Personal Access Tokens
+  getTokens: () => fetchJSON<ApiToken[]>('/tokens'),
+  createToken: (data: { name: string; expires_at?: string | null }) =>
+    fetchJSON<CreatedApiToken>('/tokens', { method: 'POST', body: JSON.stringify(data) }),
+  revokeToken: (id: string) => fetchJSON<{ message: string; id: string }>(`/tokens/${id}`, { method: 'DELETE' }),
 };
 

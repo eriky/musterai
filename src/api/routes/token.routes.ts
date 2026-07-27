@@ -1,6 +1,7 @@
 // File: src/api/routes/token.routes.ts
 //
 // REST endpoints for Personal Access Token management (MUS-24).
+// Token format: muster_pat_<prefix>_<secret>.
 // POST  /tokens          — create (returns plaintext secret once)
 // GET   /tokens          — list tokens for the authenticated principal
 // DELETE /tokens/:id     — revoke a token

@@ -8,6 +8,7 @@ import { KanbanBoard } from './components/KanbanBoard.js';
 import { DocumentVault } from './components/DocumentVault.js';
 import { TacticalTerminal } from './components/TacticalTerminal.js';
 import { KnowledgeBaseView } from './components/KnowledgeBase.js';
+import { TokensView } from './components/TokensView.js';
 import { ThemeProvider } from './ThemeContext.js';
 import {
   NewProjectModal,
@@ -18,7 +19,7 @@ import {
   NewDocModal,
 } from './components/Modals.js';
 
-type TabType = 'board' | 'agents' | 'docs' | 'activity' | 'kb';
+type TabType = 'board' | 'agents' | 'docs' | 'activity' | 'kb' | 'tokens';
 
 // ─── URL Routing Helpers (HTML5 History API — No Hash) ─────────────────────────
 
@@ -28,7 +29,7 @@ function parseLocation(): { projectId: string | null; tab: TabType; docId: strin
   if (parts[0] === 'projects' && parts[1]) {
     const projectId = parts[1];
     const rawTab = parts[2];
-    const validTabs: TabType[] = ['board', 'agents', 'docs', 'activity', 'kb'];
+    const validTabs: TabType[] = ['board', 'agents', 'docs', 'activity', 'kb', 'tokens'];
     const tab = validTabs.includes(rawTab as TabType) ? (rawTab as TabType) : 'board';
     const docId = tab === 'docs' && parts[3] ? parts[3] : null;
     const entityId = tab === 'kb' && parts[3] ? parts[3] : null;
@@ -410,6 +411,8 @@ export const App: React.FC = () => {
             onRefresh={loadProjectData}
           />
         )}
+
+        {activeTab === 'tokens' && <TokensView />}
       </main>
 
 
