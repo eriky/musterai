@@ -71,6 +71,15 @@ export interface Agent {
   workspace_id?: string | null;
 }
 
+export interface User {
+  id: string;
+  display_name: string;
+  email: string | null;
+  avatar_url: string | null;
+  status: string;
+  created_at: string;
+}
+
 
 /** Document without its markdown body — cards embed this, never the full content. */
 export type DocumentSummary = Omit<Document, 'content'>;
