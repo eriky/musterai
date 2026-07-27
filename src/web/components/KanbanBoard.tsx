@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Board, Column, Card, Agent, CardDetails, Document, CardLinkRelationType, CardWorkLinkKind, CardWorkLinkProvider } from '../types.js';
-import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, Copy, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, Bot, UserRound, GitPullRequest, GitCommit, Workflow, ExternalLink, GripVertical } from 'lucide-react';
+import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, Copy, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, Bot, UserRound, GitPullRequest, GitCommit, Workflow, ExternalLink, GripVertical, Layers } from 'lucide-react';
 import { renderMarkdown } from '../markdown.js';
 import { api } from '../api.js';
 import {
@@ -38,6 +38,8 @@ const CARD_LINK_RELATION_LABELS: Record<CardLinkRelationType, string> = {
   blocked_by: 'Blocked by',
   relates_to: 'Relates to',
   duplicates: 'Duplicates',
+  parent_of: 'Parent of',
+  child_of: 'Child of',
 };
 
 const CARD_LINK_BADGE_CLASSES: Record<CardLinkRelationType, string> = {
@@ -45,6 +47,8 @@ const CARD_LINK_BADGE_CLASSES: Record<CardLinkRelationType, string> = {
   blocked_by: 'muster-badge-warning',
   relates_to: 'muster-badge-info',
   duplicates: 'muster-badge-neutral',
+  parent_of: 'muster-badge-accent',
+  child_of: 'muster-badge-accent',
 };
 
 const WORK_LINK_KIND_LABELS: Record<CardWorkLinkKind, string> = {
@@ -115,6 +119,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [editCardPriority, setEditCardPriority] = useState<'critical' | 'high' | 'medium' | 'low'>('medium');
   const [editCardStatus, setEditCardStatus] = useState<'active' | 'blocked' | 'in_review'>('active');
   const [editCardBlockedReason, setEditCardBlockedReason] = useState<string>('');
+  const [editCardIsEpic, setEditCardIsEpic] = useState(false);
 
   const [isCreatingCard, setIsCreatingCard] = useState(false);
   const [newCardColumnId, setNewCardColumnId] = useState('');
@@ -197,6 +202,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     setEditCardPriority('medium');
     setEditCardStatus('active');
     setEditCardBlockedReason('');
+    setEditCardIsEpic(false);
     setIsEditingCard(true);
     setLinkCardQuery('');
     setLinkCardResults([]);
@@ -212,6 +218,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         priority: editCardPriority,
         status: editCardStatus,
         blocked_reason: editCardStatus !== 'active' ? editCardBlockedReason.trim() : null,
+        is_epic: editCardIsEpic,
       });
       onRefresh();
       await handleOpenCard(created.id);
@@ -252,6 +259,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       setEditCardPriority(details.priority);
       setEditCardStatus(details.status || 'active');
       setEditCardBlockedReason(details.blocked_reason || '');
+      setEditCardIsEpic(!!details.is_epic);
       setIsEditingCard(editMode);
       setLinkCardQuery('');
       setLinkCardResults([]);
@@ -270,6 +278,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     setEditCardPriority(cardDetails.priority);
     setEditCardStatus(cardDetails.status || 'active');
     setEditCardBlockedReason(cardDetails.blocked_reason || '');
+    setEditCardIsEpic(!!cardDetails.is_epic);
     setIsEditingCard(true);
   };
 
@@ -284,6 +293,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         priority: editCardPriority,
         status: editCardStatus,
         blocked_reason: editCardStatus !== 'active' ? editCardBlockedReason.trim() : null,
+        is_epic: editCardIsEpic ? 1 : 0,
       });
       setCardDetails(updated);
       setIsEditingCard(false);
@@ -682,10 +692,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                               {...dragProvided.draggableProps}
                               {...dragProvided.dragHandleProps}
                               onClick={() => handleOpenCard(card.id)}
-                              className={`p-3.5 bg-muster-surface rounded-lg border transition-all cursor-pointer group ${
+                              className={`p-3.5 rounded-lg border transition-all cursor-pointer group ${
                                 dragSnapshot.isDragging
-                                  ? 'border-brand-500 shadow-lg scale-102 z-50'
-                                  : 'border-muster-border hover:border-brand-500/40 hover:bg-neutral-900/90'
+                                  ? 'bg-muster-surface border-brand-500 shadow-lg scale-102 z-50'
+                                  : card.is_epic
+                                  ? 'bg-brand-950/20 border-brand-500/50 hover:border-brand-500/80 hover:bg-brand-950/30'
+                                  : 'bg-muster-surface border-muster-border hover:border-brand-500/40 hover:bg-neutral-900/90'
                               }`}
                             >
                               <div className="flex items-center justify-between mb-2">
@@ -702,6 +714,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                   <span>{card.key}</span>
                                 </button>
                                 <div className="flex items-center space-x-1.5">
+                                  {!!card.is_epic && (
+                                    <span className="muster-badge muster-badge-accent flex items-center" title="Epic — a container for related work">
+                                      <Layers className="w-3 h-3 mr-1" aria-hidden="true" />
+                                      EPIC
+                                    </span>
+                                  )}
                                   {getPriorityBadge(card.priority)}
                                   <button
                                     onClick={(e) => {
@@ -878,6 +896,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         <Copy className="w-3 h-3" />
                       )}
                     </button>
+                    {!!cardDetails.is_epic && (
+                      <span className="muster-badge muster-badge-accent flex items-center" title="Epic — a container for related work">
+                        <Layers className="w-3 h-3 mr-1" aria-hidden="true" />
+                        EPIC
+                      </span>
+                    )}
                     {getPriorityBadge(cardDetails.priority)}
                     {cardDetails.status === 'blocked' && (
                       <span className="px-2 py-0.5 rounded text-xs font-medium bg-danger-950/80 text-danger-300 border border-danger-500/50 flex items-center">
@@ -1021,6 +1045,19 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       </select>
                     </div>
                   </div>
+
+                  <label className="flex items-center space-x-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={editCardIsEpic}
+                      onChange={(e) => setEditCardIsEpic(e.target.checked)}
+                      className="rounded border-muster-border bg-muster-base text-brand-600 focus:ring-brand-500 focus:ring-offset-0"
+                    />
+                    <span className="muster-label !mb-0 flex items-center">
+                      <Layers className="w-3.5 h-3.5 mr-1 muster-accent" />
+                      Epic — a container for related work
+                    </span>
+                  </label>
 
                   {editCardStatus !== 'active' && (
                     <div>
@@ -1308,6 +1345,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <option value="blocked_by">Blocked by</option>
                     <option value="relates_to">Relates to</option>
                     <option value="duplicates">Duplicates</option>
+                    <option value="parent_of">Parent of</option>
+                    <option value="child_of">Child of</option>
                   </select>
                   <div className="relative flex-1">
                     <input

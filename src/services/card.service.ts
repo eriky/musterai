@@ -1,6 +1,6 @@
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document, CardLinkRelationType, LinkedCardSummary, CardWorkLink, CreateCardWorkLink, ClaimRefusal } from '../shared/types.js';
+import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document, CardLinkRelationType, StoredCardLinkType, LinkedCardSummary, CardWorkLink, CreateCardWorkLink, ClaimRefusal } from '../shared/types.js';
 import { EventService } from './event.service.js';
 import { rankAfter } from '../shared/lexorank.js';
 import { formatCardKey } from '../shared/card-key.js';
@@ -47,11 +47,12 @@ export class CardService {
     const due_date = data.due_date || null;
     const status = data.status || 'active';
     const blocked_reason = data.blocked_reason !== undefined ? data.blocked_reason : null;
+    const is_epic = data.is_epic ? 1 : 0;
 
     await this.db.execute(
-      `INSERT INTO card (id, key, column_id, title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at, archived)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-      [id, key, data.column_id, data.title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at]
+      `INSERT INTO card (id, key, column_id, title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at, archived, is_epic)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+      [id, key, data.column_id, data.title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at, is_epic]
     );
 
     if (data.labels && data.labels.length > 0) {
@@ -83,6 +84,7 @@ export class CardService {
       claimed_by: null,
       claimed_at: null,
       claim_expires_at: null,
+      is_epic,
     };
 
     if (this.eventService) {
@@ -197,9 +199,15 @@ export class CardService {
       },
     });
 
+    const incomingLabel = (stored: string): CardLinkRelationType => {
+      if (stored === 'blocks') return 'blocked_by';
+      if (stored === 'parent_of') return 'child_of';
+      return stored as CardLinkRelationType;
+    };
+
     return [
       ...outgoing.map(r => toSummary(r, r.relation_type as CardLinkRelationType)),
-      ...incoming.map(r => toSummary(r, r.relation_type === 'blocks' ? 'blocked_by' : (r.relation_type as CardLinkRelationType))),
+      ...incoming.map(r => toSummary(r, incomingLabel(r.relation_type))),
     ];
   }
 
@@ -294,11 +302,12 @@ export class CardService {
     const due_date = data.due_date !== undefined ? data.due_date : existing.due_date;
     const status = data.status !== undefined ? data.status : existing.status;
     const blocked_reason = data.blocked_reason !== undefined ? data.blocked_reason : existing.blocked_reason;
+    const is_epic = data.is_epic !== undefined ? (data.is_epic ? 1 : 0) : existing.is_epic;
     const updated_at = new Date().toISOString();
 
     await this.db.execute(
-      `UPDATE card SET title = ?, description = ?, priority = ?, due_date = ?, status = ?, blocked_reason = ?, updated_at = ? WHERE id = ?`,
-      [title, description, priority, due_date, status, blocked_reason, updated_at, id]
+      `UPDATE card SET title = ?, description = ?, priority = ?, due_date = ?, status = ?, blocked_reason = ?, is_epic = ?, updated_at = ? WHERE id = ?`,
+      [title, description, priority, due_date, status, blocked_reason, is_epic, updated_at, id]
     );
 
     if (this.eventService) {
@@ -535,9 +544,15 @@ export class CardService {
 
     let sourceCardId = cardId;
     let destCardId = targetCardId;
-    let storedType: 'blocks' | 'relates_to' | 'duplicates' = relationType === 'blocked_by' ? 'blocks' : relationType;
+    // 'blocked_by' and 'child_of' are inverse views: the caller names the
+    // relationship from cardId's perspective, but storage is always
+    // canonical ('blocks'/'parent_of' with source as the blocker/parent).
+    let storedType: StoredCardLinkType =
+      relationType === 'blocked_by' ? 'blocks' :
+      relationType === 'child_of' ? 'parent_of' :
+      relationType;
 
-    if (relationType === 'blocked_by') {
+    if (relationType === 'blocked_by' || relationType === 'child_of') {
       sourceCardId = targetCardId;
       destCardId = cardId;
     } else if (storedType === 'relates_to' || storedType === 'duplicates') {

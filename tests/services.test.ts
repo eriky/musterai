@@ -455,6 +455,40 @@ describe('Domain Services Integration Tests', () => {
     expect(detailsA4.linked_cards.some(l => l.card.id === cardC.id)).toBe(false);
   });
 
+  it('Feature: epic cards flag themselves and link to children via parent_of/child_of', async () => {
+    const project = await projectService.create({ name: 'Epic Project' });
+    const boards = await boardService.list(project.id);
+    const columns = await columnService.list(boards[0].id);
+
+    const epic = await cardService.create({ column_id: columns[0].id, title: 'Ship the rewrite', is_epic: true });
+    const child1 = await cardService.create({ column_id: columns[0].id, title: 'Squash the schema' });
+    const child2 = await cardService.create({ column_id: columns[0].id, title: 'Enforce permissions' });
+
+    expect(epic.is_epic).toBeTruthy();
+
+    // Epic -> child, stored canonically as parent_of
+    await cardService.linkCard(epic.id, child1.id, 'parent_of');
+    const epicDetails = await cardService.getById(epic.id);
+    const child1Details = await cardService.getById(child1.id);
+    expect(epicDetails.linked_cards.find(l => l.card.id === child1.id)?.relation_type).toBe('parent_of');
+    expect(child1Details.linked_cards.find(l => l.card.id === epic.id)?.relation_type).toBe('child_of');
+
+    // Declaring it from the child's side ("child_of") stores the same inverse direction
+    await cardService.linkCard(child2.id, epic.id, 'child_of');
+    const epicDetails2 = await cardService.getById(epic.id);
+    const child2Details = await cardService.getById(child2.id);
+    expect(epicDetails2.linked_cards.find(l => l.card.id === child2.id)?.relation_type).toBe('parent_of');
+    expect(child2Details.linked_cards.find(l => l.card.id === epic.id)?.relation_type).toBe('child_of');
+
+    // A plain card is not an epic by default
+    const plain = await cardService.create({ column_id: columns[0].id, title: 'Ordinary task' });
+    expect(plain.is_epic).toBeFalsy();
+
+    // is_epic can be toggled after creation via update()
+    const updated = await cardService.update(plain.id, { is_epic: true });
+    expect(updated.is_epic).toBeTruthy();
+  });
+
   it('Card keys: cards get short, sequential, project-scoped keys', async () => {
     const project = await projectService.create({ name: 'Collaborative Agent Platform' });
     expect(project.key_prefix).toBe('CAP');

@@ -84,6 +84,8 @@ export interface Card {
   claimed_by: string | null;
   claimed_at: string | null;
   claim_expires_at: string | null;
+  /** Marks this card as a container for related work — see 'parent_of' link type. */
+  is_epic: number;
   assignees?: CardAssignee[];
 }
 
@@ -111,6 +113,7 @@ export interface CreateCard {
   blocked_reason?: string | null;
   labels?: string[];
   assignees?: string[];
+  is_epic?: boolean;
 }
 
 export interface UpdateCard {
@@ -121,6 +124,7 @@ export interface UpdateCard {
   status?: 'active' | 'blocked' | 'in_review';
   blocked_reason?: string | null;
   archived?: number;
+  is_epic?: boolean;
 }
 
 export interface MoveCard {
@@ -292,10 +296,11 @@ export interface CreateCardWorkLink {
   status?: string;
 }
 
-// Stored relation types are directional; 'blocked_by' is the inverse view of
-// a 'blocks' row and is never written to the database directly.
-export type StoredCardLinkType = 'blocks' | 'relates_to' | 'duplicates';
-export type CardLinkRelationType = StoredCardLinkType | 'blocked_by';
+// Stored relation types are directional; 'blocked_by' and 'child_of' are the
+// inverse views of 'blocks' and 'parent_of' respectively, and are never
+// written to the database directly — see CardService.linkCard().
+export type StoredCardLinkType = 'blocks' | 'relates_to' | 'duplicates' | 'parent_of';
+export type CardLinkRelationType = StoredCardLinkType | 'blocked_by' | 'child_of';
 
 export interface CardLink {
   id: string;

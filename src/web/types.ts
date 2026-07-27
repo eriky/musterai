@@ -47,6 +47,8 @@ export interface Card {
   created_at: string;
   updated_at: string;
   archived: number;
+  /** Marks this card as a container for related work — see 'parent_of' link type. */
+  is_epic: number;
   assignees?: CardAssignee[];
 }
 
@@ -116,8 +118,10 @@ export interface CreateCardWorkLink {
 
 // Stored relation types are directional; 'blocked_by' is the inverse view of
 // a 'blocks' row and is never sent to the API directly.
-export type StoredCardLinkType = 'blocks' | 'relates_to' | 'duplicates';
-export type CardLinkRelationType = StoredCardLinkType | 'blocked_by';
+// 'blocked_by' and 'child_of' are inverse views computed by the server —
+// never written directly. See shared/types.ts for the canonical comment.
+export type StoredCardLinkType = 'blocks' | 'relates_to' | 'duplicates' | 'parent_of';
+export type CardLinkRelationType = StoredCardLinkType | 'blocked_by' | 'child_of';
 
 export interface LinkedCardSummary {
   id: string;

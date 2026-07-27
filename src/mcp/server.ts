@@ -220,7 +220,8 @@ All AI agents and human operators collaborating within Muster must follow this p
     status: z.enum(['active', 'blocked', 'in_review']).optional(),
     blocked_reason: z.string().nullable().optional(),
     labels: z.array(z.string()).optional(),
-    assignees: z.array(z.string()).optional()
+    assignees: z.array(z.string()).optional(),
+    is_epic: z.boolean().optional().describe('Marks this card as a container for related work'),
   }, async (args) => {
     const card = await services.cardService.create(args, getActorId(args));
     return { content: [{ type: 'text', text: JSON.stringify(card, null, 2) }] };
@@ -238,7 +239,8 @@ All AI agents and human operators collaborating within Muster must follow this p
     priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
     due_date: z.string().nullable().optional(),
     status: z.enum(['active', 'blocked', 'in_review']).optional(),
-    blocked_reason: z.string().nullable().optional()
+    blocked_reason: z.string().nullable().optional(),
+    is_epic: z.boolean().optional().describe('Marks this card as a container for related work'),
   }, async ({ card_id, ...data }) => {
     const details = await services.cardService.update(card_id, data, getActorId(data));
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
@@ -319,7 +321,7 @@ All AI agents and human operators collaborating within Muster must follow this p
   server.tool('link_card', {
     card_id: z.string(),
     target_card_id: z.string(),
-    relation_type: z.enum(['blocks', 'blocked_by', 'relates_to', 'duplicates']),
+    relation_type: z.enum(['blocks', 'blocked_by', 'relates_to', 'duplicates', 'parent_of', 'child_of']),
   }, async ({ card_id, target_card_id, relation_type }) => {
     await services.cardService.linkCard(card_id, target_card_id, relation_type, getActorId({ card_id }));
     const details = await services.cardService.getById(card_id);
