@@ -6,23 +6,35 @@ import { createDatabaseAdapter } from '../src/db/factory.js';
 import { DatabaseAdapter } from '../src/db/adapter.js';
 import { Migrator } from '../src/db/migrator.js';
 import {
-  ProjectService,
+  AgentService,
+  CardService,
   BoardService,
   ColumnService,
-  CardService,
+  ProjectService,
   CommentService,
   DocumentService,
-  AgentService,
   EventService,
-  KBService
+  KBService,
+  RoleService,
 } from '../src/services/index.js';
 import { createMcpServer, Services } from '../src/mcp/server.js';
+import { AuthContext } from '../src/shared/auth-context.js';
 import { ClaimRefusal, CardDetails } from '../src/shared/types.js';
 
 const TEST_DB = path.join(process.cwd(), 'data', 'test-card-claim.db');
 
 function isRefusal(result: CardDetails | ClaimRefusal): result is ClaimRefusal {
   return 'success' in result && result.success === false;
+}
+
+function makeAuth(principalId: string): AuthContext {
+  return {
+    principal: { kind: 'agent', id: principalId },
+    workspace_id: null,
+    permissions: [],
+    is_operator_override: false,
+    role_name: null,
+  };
 }
 
 describe('Atomic card claiming and lease expiry', () => {
@@ -201,16 +213,23 @@ describe('Atomic card claiming and lease expiry', () => {
       agentService,
       eventService,
       kbService,
+      roleService: {} as RoleService,
     };
 
-    // Each POST /mcp request builds a fresh McpServer (see src/index.ts), so two
-    // concurrently-connected agents are simulated with two independent instances —
-    // this is exactly the scenario where the old module-level lastRegisteredAgentId
-    // global used to leak identity from one agent's connection into another's.
-    const reqA = { headers: {} } as any;
-    const reqB = { headers: {} } as any;
-    const serverA = createMcpServer(services, reqA) as any;
-    const serverB = createMcpServer(services, reqB) as any;
+    // MUS-23: each server instance gets an auth context with its principal identity.
+    // Pre-create principal + app_user rows so that agent registration's
+    // operator_user_id FK constraint is satisfied.
+    const authAId = 'human-operator-a';
+    const authBId = 'human-operator-b';
+    const now = new Date().toISOString();
+    for (const id of [authAId, authBId]) {
+      await db.execute('INSERT OR IGNORE INTO principal (id, kind, created_at) VALUES (?, ?, ?)', [id, 'user', now]);
+      await db.execute('INSERT OR IGNORE INTO app_user (id, display_name, status, created_at) VALUES (?, ?, ?, ?)', [id, id, 'active', now]);
+    }
+    const authA = makeAuth(authAId);
+    const authB = makeAuth(authBId);
+    const serverA = createMcpServer(services, { headers: {} } as any, authA) as any;
+    const serverB = createMcpServer(services, { headers: {} } as any, authB) as any;
 
     const registerA = await serverA._registeredTools['register_agent'].handler(
       { name: 'Connected Agent A' },
@@ -224,15 +243,14 @@ describe('Atomic card claiming and lease expiry', () => {
     );
     const agentB = JSON.parse(registerB.content[0].text);
 
-    // Server B identifies itself explicitly, as a real client must across
-    // separate stateless requests — it must be attributed to B, never A.
+    // Server B's auth principal is human-operator-b — the comment is attributed to that identity.
     const commentResult = await serverB._registeredTools['add_comment'].handler(
-      { card_id: card.id, content: 'From agent B', agent_id: agentB.id },
+      { card_id: card.id, content: 'From agent B' },
       {}
     );
     const comment = JSON.parse(commentResult.content[0].text);
-    expect(comment.author_id).toBe(agentB.id);
-    expect(comment.author_id).not.toBe(agentA.id);
+    expect(comment.author_id).toBe('human-operator-b');
+    expect(comment.author_id).not.toBe('human-operator-a');
   });
 
   it('fails loudly instead of inventing an actor when no identity can be determined', async () => {
@@ -251,13 +269,14 @@ describe('Atomic card claiming and lease expiry', () => {
       agentService,
       eventService,
       kbService,
+      roleService: {} as RoleService,
     };
 
     const server = createMcpServer(services, { headers: {} } as any) as any;
 
-    // Nobody registered on this server instance and no agent_id/header was
-    // supplied — this must fail loudly (throw) rather than silently
-    // inventing an actor id (e.g. a magic 'system' string).
+    // MUS-23: with no auth principal (OPEN_AUTH_CONTEXT default), the handler
+    // passes undefined author_id to the comment service. The SQL NOT NULL constraint
+    // on comment.author_id rejects it — no fabricated actor.
     await expect(
       server._registeredTools['add_comment'].handler({ card_id: card.id, content: 'Whose comment is this?' }, {})
     ).rejects.toThrow();

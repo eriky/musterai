@@ -10,7 +10,17 @@ export class AgentService {
     private eventService?: EventService
   ) {}
 
-  async register(data: RegisterAgent): Promise<Agent> {
+  /**
+   * Register a new agent or re-bind an existing session.
+   *
+   * @param data - Registration payload from the caller.
+   * @param operatorUserId - (MUS-23) The authenticated principal operating this
+   *   agent. When set, the agent is bound to this operator. In open mode this
+   *   is undefined — agents are unbound.
+   * @param restrictToRoleId - (MUS-23) A role_id whose permissions are a subset
+   *   of the operator's own. When set, the agent is pinned to this role.
+   */
+  async register(data: RegisterAgent, operatorUserId?: string, restrictToRoleId?: string): Promise<Agent> {
     const id = data.agent_id || data.id || ulid();
     const now = new Date().toISOString();
 
@@ -29,9 +39,13 @@ export class AgentService {
         }
       }
 
+      // MUS-23: On re-bind, set operator_user_id if not already set
+      const finalOperatorUserId = existing.operator_user_id || operatorUserId || null;
+      const finalRoleId = restrictToRoleId || existing.role_id || null;
+
       await this.db.execute(
-        `UPDATE agent SET name = ?, capabilities = ?, status = ?, last_seen_at = ? WHERE id = ?`,
-        [name, capabilitiesStr, status, now, id]
+        `UPDATE agent SET name = ?, capabilities = ?, status = ?, last_seen_at = ?, operator_user_id = ?, role_id = ? WHERE id = ?`,
+        [name, capabilitiesStr, status, now, finalOperatorUserId, finalRoleId, id]
       );
 
       return (await this.getById(id))!;
@@ -53,9 +67,9 @@ export class AgentService {
       : null;
 
     await this.db.execute(
-      `INSERT INTO agent (id, name, capabilities, status, last_seen_at, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, name, capabilitiesStr, status, now, now]
+      `INSERT INTO agent (id, name, capabilities, status, last_seen_at, operator_user_id, role_id, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, name, capabilitiesStr, status, now, operatorUserId || null, restrictToRoleId || null, now]
     );
 
     if (this.eventService) {
@@ -68,8 +82,8 @@ export class AgentService {
       capabilities: capabilitiesStr ? JSON.parse(capabilitiesStr) : [],
       status,
       last_seen_at: now,
-      operator_user_id: null,
-      role_id: null,
+      operator_user_id: operatorUserId || null,
+      role_id: restrictToRoleId || null,
       workspace_id: null,
       created_at: now,
     };

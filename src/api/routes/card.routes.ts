@@ -2,6 +2,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { CardService } from '../../services/card.service.js';
 import { CommentService } from '../../services/comment.service.js';
+import { AuthContext } from '../../shared/auth-context.js';
+
+function getActorId(req: Request): string | undefined {
+  const auth: AuthContext | undefined = (req as any).authContext;
+  return auth?.principal?.id;
+}
 
 export function createCardRouter(cardService: CardService, commentService: CommentService): Router {
   const router = Router();
@@ -80,7 +86,7 @@ export function createCardRouter(cardService: CardService, commentService: Comme
 
   router.post('/cards/:id/claim', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const agentId = req.body.agent_id || (req.headers['x-agent-id'] as string | undefined);
+      const agentId = req.body.agent_id || getActorId(req);
       if (!agentId) {
         res.status(400).json({ error: 'agent_id is required to claim a card' });
         return;
@@ -134,7 +140,7 @@ export function createCardRouter(cardService: CardService, commentService: Comme
 
   router.delete('/cards/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const actorId = (req.headers['x-agent-id'] || req.headers['x-actor-id']) as string | undefined;
+      const actorId = getActorId(req);
       await cardService.delete(req.params.id, actorId);
       res.status(204).end();
     } catch (err) {
@@ -167,7 +173,7 @@ export function createCardRouter(cardService: CardService, commentService: Comme
   // Card-to-card links
   router.post('/cards/:id/links', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const actorId = (req.headers['x-agent-id'] || req.headers['x-actor-id']) as string | undefined;
+      const actorId = getActorId(req);
       await cardService.linkCard(req.params.id, req.body.target_card_id, req.body.relation_type, actorId);
       const card = await cardService.getById(req.params.id);
       res.json(card);
@@ -178,7 +184,7 @@ export function createCardRouter(cardService: CardService, commentService: Comme
 
   router.delete('/cards/:id/links/:linkId', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const actorId = (req.headers['x-agent-id'] || req.headers['x-actor-id']) as string | undefined;
+      const actorId = getActorId(req);
       await cardService.unlinkCard(req.params.id, req.params.linkId, actorId);
       const card = await cardService.getById(req.params.id);
       res.json(card);
@@ -199,7 +205,7 @@ export function createCardRouter(cardService: CardService, commentService: Comme
 
   router.post('/cards/:id/work-links', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const actorId = (req.headers['x-agent-id'] || req.headers['x-actor-id']) as string | undefined;
+      const actorId = getActorId(req);
       await cardService.addWorkLink(req.params.id, req.body, actorId);
       const card = await cardService.getById(req.params.id);
       res.status(201).json(card);
@@ -210,7 +216,7 @@ export function createCardRouter(cardService: CardService, commentService: Comme
 
   router.delete('/cards/:id/work-links/:linkId', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const actorId = (req.headers['x-agent-id'] || req.headers['x-actor-id']) as string | undefined;
+      const actorId = getActorId(req);
       await cardService.removeWorkLink(req.params.id, req.params.linkId, actorId);
       const card = await cardService.getById(req.params.id);
       res.json(card);

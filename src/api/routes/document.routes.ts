@@ -1,6 +1,12 @@
 // File: src/api/routes/document.routes.ts
 import { Router, Request, Response, NextFunction } from 'express';
 import { DocumentService } from '../../services/document.service.js';
+import { AuthContext } from '../../shared/auth-context.js';
+
+function getActorId(req: Request): string | undefined {
+  const auth: AuthContext | undefined = (req as any).authContext;
+  return auth?.principal?.id;
+}
 
 export function createDocumentRouter(documentService: DocumentService): Router {
   const router = Router();
@@ -20,7 +26,7 @@ export function createDocumentRouter(documentService: DocumentService): Router {
     try {
       const doc = await documentService.create(
         { ...req.body, project_id: req.params.projectId },
-        req.body?.author_id || undefined
+        getActorId(req)
       );
       res.status(201).json(doc);
     } catch (err) {
@@ -41,7 +47,7 @@ export function createDocumentRouter(documentService: DocumentService): Router {
 
   router.put('/documents/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const doc = await documentService.update(req.params.id, req.body, req.body?.author_id || undefined);
+      const doc = await documentService.update(req.params.id, req.body, getActorId(req));
       res.json(doc);
     } catch (err) {
       next(err);

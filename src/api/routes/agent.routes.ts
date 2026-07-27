@@ -2,6 +2,12 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { AgentService } from '../../services/agent.service.js';
 import { CardService } from '../../services/card.service.js';
+import { AuthContext } from '../../shared/auth-context.js';
+
+function getActorId(req: Request): string | undefined {
+  const auth: AuthContext | undefined = (req as any).authContext;
+  return auth?.principal?.id;
+}
 
 export function createAgentRouter(agentService: AgentService, cardService: CardService): Router {
   const router = Router();
@@ -19,7 +25,7 @@ export function createAgentRouter(agentService: AgentService, cardService: CardS
   // Register a new global agent (or re-bind existing session)
   router.post('/agents', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const agent = await agentService.register(req.body);
+      const agent = await agentService.register(req.body, getActorId(req));
       res.status(201).json(agent);
     } catch (err) {
       next(err);

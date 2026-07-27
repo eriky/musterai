@@ -242,7 +242,7 @@ export interface CreateLabel {
 export interface Comment {
   id: string;
   card_id: string;
-  author_id: string;
+  author_id?: string;
   content: string;
   created_at: string;
   author_name?: string;
@@ -251,7 +251,7 @@ export interface Comment {
 
 export interface CreateComment {
   card_id: string;
-  author_id: string;
+  author_id?: string;
   content: string;
 }
 
