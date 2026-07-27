@@ -109,20 +109,6 @@ for (const ar of agentRows) {
 }
 console.log(`Migrated ${agentRows.length} agent_registration rows → principal + agent/app_user`);
 
-// Also ensure every app_user has a corresponding agent row for UI visibility
-const orphanUsers = newDb.prepare(
-  'SELECT id, display_name, created_at FROM app_user WHERE id NOT IN (SELECT id FROM agent)'
-).all() as any[];
-const insertOrphanAgent = newDb.prepare(
-  'INSERT OR IGNORE INTO agent (id, name, capabilities, status, last_seen_at, workspace_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-);
-for (const u of orphanUsers) {
-  insertOrphanAgent.run(u.id, u.display_name, '["management","architecture","review"]', 'active', now, workspaceId, u.created_at || now);
-}
-if (orphanUsers.length > 0) {
-  console.log(`Also added ${orphanUsers.length} app_user rows as agents for UI visibility`);
-}
-
 // ---- Step 5: Map project + workspace_id ----
 const projectRows = oldDb.prepare('SELECT * FROM project').all() as any[];
 const insertProject = newDb.prepare(
