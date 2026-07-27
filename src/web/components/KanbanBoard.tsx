@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Board, Column, Card, Agent, CardDetails, Document, CardLinkRelationType, CardWorkLinkKind, CardWorkLinkProvider } from '../types.js';
-import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, Bot, UserRound, GitPullRequest, GitCommit, Workflow, ExternalLink } from 'lucide-react';
+import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, Copy, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, Bot, UserRound, GitPullRequest, GitCommit, Workflow, ExternalLink } from 'lucide-react';
 import { renderMarkdown } from '../markdown.js';
 import { api } from '../api.js';
 import {
@@ -85,6 +85,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 }) => {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [cardDetails, setCardDetails] = useState<CardDetails | null>(null);
+  const [copiedKeyCardId, setCopiedKeyCardId] = useState<string | null>(null);
   const [readerDocument, setReaderDocument] = useState<Document | null>(null);
   const [commentText, setCommentText] = useState('');
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('');
@@ -221,6 +222,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
     onMoveCard(draggableId, destination.droppableId);
+  };
+
+  const handleCopyKey = (key: string, cardId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    navigator.clipboard.writeText(key);
+    setCopiedKeyCardId(cardId);
+    setTimeout(() => setCopiedKeyCardId(current => (current === cardId ? null : current)), 1500);
   };
 
   const handleOpenCard = async (cardId: string, editMode = false) => {
@@ -639,9 +647,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                               }`}
                             >
                               <div className="flex items-center justify-between mb-2">
-                                <span className="font-mono text-[10px] text-neutral-500 group-hover:text-brand-400">
-                                  {card.key}
-                                </span>
+                                <button
+                                  onClick={(e) => handleCopyKey(card.key, card.id, e)}
+                                  className="flex items-center space-x-1 font-mono text-[10px] text-neutral-500 hover:text-brand-400 group-hover:text-brand-400"
+                                  title="Copy card key"
+                                >
+                                  {copiedKeyCardId === card.id ? (
+                                    <Check className="w-2.5 h-2.5" />
+                                  ) : (
+                                    <Copy className="w-2.5 h-2.5" />
+                                  )}
+                                  <span>{card.key}</span>
+                                </button>
                                 <div className="flex items-center space-x-1.5">
                                   {getPriorityBadge(card.priority)}
                                   <button
@@ -802,7 +819,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               <div className="flex items-center space-x-2 flex-wrap">
                 {cardDetails ? (
                   <>
-                    <span className="font-mono text-xs muster-accent font-bold">{cardDetails.key}</span>
+                    <button
+                      onClick={(e) => handleCopyKey(cardDetails.key, cardDetails.id, e)}
+                      className="flex items-center space-x-1 font-mono text-xs muster-accent font-bold hover:opacity-75"
+                      title="Copy card key"
+                    >
+                      <span>{cardDetails.key}</span>
+                      {copiedKeyCardId === cardDetails.id ? (
+                        <Check className="w-3 h-3" />
+                      ) : (
+                        <Copy className="w-3 h-3" />
+                      )}
+                    </button>
                     {getPriorityBadge(cardDetails.priority)}
                     {cardDetails.status === 'blocked' && (
                       <span className="px-2 py-0.5 rounded text-xs font-medium bg-danger-950/80 text-danger-300 border border-danger-500/50 flex items-center">
