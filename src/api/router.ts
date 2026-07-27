@@ -13,6 +13,7 @@ import { createEventRouter } from './routes/event.routes.js';
 import { createHealthRouter } from './routes/health.routes.js';
 import { createKBRouter } from './routes/kb.routes.js';
 import { createRoleRouter } from './routes/role.routes.js';
+import { createTokenRouter } from './routes/token.routes.js';
 import { permissionGuard } from './middleware/permission-guard.js';
 
 export function createRouter(services: Services, sseManager: SSEManager, db: DatabaseAdapter): Router {
@@ -32,6 +33,7 @@ export function createRouter(services: Services, sseManager: SSEManager, db: Dat
   v1.use(createEventRouter(services.eventService, sseManager));
   v1.use(createKBRouter(services.kbService));
   v1.use(createRoleRouter(services.roleService));
+  v1.use(createTokenRouter(services.tokenService));
 
 
   router.use('/v1', v1);

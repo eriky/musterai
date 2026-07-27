@@ -25,6 +25,8 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { config } from './config/index.js';
 import { OPEN_AUTH_CONTEXT } from './shared/auth-context.js';
 import { ulid } from 'ulid';
+import { TokenService } from './services/token.service.js';
+import { createAuthMiddleware } from './api/middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,6 +46,8 @@ async function main() {
   const documentService = new DocumentService(db, eventService);
   const kbService = new KBService(db, eventService);
   const roleService = new RoleService(db, eventService);
+  const tokenService = new TokenService(db);
+  const agentService = new AgentService(db, eventService);
   const services: Services = {
     projectService: new ProjectService(db, eventService, boardService, documentService),
     boardService,
@@ -51,10 +55,11 @@ async function main() {
     cardService: new CardService(db, eventService),
     commentService: new CommentService(db, eventService),
     documentService,
-    agentService: new AgentService(db, eventService),
+    agentService,
     eventService,
     kbService,
     roleService,
+    tokenService,
   };
 
   // Bootstrap: create default workspace and project if empty
@@ -87,16 +92,13 @@ async function main() {
     });
   }
 
+  const authMiddleware = createAuthMiddleware(db, tokenService, roleService, agentService);
+
   const app = express();
   app.use(express.json());
 
-  // AuthContext middleware — resolves per-request context
-  app.use((req: Request, _res, next) => {
-    // For now, MUSTER_AUTH_MODE=open produces a permissive stub.
-    // In MUS-21/22 this will resolve real tokens/sessions.
-    (req as any).authContext = OPEN_AUTH_CONTEXT;
-    next();
-  });
+  // AuthContext middleware — resolves real bearer tokens or falls back to OPEN_AUTH_CONTEXT
+  app.use((req, res, next) => authMiddleware(req, res, next));
 
   const apiRouter = createRouter(services, sseManager, db);
   app.use('/api', apiRouter);

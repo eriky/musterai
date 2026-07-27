@@ -87,6 +87,34 @@ export interface UpdateAgent {
 }
 
 // ============================================================
+// API Tokens (MUS-24)
+// ============================================================
+
+export interface ApiToken {
+  id: string;
+  principal_id: string;
+  workspace_id: string;
+  name: string;
+  prefix: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+export interface CreateApiToken {
+  principal_id: string;
+  workspace_id: string;
+  name: string;
+  expires_at?: string | null;
+}
+
+/** Returned on token creation — the plaintext secret is shown exactly once. */
+export interface CreatedApiToken extends ApiToken {
+  token: string;
+}
+
+// ============================================================
 // Projects & Boards
 // ============================================================
 
@@ -516,6 +544,10 @@ export interface AddKBRelation {
   relation_type: string;
   description?: string;
 }
+
+// ============================================================
+// Knowledge Graph response types
+// ============================================================
 
 export interface EntityKnowledgeResult {
   entity: KBEntity;

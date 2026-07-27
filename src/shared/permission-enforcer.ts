@@ -247,6 +247,11 @@ export const REST_ROUTE_PERMISSIONS: RoutePattern[] = [
 
   // ── Events ──
   { method: 'GET', pattern: /\/events/, permission: 'project.create', readOnly: true },
+
+  // ── Tokens (MUS-24) ──
+  { method: 'GET', pattern: /\/tokens$/, permission: 'project.create', readOnly: true },
+  { method: 'POST', pattern: /\/tokens$/, permission: 'project.create' },
+  { method: 'DELETE', pattern: /\/tokens\/[^/]+$/, permission: 'project.create' },
 ];
 
 // ============================================================

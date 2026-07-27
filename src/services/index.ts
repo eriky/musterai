@@ -9,4 +9,5 @@ export * from './document.service.js';
 export * from './agent.service.js';
 export * from './kb.service.js';
 export * from './role.service.js';
+export * from './token.service.js';
 

@@ -12,6 +12,7 @@ import {
   EventService,
   KBService,
   RoleService,
+  TokenService,
 } from '../services/index.js';
 import { AuthContext, OPEN_AUTH_CONTEXT } from '../shared/auth-context.js';
 import { withPermission } from '../shared/permission-enforcer.js';
@@ -29,6 +30,7 @@ export interface Services {
   eventService: EventService;
   kbService: KBService;
   roleService: RoleService;
+  tokenService: TokenService;
 }
 
 import { Request } from 'express';
