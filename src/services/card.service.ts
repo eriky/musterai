@@ -138,8 +138,12 @@ export class CardService {
       [id]
     );
 
-    const linked_documents = await this.db.query<Document>(
-      `SELECT d.* FROM document d
+    // Deliberately excludes d.content — a design doc body can run tens of KB,
+    // and every card mutation (create/move/link/assign/...) round-trips this
+    // list via getById(). Full content is one getDocument call away.
+    const linked_documents = await this.db.query<Omit<Document, 'content'>>(
+      `SELECT d.id, d.project_id, d.parent_id, d.title, d.status, d.author_id, d.version, d.created_at, d.updated_at
+       FROM document d
        JOIN card_document cd ON d.id = cd.document_id
        WHERE cd.card_id = ?
        ORDER BY cd.linked_at ASC`,

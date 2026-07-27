@@ -71,10 +71,13 @@ export interface Agent {
 }
 
 
+/** Document without its markdown body — cards embed this, never the full content. */
+export type DocumentSummary = Omit<Document, 'content'>;
+
 export interface CardDetails extends Card {
   assignees: Agent[];
   labels: Label[];
-  linked_documents: Document[];
+  linked_documents: DocumentSummary[];
   linked_cards: LinkedCardSummary[];
   work_links: CardWorkLink[];
   comments: {

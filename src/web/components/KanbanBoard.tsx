@@ -90,6 +90,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [cardDetails, setCardDetails] = useState<CardDetails | null>(null);
   const [copiedKeyCardId, setCopiedKeyCardId] = useState<string | null>(null);
   const [readerDocument, setReaderDocument] = useState<Document | null>(null);
+  const [loadingDocumentId, setLoadingDocumentId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('');
   const [assignAgentId, setAssignAgentId] = useState<string>('');
@@ -359,6 +360,20 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       setLinkDocumentId('');
     } catch (err) {
       console.error('Failed to link document:', err);
+    }
+  };
+
+  const handleOpenLinkedDocument = async (documentId: string) => {
+    // linked_documents only carries a summary (no content) so cards stay cheap
+    // to fetch on every mutation — the reader needs the full body on demand.
+    setLoadingDocumentId(documentId);
+    try {
+      const full = await api.getDocumentDetails(documentId);
+      setReaderDocument(full);
+    } catch (err) {
+      console.error('Failed to load document:', err);
+    } finally {
+      setLoadingDocumentId(null);
     }
   };
 
@@ -1175,7 +1190,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     cardDetails.linked_documents.map((doc) => (
                       <div
                         key={doc.id}
-                        onClick={() => setReaderDocument(doc)}
+                        onClick={() => handleOpenLinkedDocument(doc.id)}
+                        aria-busy={loadingDocumentId === doc.id}
                         className="flex items-center justify-between bg-muster-surface p-2.5 rounded-lg border border-warning-500/20 hover:border-warning-500/60 hover:bg-neutral-900/90 group cursor-pointer transition-all"
                       >
                         <div className="flex items-center space-x-2 min-w-0">
@@ -1191,7 +1207,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         </div>
                         <div className="flex items-center space-x-2 flex-shrink-0">
                           <span className="text-[11px] muster-text-warning font-medium opacity-80 group-hover:opacity-100 flex items-center">
-                            Read <Eye className="w-3 h-3 ml-1" />
+                            {loadingDocumentId === doc.id ? 'Loading…' : (<>Read <Eye className="w-3 h-3 ml-1" /></>)}
                           </span>
                           <button
                             onClick={(e) => {
