@@ -19,10 +19,12 @@ export interface AuthContext {
   principal: PrincipalRef | null;
   /** The workspace this request acts within, if known. */
   workspace_id: string | null;
-  /** Stub — empty set until MUS-21 defines the permission catalog. */
+  /** Permission strings the principal holds (effective set). */
   permissions: string[];
   /** True when the request carries operator-override authority. */
   is_operator_override: boolean;
+  /** Human-friendly role name for refusal payloads — null when unknown. */
+  role_name: string | null;
 }
 
 /**
@@ -34,4 +36,5 @@ export const OPEN_AUTH_CONTEXT: AuthContext = {
   workspace_id: null,
   permissions: [],
   is_operator_override: false,
+  role_name: null,
 };

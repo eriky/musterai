@@ -180,4 +180,50 @@ export class AgentService {
       }
     }
   }
+
+  /**
+   * Layer 2 scope check: validate that an agent identified in tool args
+   * belongs to (is operated by) the given authenticated principal.
+   * Returns the agent's operator_user_id if found, null if agent doesn't exist.
+   * Throws if the agent exists but does NOT belong to the principal.
+   */
+  async validateAgentOwnership(agentId: string, principalId: string): Promise<string | null> {
+    const agent = await this.getById(agentId);
+    if (!agent) return null;
+
+    if (agent.operator_user_id && agent.operator_user_id !== principalId) {
+      throw new Error(
+        `Agent "${agentId}" belongs to a different operator and cannot be used by principal "${principalId}".`
+      );
+    }
+
+    return agent.operator_user_id || principalId;
+  }
+
+  /**
+   * Layer 2 scope check: return all agent IDs that a given principal operates.
+   * Used to determine whether the principal has scope over a card via assignment.
+   */
+  async getAgentIdsForPrincipal(principalId: string): Promise<string[]> {
+    // Check if the principal IS an agent — include itself
+    const principalRows = await this.db.query<{ kind: string }>(
+      'SELECT kind FROM principal WHERE id = ?',
+      [principalId],
+    );
+    const rows: string[] = [];
+    if (principalRows.length > 0 && principalRows[0].kind === 'agent') {
+      rows.push(principalId);
+    }
+
+    // Find all agents operated by this principal
+    const agentRows = await this.db.query<{ id: string }>(
+      'SELECT id FROM agent WHERE operator_user_id = ?',
+      [principalId],
+    );
+    for (const r of agentRows) {
+      rows.push(r.id);
+    }
+
+    return rows;
+  }
 }

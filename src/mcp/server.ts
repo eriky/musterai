@@ -14,6 +14,7 @@ import {
   RoleService,
 } from '../services/index.js';
 import { AuthContext, OPEN_AUTH_CONTEXT } from '../shared/auth-context.js';
+import { withPermission } from '../shared/permission-enforcer.js';
 
 const z = zod;
 
@@ -34,7 +35,8 @@ import { Request } from 'express';
 
 /**
  * Resolve the actor ID from the AuthContext, optionally overridden by an
- * explicit agent_id in tool arguments (validated server-side in a later card).
+ * explicit agent_id in tool arguments.
+ * Under enforced auth mode, validates agent ownership against the authenticated principal.
  * Under MUSTER_AUTH_MODE=open the actor is undefined — caller-asserted identity
  * is phased out in MUS-23.
  */
@@ -92,20 +94,20 @@ All AI agents and human operators collaborating within Muster must follow this p
   }));
 
   // --- Project Tools ---
-  server.tool('list_projects', {}, async () => {
+  server.tool('list_projects', {}, withPermission('list_projects', auth, async () => {
     const projects = await services.projectService.list();
     return { content: [{ type: 'text', text: JSON.stringify(projects, null, 2) }] };
-  });
+  }));
 
-  server.tool('create_project', { name: z.string(), description: z.string().optional() }, async (args) => {
+  server.tool('create_project', { name: z.string(), description: z.string().optional() }, withPermission('create_project', auth, async (args) => {
     const project = await services.projectService.create(args, resolveActor(auth, args));
     return { content: [{ type: 'text', text: JSON.stringify(project, null, 2) }] };
-  });
+  }));
 
-  server.tool('get_project_summary', { project_id: z.string() }, async ({ project_id }) => {
+  server.tool('get_project_summary', { project_id: z.string() }, withPermission('get_project_summary', auth, async ({ project_id }) => {
     const summary = await services.projectService.getSummary(project_id);
     return { content: [{ type: 'text', text: JSON.stringify(summary, null, 2) }] };
-  });
+  }));
 
   server.tool(
     'update_project',
@@ -114,22 +116,22 @@ All AI agents and human operators collaborating within Muster must follow this p
       name: z.string().optional(),
       description: z.string().optional(),
     },
-    async ({ project_id, ...data }) => {
+    withPermission('update_project', auth, async ({ project_id, ...data }) => {
       const project = await services.projectService.update(project_id, data, resolveActor(auth, { project_id }));
       return { content: [{ type: 'text', text: JSON.stringify(project, null, 2) }] };
-    }
+    })
   );
 
-  server.tool('delete_project', { project_id: z.string() }, async ({ project_id }) => {
+  server.tool('delete_project', { project_id: z.string() }, withPermission('delete_project', auth, async ({ project_id }) => {
     await services.projectService.delete(project_id, resolveActor(auth, { project_id }));
     return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Project ${project_id} deleted` }) }] };
-  });
+  }));
 
   // --- Board & Column Tools ---
-  server.tool('list_boards', { project_id: z.string() }, async ({ project_id }) => {
+  server.tool('list_boards', { project_id: z.string() }, withPermission('list_boards', auth, async ({ project_id }) => {
     const boards = await services.boardService.list(project_id);
     return { content: [{ type: 'text', text: JSON.stringify(boards, null, 2) }] };
-  });
+  }));
 
   server.tool(
     'create_board',
@@ -139,23 +141,23 @@ All AI agents and human operators collaborating within Muster must follow this p
       template: z.enum(['simple', 'standard']).optional(),
       columns: z.array(z.string()).optional(),
     },
-    async (args) => {
+    withPermission('create_board', auth, async (args) => {
       const board = await services.boardService.create(args, resolveActor(auth, args));
       return { content: [{ type: 'text', text: JSON.stringify(board, null, 2) }] };
-    }
+    })
   );
 
-  server.tool('update_board', { board_id: z.string(), name: z.string() }, async ({ board_id, name }) => {
+  server.tool('update_board', { board_id: z.string(), name: z.string() }, withPermission('update_board', auth, async ({ board_id, name }) => {
     const board = await services.boardService.update(board_id, { name }, resolveActor(auth, { board_id, name }));
     return { content: [{ type: 'text', text: JSON.stringify(board, null, 2) }] };
-  });
+  }));
 
-  server.tool('delete_board', { board_id: z.string() }, async ({ board_id }) => {
+  server.tool('delete_board', { board_id: z.string() }, withPermission('delete_board', auth, async ({ board_id }) => {
     await services.boardService.delete(board_id, resolveActor(auth, { board_id }));
     return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Board ${board_id} deleted` }) }] };
-  });
+  }));
 
-  server.tool('get_board', { board_id: z.string() }, async ({ board_id }) => {
+  server.tool('get_board', { board_id: z.string() }, withPermission('get_board', auth, async ({ board_id }) => {
     const board = await services.boardService.getById(board_id);
     if (!board) throw new Error(`Board ${board_id} not found`);
 
@@ -165,37 +167,37 @@ All AI agents and human operators collaborating within Muster must follow this p
     return {
       content: [{ type: 'text', text: JSON.stringify({ ...board, columns, cards }, null, 2) }],
     };
-  });
+  }));
 
   server.tool('create_column', {
     board_id: z.string(),
     name: z.string(),
     position: z.string().optional(),
     wip_limit: z.number().optional()
-  }, async (args) => {
+  }, withPermission('create_column', auth, async (args) => {
     const col = await services.columnService.create(args);
     return { content: [{ type: 'text', text: JSON.stringify(col, null, 2) }] };
-  });
+  }));
 
   server.tool('update_column', {
     column_id: z.string(),
     name: z.string().optional(),
     wip_limit: z.number().nullable().optional(),
     position: z.string().optional()
-  }, async ({ column_id, ...data }) => {
+  }, withPermission('update_column', auth, async ({ column_id, ...data }) => {
     const col = await services.columnService.update(column_id, data);
     return { content: [{ type: 'text', text: JSON.stringify(col, null, 2) }] };
-  });
+  }));
 
-  server.tool('move_column', { column_id: z.string(), position: z.string() }, async ({ column_id, position }) => {
+  server.tool('move_column', { column_id: z.string(), position: z.string() }, withPermission('move_column', auth, async ({ column_id, position }) => {
     const col = await services.columnService.update(column_id, { position });
     return { content: [{ type: 'text', text: JSON.stringify(col, null, 2) }] };
-  });
+  }));
 
-  server.tool('delete_column', { column_id: z.string() }, async ({ column_id }) => {
+  server.tool('delete_column', { column_id: z.string() }, withPermission('delete_column', auth, async ({ column_id }) => {
     await services.columnService.delete(column_id);
     return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Column ${column_id} deleted` }) }] };
-  });
+  }));
 
   // --- Card Tools ---
   server.tool('list_cards', {
@@ -205,10 +207,10 @@ All AI agents and human operators collaborating within Muster must follow this p
     label: z.string().optional(),
     status: z.enum(['active', 'blocked', 'in_review']).optional(),
     archived: z.boolean().optional()
-  }, async (filters) => {
+  }, withPermission('list_cards', auth, async (filters) => {
     const cards = await services.cardService.list(filters);
     return { content: [{ type: 'text', text: JSON.stringify(cards, null, 2) }] };
-  });
+  }));
 
   server.tool('create_card', {
     column_id: z.string(),
@@ -222,15 +224,15 @@ All AI agents and human operators collaborating within Muster must follow this p
     labels: z.array(z.string()).optional(),
     assignees: z.array(z.string()).optional(),
     is_epic: z.boolean().optional().describe('Marks this card as a container for related work'),
-  }, async (args) => {
+  }, withPermission('create_card', auth, async (args) => {
     const card = await services.cardService.create(args, resolveActor(auth, args));
     return { content: [{ type: 'text', text: JSON.stringify(card, null, 2) }] };
-  });
+  }));
 
-  server.tool('get_card', { card_id: z.string() }, async ({ card_id }) => {
+  server.tool('get_card', { card_id: z.string() }, withPermission('get_card', auth, async ({ card_id }) => {
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
-  });
+  }));
 
   server.tool('update_card', {
     card_id: z.string(),
@@ -241,97 +243,115 @@ All AI agents and human operators collaborating within Muster must follow this p
     status: z.enum(['active', 'blocked', 'in_review']).optional(),
     blocked_reason: z.string().nullable().optional(),
     is_epic: z.boolean().optional().describe('Marks this card as a container for related work'),
-  }, async ({ card_id, ...data }) => {
+  }, withPermission('update_card', auth, async ({ card_id, ...data }) => {
+    // Layer 2 scope check: if the principal doesn't have card.assign_others,
+    // they may only update cards they are assigned to.
+    if (!auth.permissions.includes('card.assign_others') && auth.principal) {
+      const agentIds = await services.agentService.getAgentIdsForPrincipal(auth.principal.id);
+      const hasScope = await services.cardService.validateCardScope(card_id, agentIds);
+      if (!hasScope) {
+        throw new Error(`Forbidden: you may only update cards you are assigned to (principal: ${auth.principal.id})`);
+      }
+    }
     const details = await services.cardService.update(card_id, data, resolveActor(auth, data));
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
-  });
+  }));
 
   server.tool('move_card', {
     card_id: z.string(),
     target_column_id: z.string().optional(),
     position: z.string().optional()
-  }, async ({ card_id, target_column_id, position }) => {
+  }, withPermission('move_card', auth, async ({ card_id, target_column_id, position }) => {
+    // Layer 2 scope check: if the principal doesn't have card.assign_others,
+    // they may only move cards they are assigned to.
+    if (!auth.permissions.includes('card.assign_others') && auth.principal) {
+      const agentIds = await services.agentService.getAgentIdsForPrincipal(auth.principal.id);
+      const hasScope = await services.cardService.validateCardScope(card_id, agentIds);
+      if (!hasScope) {
+        throw new Error(`Forbidden: you may only move cards you are assigned to (principal: ${auth.principal.id})`);
+      }
+    }
     const details = await services.cardService.move(card_id, { target_column_id, position }, resolveActor(auth, { card_id, target_column_id }));
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
-  });
+  }));
 
   server.tool('claim_card', {
     card_id: z.string(),
     agent_id: z.string().describe('Required — the principal/agent ID claiming the card'),
     ttl_seconds: z.number().optional().describe('Lease duration in seconds; defaults to 600 (10 minutes)'),
-  }, async ({ card_id, agent_id, ttl_seconds }) => {
+  }, withPermission('claim_card', auth, async ({ card_id, agent_id, ttl_seconds }) => {
     const result = await services.cardService.claim(card_id, agent_id, ttl_seconds);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-  });
+  }));
 
-  server.tool('assign_card', { card_id: z.string(), agent_id: z.string() }, async ({ card_id, agent_id }) => {
+  server.tool('assign_card', { card_id: z.string(), agent_id: z.string() }, withPermission('assign_card', auth, async ({ card_id, agent_id }) => {
     await services.cardService.assign(card_id, agent_id, resolveActor(auth, { card_id, agent_id }));
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
-  });
+  }));
 
-  server.tool('unassign_card', { card_id: z.string(), agent_id: z.string() }, async ({ card_id, agent_id }) => {
+  server.tool('unassign_card', { card_id: z.string(), agent_id: z.string() }, withPermission('unassign_card', auth, async ({ card_id, agent_id }) => {
     await services.cardService.unassign(card_id, agent_id, resolveActor(auth, { card_id, agent_id }));
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
-  });
+  }));
 
-  server.tool('add_comment', { card_id: z.string(), author_id: z.string().optional(), content: z.string() }, async (args) => {
+  server.tool('add_comment', { card_id: z.string(), author_id: z.string().optional(), content: z.string() }, withPermission('add_comment', auth, async (args) => {
     const author_id = args.author_id || resolveActor(auth, args);
     if (!author_id) {
       throw new Error('add_comment requires an author_id — no actor could be determined.');
     }
     const comment = await services.commentService.create({ ...args, author_id });
     return { content: [{ type: 'text', text: JSON.stringify(comment, null, 2) }] };
-  });
+  }));
 
-  server.tool('add_label', { card_id: z.string(), label_id: z.string() }, async ({ card_id, label_id }) => {
+  server.tool('add_label', { card_id: z.string(), label_id: z.string() }, withPermission('add_label', auth, async ({ card_id, label_id }) => {
     await services.cardService.addLabel(card_id, label_id, resolveActor(auth, { card_id }));
     return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
-  });
+  }));
 
-  server.tool('remove_label', { card_id: z.string(), label_id: z.string() }, async ({ card_id, label_id }) => {
+  server.tool('remove_label', { card_id: z.string(), label_id: z.string() }, withPermission('remove_label', auth, async ({ card_id, label_id }) => {
     await services.cardService.removeLabel(card_id, label_id, resolveActor(auth, { card_id }));
     return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
-  });
+  }));
 
-  server.tool('archive_card', { card_id: z.string() }, async ({ card_id }) => {
+  server.tool('archive_card', { card_id: z.string() }, withPermission('archive_card', auth, async ({ card_id }) => {
     await services.cardService.archive(card_id, resolveActor(auth, { card_id }));
     return { content: [{ type: 'text', text: JSON.stringify({ success: true }) }] };
-  });
+  }));
 
-  server.tool('delete_card', { card_id: z.string() }, async ({ card_id }) => {
+  server.tool('delete_card', { card_id: z.string() }, withPermission('delete_card', auth, async ({ card_id }) => {
     await services.cardService.delete(card_id, resolveActor(auth, { card_id }));
     return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Card ${card_id} deleted` }) }] };
-  });
+  }));
 
-  server.tool('link_document_to_card', { card_id: z.string(), document_id: z.string() }, async ({ card_id, document_id }) => {
+  server.tool('link_document_to_card', { card_id: z.string(), document_id: z.string() }, withPermission('link_document_to_card', auth, async ({ card_id, document_id }) => {
     await services.cardService.linkDocument(card_id, document_id, resolveActor(auth, { card_id }));
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
-  });
+  }));
 
-  server.tool('unlink_document_from_card', { card_id: z.string(), document_id: z.string() }, async ({ card_id, document_id }) => {
+  server.tool('unlink_document_from_card', { card_id: z.string(), document_id: z.string() }, withPermission('unlink_document_from_card', auth, async ({ card_id, document_id }) => {
     await services.cardService.unlinkDocument(card_id, document_id, resolveActor(auth, { card_id }));
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
-  });
+  }));
 
   server.tool('link_card', {
     card_id: z.string(),
     target_card_id: z.string(),
     relation_type: z.enum(['blocks', 'blocked_by', 'relates_to', 'duplicates', 'parent_of', 'child_of']),
-  }, async ({ card_id, target_card_id, relation_type }) => {
+  }, withPermission('link_card', auth, async ({ card_id, target_card_id, relation_type }) => {
     await services.cardService.linkCard(card_id, target_card_id, relation_type, resolveActor(auth, { card_id }));
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
-  });
+  }));
 
-  server.tool('unlink_card', { card_id: z.string(), link_id: z.string() }, async ({ card_id, link_id }) => {
+  server.tool('unlink_card', { card_id: z.string(), link_id: z.string() }, withPermission('unlink_card', auth, async ({ card_id, link_id }) => {
     await services.cardService.unlinkCard(card_id, link_id, resolveActor(auth, { card_id }));
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
-  });
+  }));
 
   server.tool('add_work_link', {
     card_id: z.string(),
@@ -341,42 +361,42 @@ All AI agents and human operators collaborating within Muster must follow this p
     external_ref: z.string().optional(),
     title: z.string().optional(),
     status: z.string().optional(),
-  }, async ({ card_id, ...data }) => {
+  }, withPermission('add_work_link', auth, async ({ card_id, ...data }) => {
     await services.cardService.addWorkLink(card_id, data, resolveActor(auth, { card_id }));
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
-  });
+  }));
 
-  server.tool('remove_work_link', { card_id: z.string(), link_id: z.string() }, async ({ card_id, link_id }) => {
+  server.tool('remove_work_link', { card_id: z.string(), link_id: z.string() }, withPermission('remove_work_link', auth, async ({ card_id, link_id }) => {
     await services.cardService.removeWorkLink(card_id, link_id, resolveActor(auth, { card_id }));
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
-  });
+  }));
 
-  server.tool('list_work_links', { card_id: z.string() }, async ({ card_id }) => {
+  server.tool('list_work_links', { card_id: z.string() }, withPermission('list_work_links', auth, async ({ card_id }) => {
     const links = await services.cardService.listWorkLinks(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(links, null, 2) }] };
-  });
+  }));
 
-  server.tool('create_label', { board_id: z.string(), name: z.string(), color: z.string() }, async (args) => {
+  server.tool('create_label', { board_id: z.string(), name: z.string(), color: z.string() }, withPermission('create_label', auth, async (args) => {
     const result = await services.boardService.createLabel(args);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-  });
+  }));
 
-  server.tool('list_labels', { board_id: z.string() }, async ({ board_id }) => {
+  server.tool('list_labels', { board_id: z.string() }, withPermission('list_labels', auth, async ({ board_id }) => {
     const result = await services.boardService.listLabels(board_id);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-  });
+  }));
 
   // --- Document Management Tools ---
   server.tool('list_documents', {
     project_id: z.string(),
     status: z.string().optional(),
     parent_id: z.string().nullable().optional()
-  }, async ({ project_id, ...filters }) => {
+  }, withPermission('list_documents', auth, async ({ project_id, ...filters }) => {
     const result = await services.documentService.list(project_id, filters);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-  });
+  }));
 
   server.tool('create_document', {
     project_id: z.string(),
@@ -384,16 +404,16 @@ All AI agents and human operators collaborating within Muster must follow this p
     content: z.string(),
     parent_id: z.string().optional(),
     author_id: z.string().optional()
-  }, async (args) => {
+  }, withPermission('create_document', auth, async (args) => {
     const author_id = args.author_id || resolveActor(auth, args);
     const result = await services.documentService.create({ ...args, author_id });
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-  });
+  }));
 
-  server.tool('get_document', { document_id: z.string() }, async ({ document_id }) => {
+  server.tool('get_document', { document_id: z.string() }, withPermission('get_document', auth, async ({ document_id }) => {
     const result = await services.documentService.getById(document_id);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-  });
+  }));
 
   server.tool('update_document', {
     document_id: z.string(),
@@ -401,24 +421,24 @@ All AI agents and human operators collaborating within Muster must follow this p
     content: z.string().optional(),
     change_summary: z.string().optional(),
     author_id: z.string().optional()
-  }, async ({ document_id, ...data }) => {
+  }, withPermission('update_document', auth, async ({ document_id, ...data }) => {
     const author_id = data.author_id || resolveActor(auth, data);
     const result = await services.documentService.update(document_id, { ...data, author_id });
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-  });
+  }));
 
   server.tool('set_document_status', {
     document_id: z.string(),
     status: z.enum(['draft', 'in_review', 'approved'])
-  }, async ({ document_id, status }) => {
+  }, withPermission('set_document_status', auth, async ({ document_id, status }) => {
     const result = await services.documentService.setStatus(document_id, status, resolveActor(auth, { document_id, status }));
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-  });
+  }));
 
-  server.tool('get_document_history', { document_id: z.string() }, async ({ document_id }) => {
+  server.tool('get_document_history', { document_id: z.string() }, withPermission('get_document_history', auth, async ({ document_id }) => {
     const result = await services.documentService.getHistory(document_id);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-  });
+  }));
 
   // --- Agent Management Tools ---
   server.tool('register_agent', {
@@ -426,36 +446,36 @@ All AI agents and human operators collaborating within Muster must follow this p
     name: z.string().optional().describe('Agent name'),
     capabilities: z.union([z.string(), z.array(z.string())]).optional(),
     status: z.enum(['active', 'idle', 'offline']).optional()
-  }, async (args) => {
+  }, withPermission('register_agent', auth, async (args) => {
     const result = await services.agentService.register(args);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-  });
+  }));
 
   server.tool('update_agent', {
     agent_id: z.string(),
     name: z.string().optional(),
     capabilities: z.union([z.string(), z.array(z.string())]).optional(),
     status: z.enum(['active', 'idle', 'offline']).optional(),
-  }, async ({ agent_id, ...data }) => {
+  }, withPermission('update_agent', auth, async ({ agent_id, ...data }) => {
     const agent = await services.agentService.update(agent_id, data);
     return { content: [{ type: 'text', text: JSON.stringify(agent, null, 2) }] };
-  });
+  }));
 
-  server.tool('unregister_agent', { agent_id: z.string() }, async ({ agent_id }) => {
+  server.tool('unregister_agent', { agent_id: z.string() }, withPermission('unregister_agent', auth, async ({ agent_id }) => {
     await services.agentService.unregister(agent_id);
     return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Agent ${agent_id} unregistered.` }) }] };
-  });
+  }));
 
-  server.tool('heartbeat', { agent_id: z.string() }, async ({ agent_id }) => {
+  server.tool('heartbeat', { agent_id: z.string() }, withPermission('heartbeat', auth, async ({ agent_id }) => {
     const result = await services.agentService.heartbeat(agent_id);
     await services.cardService.renewClaims(agent_id);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-  });
+  }));
 
-  server.tool('list_agents', {}, async () => {
+  server.tool('list_agents', {}, withPermission('list_agents', auth, async () => {
     const result = await services.agentService.list();
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-  });
+  }));
 
   // --- Event & Activity Tools ---
   server.tool('get_activity', {
@@ -463,16 +483,16 @@ All AI agents and human operators collaborating within Muster must follow this p
     entity_type: z.string().optional(),
     entity_id: z.string().optional(),
     limit: z.number().optional()
-  }, async ({ project_id, ...filters }) => {
+  }, withPermission('get_activity', auth, async ({ project_id, ...filters }) => {
     const result = await services.eventService.list(project_id, filters);
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-  });
+  }));
 
   // --- Knowledge Base Tools ---
-  server.tool('list_knowledge_bases', { project_id: z.string().optional() }, async ({ project_id }) => {
+  server.tool('list_knowledge_bases', { project_id: z.string().optional() }, withPermission('list_knowledge_bases', auth, async ({ project_id }) => {
     const kbs = await services.kbService.list(project_id);
     return { content: [{ type: 'text', text: JSON.stringify(kbs, null, 2) }] };
-  });
+  }));
 
   server.tool('create_knowledge_base', {
     name: z.string(),
@@ -480,26 +500,26 @@ All AI agents and human operators collaborating within Muster must follow this p
     is_global: z.boolean().optional(),
     project_ids: z.array(z.string()).optional(),
     agent_id: z.string().optional(),
-  }, async (args) => {
+  }, withPermission('create_knowledge_base', auth, async (args) => {
     const kb = await services.kbService.create(args, resolveActor(auth, args));
     return { content: [{ type: 'text', text: JSON.stringify(kb, null, 2) }] };
-  });
+  }));
 
   server.tool('link_knowledge_base', {
     kb_id: z.string(),
     project_id: z.string(),
     agent_id: z.string().optional(),
-  }, async (args) => {
+  }, withPermission('link_knowledge_base', auth, async (args) => {
     await services.kbService.linkProject(args.kb_id, args.project_id, resolveActor(auth, args));
     return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `KB ${args.kb_id} linked to project ${args.project_id}` }) }] };
-  });
+  }));
 
   server.tool('search_knowledge', {
     query: z.string(),
     kb_id: z.string().optional(),
     project_id: z.string().optional(),
     limit: z.number().optional()
-  }, async ({ query, kb_id, project_id, limit }) => {
+  }, withPermission('search_knowledge', auth, async ({ query, kb_id, project_id, limit }) => {
     let kbIds: string[] | undefined;
     if (kb_id) {
       kbIds = [kb_id];
@@ -509,16 +529,16 @@ All AI agents and human operators collaborating within Muster must follow this p
     }
     const results = await services.kbService.searchKnowledge(query, kbIds, limit);
     return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
-  });
+  }));
 
   server.tool('get_entity_knowledge', {
     query: z.string().describe('Entity ID, canonical identifier (IP, email, hostname), or entity name'),
     kb_id: z.string().optional()
-  }, async ({ query, kb_id }) => {
+  }, withPermission('get_entity_knowledge', auth, async ({ query, kb_id }) => {
     const result = await services.kbService.getEntityKnowledge(query, kb_id ? [kb_id] : undefined);
-    if (!result) return { content: [{ type: 'text', text: `No entity knowledge found for "${query}"` }] };
+    if (!result) return { content: [{ type: 'text', text: `No entity knowledge found for \"${query}\"` }] };
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
-  });
+  }));
 
   server.tool('add_gained_knowledge', {
     kb_id: z.string(),
@@ -531,11 +551,11 @@ All AI agents and human operators collaborating within Muster must follow this p
     entity_identifier: z.string().optional(),
     confidence: z.number().optional(),
     agent_id: z.string().optional(),
-  }, async (args) => {
+  }, withPermission('add_gained_knowledge', auth, async (args) => {
     const actorId = resolveActor(auth, args);
     const fact = await services.kbService.addFact(args, actorId);
     return { content: [{ type: 'text', text: JSON.stringify(fact, null, 2) }] };
-  });
+  }));
 
   server.tool('upsert_kb_entity', {
     kb_id: z.string(),
@@ -544,11 +564,11 @@ All AI agents and human operators collaborating within Muster must follow this p
     identifier: z.string().optional(),
     metadata: z.record(z.unknown()).optional(),
     agent_id: z.string().optional(),
-  }, async (args) => {
+  }, withPermission('upsert_kb_entity', auth, async (args) => {
     const actorId = resolveActor(auth, args);
     const entity = await services.kbService.upsertEntity(args, actorId);
     return { content: [{ type: 'text', text: JSON.stringify(entity, null, 2) }] };
-  });
+  }));
 
   server.tool('update_gained_knowledge', {
     fact_id: z.string(),
@@ -561,11 +581,11 @@ All AI agents and human operators collaborating within Muster must follow this p
     entity_identifier: z.string().optional(),
     confidence: z.number().optional(),
     agent_id: z.string().optional(),
-  }, async ({ fact_id, ...data }) => {
+  }, withPermission('update_gained_knowledge', auth, async ({ fact_id, ...data }) => {
     const actorId = resolveActor(auth, data);
     const fact = await services.kbService.updateFact(fact_id, data, actorId);
     return { content: [{ type: 'text', text: JSON.stringify(fact, null, 2) }] };
-  });
+  }));
 
   server.tool('update_kb_entity', {
     entity_id: z.string(),
@@ -574,11 +594,11 @@ All AI agents and human operators collaborating within Muster must follow this p
     identifier: z.string().optional(),
     metadata: z.record(z.unknown()).optional(),
     agent_id: z.string().optional(),
-  }, async ({ entity_id, ...data }) => {
+  }, withPermission('update_kb_entity', auth, async ({ entity_id, ...data }) => {
     const actorId = resolveActor(auth, data);
     const entity = await services.kbService.updateEntity(entity_id, data, actorId);
     return { content: [{ type: 'text', text: JSON.stringify(entity, null, 2) }] };
-  });
+  }));
 
   server.tool('add_kb_relation', {
     kb_id: z.string(),
@@ -587,23 +607,23 @@ All AI agents and human operators collaborating within Muster must follow this p
     relation_type: z.string(),
     description: z.string().optional(),
     agent_id: z.string().optional(),
-  }, async (args) => {
+  }, withPermission('add_kb_relation', auth, async (args) => {
     const actorId = resolveActor(auth, args);
     const relation = await services.kbService.addRelation(args, actorId);
     return { content: [{ type: 'text', text: JSON.stringify(relation, null, 2) }] };
-  });
+  }));
 
   // --- Role Management Tools ---
-  server.tool('list_roles', { workspace_id: z.string() }, async ({ workspace_id }) => {
+  server.tool('list_roles', { workspace_id: z.string() }, withPermission('list_roles', auth, async ({ workspace_id }) => {
     const roles = await services.roleService.list(workspace_id);
     return { content: [{ type: 'text', text: JSON.stringify(roles, null, 2) }] };
-  });
+  }));
 
-  server.tool('get_role', { role_id: z.string() }, async ({ role_id }) => {
+  server.tool('get_role', { role_id: z.string() }, withPermission('get_role', auth, async ({ role_id }) => {
     const role = await services.roleService.getById(role_id);
     if (!role) throw new Error(`Role ${role_id} not found`);
     return { content: [{ type: 'text', text: JSON.stringify(role, null, 2) }] };
-  });
+  }));
 
   server.tool('create_role', {
     workspace_id: z.string(),
@@ -612,10 +632,10 @@ All AI agents and human operators collaborating within Muster must follow this p
     description: z.string().optional(),
     permissions: z.array(z.string()),
     rank: z.number().optional(),
-  }, async (args) => {
+  }, withPermission('create_role', auth, async (args) => {
     const role = await services.roleService.create(args);
     return { content: [{ type: 'text', text: JSON.stringify(role, null, 2) }] };
-  });
+  }));
 
   server.tool('update_role', {
     role_id: z.string(),
@@ -623,24 +643,24 @@ All AI agents and human operators collaborating within Muster must follow this p
     description: z.string().optional(),
     permissions: z.array(z.string()).optional(),
     rank: z.number().optional(),
-  }, async ({ role_id, ...data }) => {
+  }, withPermission('update_role', auth, async ({ role_id, ...data }) => {
     const role = await services.roleService.update(role_id, data);
     return { content: [{ type: 'text', text: JSON.stringify(role, null, 2) }] };
-  });
+  }));
 
-  server.tool('delete_role', { role_id: z.string() }, async ({ role_id }) => {
+  server.tool('delete_role', { role_id: z.string() }, withPermission('delete_role', auth, async ({ role_id }) => {
     await services.roleService.delete(role_id);
     return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Role ${role_id} deleted` }) }] };
-  });
+  }));
 
   server.tool('clone_role', {
     role_id: z.string(),
     new_key: z.string(),
     new_name: z.string().optional(),
-  }, async ({ role_id, new_key, new_name }) => {
+  }, withPermission('clone_role', auth, async ({ role_id, new_key, new_name }) => {
     const role = await services.roleService.clone(role_id, new_key, new_name);
     return { content: [{ type: 'text', text: JSON.stringify(role, null, 2) }] };
-  });
+  }));
 
   return server;
 }

@@ -5,6 +5,7 @@ import { EventService } from './event.service.js';
 import { rankAfter } from '../shared/lexorank.js';
 import { formatCardKey } from '../shared/card-key.js';
 import { ValidationError } from '../shared/errors.js';
+import { config } from '../config/index.js';
 
 function assertHttpUrl(url: string): void {
   let parsed: URL;
@@ -721,5 +722,24 @@ export class CardService {
       [columnId]
     );
     return rows[0]?.project_id || null;
+  }
+
+  /**
+   * Layer 2 scope check: validate that a principal has scope over a card.
+   * Returns true if the principal (or an agent they operate) is an assignee
+   * on the card, or if the principal has unrestricted card access.
+   * Under MUSTER_AUTH_MODE=open, always returns true (no scope enforcement).
+   */
+  async validateCardScope(cardId: string, agentIds: string[]): Promise<boolean> {
+    if (config.auth.mode === 'open') return true;
+
+    if (agentIds.length === 0) return false;
+
+    const placeholders = agentIds.map(() => '?').join(',');
+    const rows = await this.db.query<{ card_id: string }>(
+      `SELECT card_id FROM card_assignee WHERE card_id = ? AND principal_id IN (${placeholders}) LIMIT 1`,
+      [cardId, ...agentIds]
+    );
+    return rows.length > 0;
   }
 }

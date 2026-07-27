@@ -13,10 +13,14 @@ import { createEventRouter } from './routes/event.routes.js';
 import { createHealthRouter } from './routes/health.routes.js';
 import { createKBRouter } from './routes/kb.routes.js';
 import { createRoleRouter } from './routes/role.routes.js';
+import { permissionGuard } from './middleware/permission-guard.js';
 
 export function createRouter(services: Services, sseManager: SSEManager, db: DatabaseAdapter): Router {
   const router = Router();
   const v1 = Router();
+
+  // Apply permission guard to all v1 routes
+  v1.use(permissionGuard);
 
   v1.use(createHealthRouter(db));
   v1.use('/projects', createProjectRouter(services.projectService));
