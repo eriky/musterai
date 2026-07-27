@@ -10,17 +10,10 @@ export class ApiError extends Error {
   }
 }
 
-let activeHumanId: string | null = typeof window !== 'undefined' ? localStorage.getItem('muster_active_human_id') : null;
-
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-
-  if (activeHumanId) {
-    headers['x-agent-id'] = activeHumanId;
-    headers['x-actor-id'] = activeHumanId;
-  }
 
   const res = await fetch(`${API_BASE}${url}`, {
     headers: {
@@ -43,15 +36,6 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  getActiveHumanId: () => activeHumanId,
-  setActiveHumanId: (id: string | null) => {
-    activeHumanId = id;
-    if (typeof window !== 'undefined') {
-      if (id) localStorage.setItem('muster_active_human_id', id);
-      else localStorage.removeItem('muster_active_human_id');
-    }
-  },
-
   // Projects
   getProjects: () => fetchJSON<Project[]>('/projects'),
   createProject: (data: { name: string; description?: string }) => fetchJSON<Project>('/projects', { method: 'POST', body: JSON.stringify(data) }),
@@ -113,10 +97,9 @@ export const api = {
 
   // Agents & Settings
   getAgents: () => fetchJSON<Agent[]>(`/agents`),
-  getHumanSecretToken: () => fetchJSON<{ secret_token: string }>(`/settings/human-secret`),
-  registerAgent: (data: { name: string; type: string; role: string; capabilities?: string; secret_token?: string }) =>
+  registerAgent: (data: { name: string; capabilities?: string }) =>
     fetchJSON<Agent>(`/agents`, { method: 'POST', body: JSON.stringify(data) }),
-  updateAgent: (id: string, data: { name?: string; role?: string; capabilities?: string; status?: string; owner_id?: string | null }) =>
+  updateAgent: (id: string, data: { name?: string; capabilities?: string; status?: string; operator_user_id?: string | null; role_id?: string | null }) =>
     fetchJSON<Agent>(`/agents/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   unregisterAgent: (id: string) => fetchJSON<void>(`/agents/${id}`, { method: 'DELETE' }),
   agentHeartbeat: (id: string) => fetchJSON<Agent>(`/agents/${id}/heartbeat`, { method: 'POST' }),

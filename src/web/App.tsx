@@ -90,7 +90,7 @@ export const App: React.FC = () => {
   const [newCardRequest, setNewCardRequest] = useState<{ columnId?: string; token: number } | null>(null);
   const newCardTokenRef = useRef(0);
 
-  const [selectedHumanId, setSelectedHumanId] = useState<string | null>(api.getActiveHumanId());
+  const [selectedHumanId, setSelectedHumanId] = useState<string | null>(null);
 
   // Load Projects
   const loadProjects = useCallback(async (selectId?: string) => {
@@ -136,14 +136,6 @@ export const App: React.FC = () => {
       setAgents(agentsData);
       setDocuments(docsData);
       setEvents(eventsData);
-
-      // Auto-select human operator if not selected yet
-      const humanAgents = agentsData.filter(a => a.type === 'human');
-      const activeId = api.getActiveHumanId();
-      if ((!activeId || !humanAgents.some(h => h.id === activeId)) && humanAgents.length > 0) {
-        setSelectedHumanId(humanAgents[0].id);
-        api.setActiveHumanId(humanAgents[0].id);
-      }
 
 
       if (boardsData.length > 0) {
@@ -299,7 +291,6 @@ export const App: React.FC = () => {
 
   const handleSelectHuman = (id: string) => {
     setSelectedHumanId(id);
-    api.setActiveHumanId(id);
   };
 
   const handleDeleteProject = async (projectId: string) => {

@@ -52,7 +52,8 @@ export const Header: React.FC<HeaderProps> = ({
   selectedHumanId,
   onSelectHuman,
 }) => {
-  const humanAgents = agents.filter(a => a.type === 'human');
+  // Show all agents in the header dropdown — no type/role discriminator
+  const humanAgents = agents;
 
   const tabs: { id: TabId; icon: React.ElementType; label: string }[] = [
     { id: 'agents', icon: Bot, label: `Agents ${summary ? `(${summary.active_agent_count}/${summary.agent_count})` : ''}` },
@@ -98,7 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   {humanAgents.map((h) => (
                     <option key={h.id} value={h.id} className="bg-muster-surface muster-text-primary">
-                      {h.name} ({h.role})
+                      {h.name}
                     </option>
                   ))}
                 </select>

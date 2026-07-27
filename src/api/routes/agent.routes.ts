@@ -6,16 +6,6 @@ import { CardService } from '../../services/card.service.js';
 export function createAgentRouter(agentService: AgentService, cardService: CardService): Router {
   const router = Router();
 
-  // Get Human Owner Secret Token (for UI display)
-  router.get('/settings/human-secret', async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const secret_token = await agentService.getHumanSecretToken();
-      res.json({ secret_token });
-    } catch (err) {
-      next(err);
-    }
-  });
-
   // Global agent list
   router.get('/agents', async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -46,7 +36,7 @@ export function createAgentRouter(agentService: AgentService, cardService: CardS
     }
   });
 
-  // Update agent attributes (name, capabilities, owner assignment, role, status)
+  // Update agent attributes
   router.put('/agents/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const agent = await agentService.update(req.params.id, req.body);
@@ -56,11 +46,9 @@ export function createAgentRouter(agentService: AgentService, cardService: CardS
     }
   });
 
-
   router.delete('/agents/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const actorId = req.headers['x-actor-id'] as string | undefined;
-      await agentService.unregister(req.params.id, actorId);
+      await agentService.unregister(req.params.id);
       res.status(204).send();
     } catch (err) {
       next(err);

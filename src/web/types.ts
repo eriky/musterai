@@ -29,7 +29,7 @@ export interface Column {
 export interface CardAssignee {
   id: string;
   name: string;
-  type: 'ai_agent' | 'human';
+  kind: 'user' | 'agent';
   status: 'active' | 'idle' | 'offline';
 }
 
@@ -62,14 +62,13 @@ export interface Label {
 export interface Agent {
   id: string;
   name: string;
-  type: 'ai_agent' | 'human';
-  role: 'owner' | 'contributor' | 'observer';
   capabilities: string[];
   status: 'active' | 'idle' | 'offline';
   last_seen_at: string;
   created_at: string;
-  owner_id?: string | null;
-  secret_token?: string | null;
+  operator_user_id?: string | null;
+  role_id?: string | null;
+  workspace_id?: string | null;
 }
 
 
@@ -77,7 +76,7 @@ export interface Agent {
 export type DocumentSummary = Omit<Document, 'content'>;
 
 export interface CardDetails extends Card {
-  assignees: Agent[];
+  assignees: CardAssignee[];
   labels: Label[];
   linked_documents: DocumentSummary[];
   linked_cards: LinkedCardSummary[];
@@ -213,7 +212,7 @@ export interface KBFact {
   content: string;
   category: string;
   confidence: number;
-  source_agent_id: string | null;
+  source_principal_id: string | null;
   created_at: string;
   updated_at: string;
   entity_name?: string;

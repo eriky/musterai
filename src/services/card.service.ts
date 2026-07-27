@@ -1,6 +1,6 @@
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Agent, Document, CardLinkRelationType, StoredCardLinkType, LinkedCardSummary, CardWorkLink, CreateCardWorkLink, ClaimRefusal } from '../shared/types.js';
+import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Document, CardLinkRelationType, StoredCardLinkType, LinkedCardSummary, CardWorkLink, CreateCardWorkLink, ClaimRefusal } from '../shared/types.js';
 import { EventService } from './event.service.js';
 import { rankAfter } from '../shared/lexorank.js';
 import { formatCardKey } from '../shared/card-key.js';
@@ -119,9 +119,10 @@ export class CardService {
     const card = cardRows[0];
     if (!card) throw new Error(`Card with ID ${id} not found`);
 
-    const assignees = await this.db.query<Agent>(
-      `SELECT a.* FROM agent_registration a
-       JOIN card_assignee ca ON a.id = ca.agent_id
+    const assignees = await this.db.query<CardAssignee>(
+      `SELECT p.id, a.name, p.kind, a.status FROM agent a
+       JOIN principal p ON a.id = p.id
+       JOIN card_assignee ca ON a.id = ca.principal_id
        WHERE ca.card_id = ?`,
       [id]
     );
@@ -134,8 +135,9 @@ export class CardService {
     );
 
     const comments = await this.db.query<any>(
-      `SELECT c.*, a.name as author_name FROM comment c
-       LEFT JOIN agent_registration a ON c.author_id = a.id
+      `SELECT c.*, a.name as author_name, p.kind as author_kind FROM comment c
+       LEFT JOIN principal p ON c.author_id = p.id
+       LEFT JOIN agent a ON c.author_id = a.id
        WHERE c.card_id = ? ORDER BY c.created_at ASC`,
       [id]
     );
@@ -158,8 +160,10 @@ export class CardService {
     return {
       ...card,
       assignees: assignees.map(a => ({
-        ...a,
-        capabilities: typeof a.capabilities === 'string' ? JSON.parse(a.capabilities) : (a.capabilities || []),
+        id: a.id,
+        name: a.name,
+        kind: (a.kind || 'agent') as 'user' | 'agent',
+        status: a.status || 'offline',
       })),
       labels,
       comments,
@@ -267,9 +271,10 @@ export class CardService {
 
     const placeholders = cards.map(() => '?').join(', ');
     const assigneeRows = await this.db.query<CardAssignee & { card_id: string }>(
-      `SELECT ca.card_id, a.id, a.name, a.type, a.status
+      `SELECT ca.card_id, p.id, a.name, p.kind, a.status
        FROM card_assignee ca
-       JOIN agent_registration a ON a.id = ca.agent_id
+       JOIN principal p ON ca.principal_id = p.id
+       JOIN agent a ON a.id = p.id
        WHERE ca.card_id IN (${placeholders})
        ORDER BY a.name ASC`,
       cards.map(card => card.id)
@@ -281,7 +286,7 @@ export class CardService {
       cardAssignees.push({
         id: assignee.id,
         name: assignee.name,
-        type: assignee.type,
+        kind: (assignee.kind || 'agent') as 'user' | 'agent',
         status: assignee.status,
       });
       assigneesByCard.set(assignee.card_id, cardAssignees);
@@ -368,7 +373,7 @@ export class CardService {
 
   async assign(cardId: string, agentId: string, actorId?: string): Promise<void> {
     await this.db.execute(
-      `INSERT OR IGNORE INTO card_assignee (card_id, agent_id) VALUES (?, ?)`,
+      `INSERT OR IGNORE INTO card_assignee (card_id, principal_id) VALUES (?, ?)`,
       [cardId, agentId]
     );
 
@@ -390,7 +395,7 @@ export class CardService {
 
   async unassign(cardId: string, agentId: string, actorId?: string): Promise<void> {
     await this.db.execute(
-      `DELETE FROM card_assignee WHERE card_id = ? AND agent_id = ?`,
+      `DELETE FROM card_assignee WHERE card_id = ? AND principal_id = ?`,
       [cardId, agentId]
     );
   }
@@ -413,7 +418,7 @@ export class CardService {
 
       if (heldByOther) {
         const holderRows = await tx.query<{ name: string }>(
-          'SELECT name FROM agent_registration WHERE id = ?',
+          'SELECT a.name FROM agent a JOIN principal p ON a.id = p.id WHERE p.id = ?',
           [card.claimed_by]
         );
         const refusal: ClaimRefusal = {
@@ -432,7 +437,7 @@ export class CardService {
         [agentId, nowIso, expiresIso, nowIso, cardId]
       );
       await tx.execute(
-        `INSERT OR IGNORE INTO card_assignee (card_id, agent_id) VALUES (?, ?)`,
+        `INSERT OR IGNORE INTO card_assignee (card_id, principal_id) VALUES (?, ?)`,
         [cardId, agentId]
       );
 

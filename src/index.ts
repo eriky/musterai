@@ -22,13 +22,15 @@ import { errorHandler } from './api/middleware/error-handler.js';
 import { createMcpServer, Services } from './mcp/server.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { config } from './config/index.js';
+import { OPEN_AUTH_CONTEXT } from './shared/auth-context.js';
+import { ulid } from 'ulid';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function main() {
   const db = createDatabaseAdapter();
-  
+
   const migrator = new Migrator(db, path.join(__dirname, 'db/migrations'));
   await migrator.run();
 
@@ -52,6 +54,17 @@ async function main() {
     kbService,
   };
 
+  // Bootstrap: create default workspace and project if empty
+  const workspaces = await db.query<{ id: string }>('SELECT id FROM workspace LIMIT 1');
+  if (workspaces.length === 0) {
+    const wsId = ulid();
+    const now = new Date().toISOString();
+    await db.execute(
+      `INSERT INTO workspace (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+      [wsId, 'Default Workspace', 'default', now, now]
+    );
+    console.log('Created default workspace');
+  }
 
   const existingProjects = await services.projectService.list();
   if (existingProjects.length === 0) {
@@ -64,10 +77,18 @@ async function main() {
 
   const app = express();
   app.use(express.json());
-  
+
+  // AuthContext middleware — resolves per-request context
+  app.use((req: Request, _res, next) => {
+    // For now, MUSTER_AUTH_MODE=open produces a permissive stub.
+    // In MUS-21/22 this will resolve real tokens/sessions.
+    (req as any).authContext = OPEN_AUTH_CONTEXT;
+    next();
+  });
+
   const apiRouter = createRouter(services, sseManager, db);
   app.use('/api', apiRouter);
-  
+
   const publicDir = config.publicDir;
   if (fs.existsSync(publicDir)) {
     app.use(express.static(publicDir));
@@ -75,7 +96,8 @@ async function main() {
 
   // MCP Streamable HTTP Transport
   app.post('/mcp', async (req: Request, res: Response) => {
-    const mcpServer = createMcpServer(services, req);
+    const auth = (req as any).authContext || OPEN_AUTH_CONTEXT;
+    const mcpServer = createMcpServer(services, req, auth);
 
     const mcpTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
@@ -115,6 +137,16 @@ async function main() {
     services.cardService.releaseExpiredLeases().catch(console.error);
   }, 60000);
 
+  // Warn if binding to non-loopback with auth=open
+  const host = config.host;
+  if (config.auth.mode === 'open' && host !== 'localhost' && host !== '127.0.0.1') {
+    console.warn(
+      `\n⚠  WARNING: MUSTER_AUTH_MODE=open but binding to host "${host}".\n` +
+      `   Set MUSTER_AUTH_MODE=enforced and configure a reverse proxy with TLS\n` +
+      `   before exposing on a non-local interface.\n`
+    );
+  }
+
   const initialPort = config.port;
 
   const listenOnPort = (port: number) => {
@@ -125,6 +157,7 @@ async function main() {
       console.log(`  • Web UI:   http://${config.host}:${port}`);
       console.log(`  • REST API: http://${config.host}:${port}/api/v1`);
       console.log(`  • MCP Tool: POST http://${config.host}:${port}/mcp`);
+      console.log(`  • Auth:     ${config.auth.mode}`);
       console.log(`======================================================\n`);
     });
 

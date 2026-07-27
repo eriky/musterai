@@ -1,7 +1,69 @@
 // File: src/shared/types.ts
 
+// ============================================================
+// Identity & access control
+// ============================================================
+
+export interface Workspace {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PrincipalKind = 'user' | 'agent';
+
+export interface Principal {
+  id: string;
+  kind: PrincipalKind;
+  created_at: string;
+}
+
+export interface User {
+  id: string;
+  email: string | null;
+  display_name: string;
+  avatar_url: string | null;
+  status: 'active' | 'idle' | 'offline';
+  created_at: string;
+}
+
+export interface Agent {
+  id: string;
+  name: string;
+  capabilities: string[];
+  status: 'active' | 'idle' | 'offline';
+  last_seen_at: string;
+  operator_user_id: string | null;
+  role_id: string | null;
+  workspace_id: string | null;
+  created_at: string;
+}
+
+export interface RegisterAgent {
+  id?: string;
+  agent_id?: string;
+  name?: string;
+  capabilities?: string | string[];
+  status?: 'active' | 'idle' | 'offline';
+}
+
+export interface UpdateAgent {
+  name?: string;
+  capabilities?: string | string[];
+  status?: 'active' | 'idle' | 'offline';
+  operator_user_id?: string | null;
+  role_id?: string | null;
+}
+
+// ============================================================
+// Projects & Boards
+// ============================================================
+
 export interface Project {
   id: string;
+  workspace_id: string;
   name: string;
   description: string | null;
   key_prefix: string;
@@ -60,10 +122,14 @@ export interface UpdateColumn {
   position?: string;
 }
 
+// ============================================================
+// Cards
+// ============================================================
+
 export interface CardAssignee {
   id: string;
   name: string;
-  type: 'ai_agent' | 'human';
+  kind: 'user' | 'agent';
   status: 'active' | 'idle' | 'offline';
 }
 
@@ -84,13 +150,12 @@ export interface Card {
   claimed_by: string | null;
   claimed_at: string | null;
   claim_expires_at: string | null;
-  /** Marks this card as a container for related work — see 'parent_of' link type. */
   is_epic: number;
   assignees?: CardAssignee[];
 }
 
 export interface ClaimCard {
-  agent_id: string;
+  principal_id: string;
   ttl_seconds?: number;
 }
 
@@ -145,45 +210,6 @@ export interface CreateLabel {
   color: string;
 }
 
-export interface Agent {
-  id: string;
-  name: string;
-  type: 'ai_agent' | 'human';
-  role: 'owner' | 'contributor' | 'observer';
-  capabilities: string[];
-  status: 'active' | 'idle' | 'offline';
-  last_seen_at: string;
-  created_at: string;
-  owner_id?: string | null;
-  secret_token?: string | null;
-}
-
-export interface RegisterAgent {
-  id?: string;
-  agent_id?: string;
-  name?: string;
-  type?: 'ai_agent' | 'human';
-  role?: 'owner' | 'contributor' | 'observer';
-  capabilities?: string | string[];
-  status?: 'active' | 'idle' | 'offline';
-  secret_token?: string;
-  owner_id?: string;
-}
-
-
-export interface UpdateAgentStatus {
-  status: 'active' | 'idle' | 'offline';
-}
-
-export interface UpdateAgent {
-  name?: string;
-  role?: 'owner' | 'contributor' | 'observer';
-  capabilities?: string | string[];
-  status?: 'active' | 'idle' | 'offline';
-  owner_id?: string | null;
-}
-
-
 export interface Comment {
   id: string;
   card_id: string;
@@ -191,6 +217,7 @@ export interface Comment {
   content: string;
   created_at: string;
   author_name?: string;
+  author_kind?: 'user' | 'agent';
 }
 
 export interface CreateComment {
@@ -198,6 +225,10 @@ export interface CreateComment {
   author_id: string;
   content: string;
 }
+
+// ============================================================
+// Documents
+// ============================================================
 
 export interface Document {
   id: string;
@@ -236,9 +267,15 @@ export interface DocumentVersion {
   author_id: string | null;
   change_summary: string | null;
   created_at: string;
-  /** Joined from agent_registration; absent if the author was never registered. */
   author_name?: string | null;
 }
+
+/** Document without its markdown body — cards embed this, never the full content. */
+export type DocumentSummary = Omit<Document, 'content'>;
+
+// ============================================================
+// Events
+// ============================================================
 
 export interface Event {
   id: string;
@@ -260,11 +297,12 @@ export interface CreateEvent {
   payload?: Record<string, unknown>;
 }
 
-/** Document without its markdown body — cards embed this, never the full content. */
-export type DocumentSummary = Omit<Document, 'content'>;
+// ============================================================
+// Card details (aggregated)
+// ============================================================
 
 export interface CardDetails extends Card {
-  assignees: Agent[];
+  assignees: CardAssignee[];
   labels: Label[];
   comments: Comment[];
   linked_documents: DocumentSummary[];
@@ -328,6 +366,10 @@ export interface LinkedCardSummary {
   };
 }
 
+// ============================================================
+// Aggregates
+// ============================================================
+
 export interface ProjectSummary {
   project_id: string;
   name: string;
@@ -339,6 +381,10 @@ export interface ProjectSummary {
   document_count: number;
   kb_count?: number;
 }
+
+// ============================================================
+// Knowledge Base
+// ============================================================
 
 export interface KnowledgeBase {
   id: string;
@@ -391,7 +437,7 @@ export interface KBFact {
   content: string;
   category: string;
   confidence: number;
-  source_agent_id: string | null;
+  source_principal_id: string | null;
   created_at: string;
   updated_at: string;
   entity_name?: string;
@@ -408,7 +454,7 @@ export interface AddGainedKnowledge {
   entity_type?: string;
   entity_identifier?: string;
   confidence?: number;
-  source_agent_id?: string;
+  source_principal_id?: string;
 }
 
 export interface UpdateKBFact {
@@ -421,7 +467,6 @@ export interface UpdateKBFact {
   entity_identifier?: string;
   confidence?: number;
 }
-
 
 export interface KBRelation {
   id: string;

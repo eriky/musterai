@@ -39,6 +39,14 @@ describe('Domain Services Integration Tests', () => {
     const migrator = new Migrator(db, path.join(process.cwd(), 'src/db/migrations'));
     await migrator.run();
 
+    // Bootstrap a default workspace for tests that create projects
+    const wsId = 'test-ws-01';
+    const now = new Date().toISOString();
+    await db.execute(
+      `INSERT OR IGNORE INTO workspace (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+      [wsId, 'Test Workspace', 'test', now, now]
+    );
+
     eventService = new EventService(db);
     boardService = new BoardService(db, eventService);
     projectService = new ProjectService(db, eventService, boardService);
@@ -108,10 +116,7 @@ describe('Domain Services Integration Tests', () => {
   it('Feature: board update (rename) works correctly and emits event', async () => {
     const project = await projectService.create({ name: 'P' });
     const agent = await agentService.register({
-      project_id: project.id,
       name: 'Agent 1',
-      type: 'ai_agent',
-      role: 'contributor',
     });
     const boards = await boardService.list(project.id);
     const initialBoard = boards[0];
@@ -168,10 +173,7 @@ describe('Domain Services Integration Tests', () => {
     const card = await cardService.create({ column_id: columns[0].id, title: 'Card 1' });
 
     const agent = await agentService.register({
-      project_id: project.id,
       name: 'Agent 1',
-      type: 'ai_agent',
-      role: 'contributor',
       capabilities: 'code',
       status: 'active'
     });
@@ -192,29 +194,23 @@ describe('Domain Services Integration Tests', () => {
   it('registers and unregisters an agent cleanly', async () => {
     const project = await projectService.create({ name: 'P' });
     const agent = await agentService.register({
-      project_id: project.id,
       name: 'Agent To Remove',
-      type: 'ai_agent',
-      role: 'contributor',
     });
     expect(agent.name).toBe('Agent To Remove');
 
-    let agents = await agentService.list(project.id);
+    let agents = await agentService.list();
     expect(agents.some(a => a.id === agent.id)).toBe(true);
 
     await agentService.unregister(agent.id);
 
-    agents = await agentService.list(project.id);
+    agents = await agentService.list();
     expect(agents.some(a => a.id === agent.id)).toBe(false);
   });
 
   it('Bug 1.4: document creation and update succeed without version title error', async () => {
     const project = await projectService.create({ name: 'P' });
     const agent = await agentService.register({
-      project_id: project.id,
       name: 'Agent 1',
-      type: 'ai_agent',
-      role: 'contributor',
       capabilities: 'code',
       status: 'active'
     });
@@ -243,16 +239,10 @@ describe('Domain Services Integration Tests', () => {
   it('Feature: document version history attributes each edit to its actual author', async () => {
     const project = await projectService.create({ name: 'P' });
     const author = await agentService.register({
-      project_id: project.id,
       name: 'Original Author',
-      type: 'ai_agent',
-      role: 'contributor',
     });
     const editor = await agentService.register({
-      project_id: project.id,
       name: 'Later Editor',
-      type: 'human',
-      role: 'owner',
     });
 
     const doc = await documentService.create(
@@ -282,26 +272,10 @@ describe('Domain Services Integration Tests', () => {
     expect(current?.author_id).toBe(editor.id);
   });
 
-  it('Feature: secret token verification and agent session re-binding', async () => {
-    const token = await agentService.getHumanSecretToken();
-    expect(token).toMatch(/^muster_sec_/);
-
-    // Rejects registration with invalid secret_token
-    await expect(
-      agentService.register({
-        name: 'Malicious Agent',
-        type: 'ai_agent',
-        role: 'contributor',
-        secret_token: 'wrong_secret'
-      })
-    ).rejects.toThrow('Invalid secret token');
-
-    // Register initial agent with valid token
+  it('Feature: agent registration and session re-binding', async () => {
+    // Register initial agent
     const initialAgent = await agentService.register({
       name: 'Claude 3.7',
-      type: 'ai_agent',
-      role: 'contributor',
-      secret_token: token,
       capabilities: ['code', 'testing']
     });
     expect(initialAgent.id).toBeDefined();
@@ -309,26 +283,21 @@ describe('Domain Services Integration Tests', () => {
     // Re-bind session using existing agent_id
     const reboundAgent = await agentService.register({
       agent_id: initialAgent.id,
-      name: 'Claude 3.7 (Rebound)',
-      secret_token: token
+      name: 'Claude 3.7 (Rebound)'
     });
 
     expect(reboundAgent.id).toBe(initialAgent.id);
     expect(reboundAgent.name).toBe('Claude 3.7 (Rebound)');
     expect(reboundAgent.status).toBe('active');
 
-    // Update agent attributes & human owner assignment
+    // Update agent attributes
     const updatedAgent = await agentService.update(initialAgent.id, {
       name: 'Claude 3.7 Sonnet (Updated)',
       capabilities: ['code', 'architecture', 'review'],
-      role: 'owner',
-      owner_id: 'human_erik'
     });
 
     expect(updatedAgent.name).toBe('Claude 3.7 Sonnet (Updated)');
     expect(updatedAgent.capabilities).toEqual(['code', 'architecture', 'review']);
-    expect(updatedAgent.role).toBe('owner');
-    expect(updatedAgent.owner_id).toBe('human_erik');
   });
 
   it('Feature: card status (active, blocked, in_review) and blocked_reason management', async () => {
@@ -385,8 +354,6 @@ describe('Domain Services Integration Tests', () => {
     });
     const assignedAgent = await agentService.register({
       name: 'Working Agent',
-      type: 'ai_agent',
-      role: 'contributor',
       status: 'active',
     });
     await cardService.assign(card.id, assignedAgent.id);
@@ -398,7 +365,7 @@ describe('Domain Services Integration Tests', () => {
       {
         id: assignedAgent.id,
         name: 'Working Agent',
-        type: 'ai_agent',
+        kind: 'agent',
         status: 'active',
       },
     ]);

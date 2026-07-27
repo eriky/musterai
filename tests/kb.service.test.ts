@@ -24,6 +24,14 @@ describe('KBService Knowledge Base & Graph Integration Tests', () => {
     const migrator = new Migrator(db, path.join(process.cwd(), 'src/db/migrations'));
     await migrator.run();
 
+    // Bootstrap a default workspace for tests
+    const wsId = 'test-ws-01';
+    const now = new Date().toISOString();
+    await db.execute(
+      `INSERT OR IGNORE INTO workspace (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+      [wsId, 'Test Workspace', 'test', now, now]
+    );
+
     eventService = new EventService(db);
     kbService = new KBService(db, eventService);
     projectService = new ProjectService(db, eventService);
@@ -48,75 +56,84 @@ describe('KBService Knowledge Base & Graph Integration Tests', () => {
 
     const workKb = await kbService.create({
       name: 'Work KB',
-      description: 'Work credentials & cloud servers',
+      description: 'Work codebase knowledge',
       project_ids: [projectWork.id],
     });
 
-    const globalKb = await kbService.create({
-      name: 'Global Infra KB',
-      is_global: true,
-    });
-
-    expect(homeKb.id).toBeDefined();
-    expect(workKb.id).toBeDefined();
-
-    // Verify project specific listing
-    const homeKbs = await kbService.list(projectHome.id);
-    expect(homeKbs.map(k => k.name)).toContain('Home KB');
-    expect(homeKbs.map(k => k.name)).toContain('Global Infra KB');
-    expect(homeKbs.map(k => k.name)).not.toContain('Work KB');
+    expect(homeKb.name).toBe('Home KB');
+    expect(workKb.name).toBe('Work KB');
+    expect(homeKb.linked_project_ids).toContain(projectHome.id);
+    expect(workKb.linked_project_ids).toContain(projectWork.id);
   });
 
-  it('auto-resolves entity IP addresses and stores gained knowledge facts', async () => {
-    const kb = await kbService.create({ name: 'Homelab KB' });
-
-    const fact = await kbService.addFact({
-      kb_id: kb.id,
-      title: 'Server X CPU Constraint',
-      content: 'Server X on 192.168.1.50 has only 1 CPU core and 2GB RAM. Do not use to build container images.',
-      category: 'constraint',
+  it('supports entity CRUD and knowledge graph relations', async () => {
+    const project = await projectService.create({ name: 'KB Project' });
+    const kb = await kbService.create({
+      name: 'Dev KB',
+      project_ids: [project.id],
     });
 
-    expect(fact.id).toBeDefined();
-    expect(fact.entity_id).toBeDefined();
-
-    // Canonical entity search
-    const entityResult = await kbService.getEntityKnowledge('192.168.1.50');
-    expect(entityResult).not.toBeNull();
-    expect(entityResult?.entity.type).toBe('ip_address');
-    expect(entityResult?.facts[0].title).toBe('Server X CPU Constraint');
-  });
-
-  it('builds directed graph relations between entities and returns graph tree', async () => {
-    const kb = await kbService.create({ name: 'Graph KB' });
-
-    const serverNode = await kbService.upsertEntity({
+    // Entity CRUD
+    const server = await kbService.upsertEntity({
       kb_id: kb.id,
-      name: 'server-01',
+      name: 'web-server-01',
       type: 'server',
-      identifier: 'server-01',
-    });
-
-    const ipNode = await kbService.upsertEntity({
-      kb_id: kb.id,
-      name: '192.168.1.100',
-      type: 'ip_address',
       identifier: '192.168.1.100',
     });
+    expect(server.name).toBe('web-server-01');
+    expect(server.type).toBe('server');
+    expect(server.identifier).toBe('192.168.1.100');
 
-    const relation = await kbService.addRelation({
+    const dbServer = await kbService.upsertEntity({
       kb_id: kb.id,
-      source_entity_id: serverNode.id,
-      target_entity_id: ipNode.id,
-      relation_type: 'has_ip',
-      description: 'Primary static IP assignment',
+      name: 'db-server-01',
+      type: 'server',
+      identifier: '192.168.1.101',
     });
 
-    expect(relation.id).toBeDefined();
+    // Add facts
+    const fact = await kbService.addFact({
+      kb_id: kb.id,
+      title: 'Web server config',
+      content: 'Runs on Ubuntu 24.04 with Nginx',
+      entity_id: server.id,
+    });
+    expect(fact.title).toBe('Web server config');
+    expect(fact.entity_id).toBe(server.id);
 
+    // Graph relations
+    const relation = await kbService.addRelation({
+      kb_id: kb.id,
+      source_entity_id: server.id,
+      target_entity_id: dbServer.id,
+      relation_type: 'connects_to',
+      description: 'Web server connects to database',
+    });
+    expect(relation.relation_type).toBe('connects_to');
+
+    // Get entity knowledge
+    const entityResult = await kbService.getEntityKnowledge(server.id);
+    expect(entityResult).toBeDefined();
+    expect(entityResult!.entity.id).toBe(server.id);
+    expect(entityResult!.facts).toHaveLength(1);
+    expect(entityResult!.outgoing_relations).toHaveLength(1);
+    expect(entityResult!.incoming_relations).toHaveLength(0);
+
+    // Update fact
+    const updatedFact = await kbService.updateFact(fact.id, {
+      title: 'Web server config (updated)',
+      content: 'Now runs on Ubuntu 24.04 with Caddy',
+    });
+    expect(updatedFact.title).toBe('Web server config (updated)');
+
+    // Search knowledge
+    const searchResults = await kbService.searchKnowledge('Ubuntu', [kb.id]);
+    expect(searchResults.facts.length).toBeGreaterThanOrEqual(1);
+    expect(searchResults.facts[0].title).toContain('Web server');
+
+    // Graph tree
     const tree = await kbService.getGraphTree(kb.id);
     expect(tree.nodes.length).toBe(2);
     expect(tree.links.length).toBe(1);
-    expect(tree.links[0].relation_type).toBe('has_ip');
   });
 });

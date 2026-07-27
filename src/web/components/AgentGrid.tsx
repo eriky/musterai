@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Agent, Card } from '../types.js';
-import { Bot, Clock, RefreshCw, UserPlus, Trash2, Key, Copy, Check, ShieldCheck, Edit3, Pencil, X, Save } from 'lucide-react';
+import { Bot, Clock, RefreshCw, UserPlus, Trash2, ShieldCheck, Edit3, Pencil, X, Save } from 'lucide-react';
 import { api } from '../api.js';
 
-function getOwnerName(agents: Agent[], ownerId?: string | null): string | null {
-  if (!ownerId) return null;
-  const owner = agents.find(a => a.id === ownerId);
-  return owner ? owner.name : null;
+function getOperatorName(agents: Agent[], operatorUserId?: string | null): string | null {
+  if (!operatorUserId) return null;
+  const op = agents.find(a => a.id === operatorUserId);
+  return op ? op.name : null;
 }
 
 interface AgentGridProps {
@@ -18,7 +18,6 @@ interface AgentGridProps {
   onRefresh?: () => void;
 }
 
-
 export const AgentGrid: React.FC<AgentGridProps> = ({
   agents,
   cards,
@@ -27,36 +26,18 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
   onOpenRegisterAgent,
   onRefresh,
 }) => {
-  const [secretToken, setSecretToken] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
   // Edit Modal State
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [editName, setEditName] = useState('');
-  const [editOwnerId, setEditOwnerId] = useState<string>('');
-  const [editRole, setEditRole] = useState<'owner' | 'contributor' | 'observer'>('contributor');
+  const [editOperatorId, setEditOperatorId] = useState<string>('');
   const [editCapabilities, setEditCapabilities] = useState('');
   const [editStatus, setEditStatus] = useState<'active' | 'idle' | 'offline'>('active');
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    api.getHumanSecretToken()
-      .then((res) => setSecretToken(res.secret_token))
-      .catch((err) => console.error('Failed to load human secret token:', err));
-  }, []);
-
-  const handleCopySecret = () => {
-    if (!secretToken) return;
-    navigator.clipboard.writeText(secretToken);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const handleOpenEdit = (agent: Agent) => {
     setEditingAgent(agent);
     setEditName(agent.name);
-    setEditOwnerId(agent.owner_id || '');
-    setEditRole(agent.role);
+    setEditOperatorId(agent.operator_user_id || '');
     setEditCapabilities(agent.capabilities ? agent.capabilities.join(', ') : '');
     setEditStatus(agent.status);
   };
@@ -69,8 +50,7 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
     try {
       await api.updateAgent(editingAgent.id, {
         name: editName,
-        owner_id: editOwnerId || null,
-        role: editRole,
+        operator_user_id: editOperatorId || null,
         capabilities: editCapabilities,
         status: editStatus,
       });
@@ -119,68 +99,25 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
     return `${Math.floor(mins / 60)}h ago`;
   };
 
-  const humanAgents = agents.filter(a => a.type === 'human');
-
   return (
     <div className="flex flex-col flex-1 h-full min-h-0 font-sans space-y-6">
-      
-      {/* Human Owner Secret Token Banner */}
-      <div className="flex-none bg-muster-surface border border-muster-border rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
-        <div className="flex items-start space-x-3">
-          <div className="p-2.5 bg-warning-950/60 border border-warning-500/40 rounded-lg muster-text-warning mt-0.5">
-            <Key className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <h3 className="text-sm font-bold muster-text-primary uppercase tracking-wide">Human Owner Secret Token</h3>
-              <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-warning-950 muster-text-warning border border-warning-700/50 rounded">SECURITY</span>
-            </div>
-            <p className="text-xs muster-text-muted mt-1 max-w-2xl">
-              Provide this secret token to your AI agents (Claude, Cursor, Antigravity). Agents pass this secret token during <code className="text-warning-300 font-mono bg-neutral-900 px-1 py-0.5 rounded">register_agent</code> to link ownership to you and re-bind their session across runs.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-2 bg-muster-surface border border-muster-border p-1.5 rounded-lg w-full md:w-auto justify-between md:justify-start">
-          <code className="text-xs font-mono font-bold text-warning-300 px-2 tracking-wider">
-            {secretToken || 'Loading secret token...'}
-          </code>
-          <button
-            onClick={handleCopySecret}
-            disabled={!secretToken}
-            className="muster-btn muster-btn-primary"
-          >
-            {copied ? (
-              <>
-                <Check className="w-3.5 h-3.5" />
-                <span>Copied!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" />
-                <span>Copy Token</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
 
       {/* Agents Header */}
       <div className="flex-none flex items-center justify-between border-b border-muster-border pb-4">
         <div>
           <h2 className="text-lg font-sans font-bold muster-text-primary flex items-center">
             <Bot className="w-5 h-5 mr-2 muster-accent" />
-            Registered Agents & Operators
+            Registered Agents
           </h2>
           <p className="text-xs font-sans muster-text-muted mt-0.5">
-            Registered AI agents and human users available for card assignments
+            AI agents registered on the platform
           </p>
         </div>
         <button
           onClick={onOpenRegisterAgent}
           className="muster-btn muster-btn-primary"
         >
-          <UserPlus className="w-3.5 h-3.5 mr-1.5" /> Add User
+          <UserPlus className="w-3.5 h-3.5 mr-1.5" /> Register Agent
         </button>
       </div>
 
@@ -190,13 +127,13 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
           <Bot className="w-12 h-12 muster-text-faint mx-auto mb-3" />
           <h3 className="text-sm font-sans muster-text-secondary font-semibold">No Agents Registered</h3>
           <p className="text-xs font-sans text-neutral-500 max-w-sm mx-auto mt-1 mb-4">
-            Register your first human user or connect AI agents via MCP.
+            Connect AI agents via MCP.
           </p>
           <button
             onClick={onOpenRegisterAgent}
             className="muster-btn muster-btn-lg muster-btn-primary"
           >
-            Add User
+            Register Agent
           </button>
         </div>
       ) : (
@@ -219,14 +156,12 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
                         {agent.name}
                       </h3>
                       <div className="flex items-center space-x-2 mt-0.5 flex-wrap">
-                        <span className="text-[11px] font-sans muster-text-muted capitalize">{agent.type.replace('_', ' ')}</span>
-                        <span className="muster-divider w-1 h-1 rounded-full shrink-0" aria-hidden="true" />
-                        <span className="text-[11px] font-sans muster-accent font-medium capitalize">{agent.role}</span>
-                        {agent.type === 'ai_agent' && agent.owner_id && (
+                        <span className="text-[11px] font-sans muster-text-muted capitalize">Agent</span>
+                        {agent.operator_user_id && (
                           <>
                             <span className="muster-divider w-1 h-1 rounded-full shrink-0" aria-hidden="true" />
                             <span className="inline-flex items-center text-[10px] font-mono font-medium muster-text-warning">
-                              <ShieldCheck className="w-3 h-3 mr-0.5" /> Owned by {getOwnerName(agents, agent.owner_id) || 'Human Owner'}
+                              <ShieldCheck className="w-3 h-3 mr-0.5" /> Op by {getOperatorName(agents, agent.operator_user_id) || 'Unknown'}
                             </span>
                           </>
                         )}
@@ -265,7 +200,7 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
                 <div className="flex items-center space-x-1.5">
                   <button
                     onClick={() => handleOpenEdit(agent)}
-                    title="Edit Agent & Owner Assignment"
+                    title="Edit Agent Attributes"
                     className="muster-btn muster-btn-secondary font-mono"
                   >
                     <Pencil className="w-3 h-3 mr-1" /> Edit
@@ -327,52 +262,29 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
                 />
               </div>
 
-              {editingAgent.type === 'ai_agent' && (
-                <div>
-                  <label className="muster-label uppercase">Assigned Human Owner</label>
-                  <select
-                    value={editOwnerId}
-                    onChange={(e) => setEditOwnerId(e.target.value)}
-                    className="muster-input font-mono cursor-pointer"
-                  >
-                    <option value="">No Assigned Human Owner</option>
-                    {humanAgents.map((h) => (
-                      <option key={h.id} value={h.id} className="bg-muster-surface text-neutral-200">
-                        {h.name} ({h.role})
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-[11px] text-neutral-500 mt-1">Select which human operator owns and directs this AI agent.</p>
-                </div>
-              )}
+              <div>
+                <label className="muster-label uppercase">Operator User ID</label>
+                <input
+                  type="text"
+                  value={editOperatorId}
+                  onChange={(e) => setEditOperatorId(e.target.value)}
+                  className="muster-input font-mono"
+                  placeholder="Principal ID of the human operator"
+                />
+                <p className="text-[11px] text-neutral-500 mt-1">Principal ID of the human operator who owns this agent.</p>
+              </div>
 
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="muster-label uppercase">Role</label>
-                  <select
-                    value={editRole}
-                    onChange={(e) => setEditRole(e.target.value as any)}
-                    className="muster-input font-mono cursor-pointer"
-                  >
-                    <option value="owner">Owner</option>
-                    <option value="contributor">Contributor</option>
-                    <option value="observer">Observer</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="muster-label uppercase">Status</label>
-                  <select
-                    value={editStatus}
-                    onChange={(e) => setEditStatus(e.target.value as any)}
-                    className="muster-input font-mono cursor-pointer"
-                  >
-                    <option value="active">Active</option>
-                    <option value="idle">Idle</option>
-                    <option value="offline">Offline</option>
-                  </select>
-                </div>
+              <div>
+                <label className="muster-label uppercase">Status</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as any)}
+                  className="muster-input font-mono cursor-pointer"
+                >
+                  <option value="active">Active</option>
+                  <option value="idle">Idle</option>
+                  <option value="offline">Offline</option>
+                </select>
               </div>
 
               <div>
@@ -411,4 +323,3 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
     </div>
   );
 };
-

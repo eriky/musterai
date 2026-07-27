@@ -315,10 +315,10 @@ export class KBService {
 
     const category = data.category || 'general';
     const confidence = data.confidence !== undefined ? data.confidence : 1.0;
-    const sourceAgentId = data.source_agent_id || actorId || null;
+    const sourceAgentId = data.source_principal_id || actorId || null;
 
     await this.db.execute(
-      `INSERT INTO kb_fact (id, kb_id, entity_id, title, content, category, confidence, source_agent_id, created_at, updated_at)
+      `INSERT INTO kb_fact (id, kb_id, entity_id, title, content, category, confidence, source_principal_id, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, data.kb_id, entityId, data.title, data.content, category, confidence, sourceAgentId, now, now]
     );
@@ -331,7 +331,7 @@ export class KBService {
       content: data.content,
       category,
       confidence,
-      source_agent_id: sourceAgentId,
+      source_principal_id: sourceAgentId,
       created_at: now,
       updated_at: now,
     };

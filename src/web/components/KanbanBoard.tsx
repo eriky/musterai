@@ -791,7 +791,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                           <span className="relative inline-flex h-2 w-2 rounded-full bg-success-500" />
                                         </span>
                                       )}
-                                      {agent.type === 'ai_agent' ? (
+                                      {agent.kind === 'agent' ? (
                                         <Bot className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
                                       ) : (
                                         <UserRound className="w-3 h-3 flex-shrink-0" aria-hidden="true" />

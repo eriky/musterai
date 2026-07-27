@@ -490,9 +490,7 @@ interface NewAgentModalProps {
 
 export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess }) => {
   const [name, setName] = useState('');
-  const [type] = useState<'human'>('human');
-  const [role, setRole] = useState<'owner' | 'contributor' | 'observer'>('owner');
-  const [capabilities, setCapabilities] = useState('management, architecture, review');
+  const [capabilities, setCapabilities] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -503,12 +501,12 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
     setIsSubmitting(true);
     setError(null);
     try {
-      await api.registerAgent({ name, type: 'human', role, capabilities });
+      await api.registerAgent({ name, capabilities });
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Failed to add user:', err);
-      setError(err.message || 'Failed to add user.');
+      console.error('Failed to register agent:', err);
+      setError(err.message || 'Failed to register agent.');
     } finally {
       setIsSubmitting(false);
     }
@@ -519,7 +517,7 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
       <div className="muster-dialog w-full max-w-md p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-muster-border pb-3">
           <h3 className="text-sm font-bold muster-text-primary flex items-center">
-            <UserPlus className="w-4 h-4 mr-2 muster-accent" /> Add Human User / Operator
+            <UserPlus className="w-4 h-4 mr-2 muster-accent" /> Register Agent
           </h3>
           <button onClick={onClose} className="muster-btn muster-btn-icon muster-btn-ghost">
             <X className="w-4 h-4" />
@@ -534,45 +532,20 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
         )}
 
         <div className="p-3 bg-muster-base border border-muster-border rounded-md text-[11px] muster-text-muted">
-          💡 <span className="font-semibold muster-text-primary">Note:</span> Manual registration is for human operators. AI agents (Claude, Cursor, Antigravity) register themselves programmatically over MCP using the Human Owner Secret Token.
+          💡 <span className="font-semibold muster-text-primary">Note:</span> Manual registration is for human operators. AI agents (Claude, Cursor, Antigravity) register themselves programmatically over MCP.
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div>
-            <label className="muster-label">User Name</label>
+            <label className="muster-label">Agent Name</label>
             <input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Erik, Alice"
+              placeholder="e.g. my-agent"
               className="muster-input muster-input-lg"
             />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="muster-label">Account Type</label>
-              <input
-                type="text"
-                disabled
-                value="Human Operator"
-                className="muster-input font-mono font-bold"
-              />
-            </div>
-
-            <div>
-              <label className="muster-label">Role</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value as any)}
-                className="muster-input cursor-pointer"
-              >
-                <option value="owner">Owner</option>
-                <option value="contributor">Contributor</option>
-                <option value="observer">Observer</option>
-              </select>
-            </div>
           </div>
 
           <div>
@@ -581,7 +554,7 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
               type="text"
               value={capabilities}
               onChange={(e) => setCapabilities(e.target.value)}
-              placeholder="e.g. management, architecture, review"
+              placeholder="e.g. code, testing, architecture"
               className="muster-input"
             />
           </div>

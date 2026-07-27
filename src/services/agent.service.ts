@@ -1,8 +1,7 @@
 // File: src/services/agent.service.ts
 import { ulid } from 'ulid';
-import crypto from 'node:crypto';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Agent, RegisterAgent, UpdateAgentStatus } from '../shared/types.js';
+import { Agent, RegisterAgent, UpdateAgent } from '../shared/types.js';
 import { EventService } from './event.service.js';
 
 export class AgentService {
@@ -11,117 +10,86 @@ export class AgentService {
     private eventService?: EventService
   ) {}
 
-  async getHumanSecretToken(): Promise<string> {
-    const rows = await this.db.query<any>("SELECT value FROM system_settings WHERE key = 'human_secret_token'");
-    if (rows.length > 0 && rows[0].value) {
-      return rows[0].value;
-    }
-
-    // Generate a default human owner secret token
-    const token = `muster_sec_${crypto.randomBytes(12).toString('hex')}`;
-    const created_at = new Date().toISOString();
-    await this.db.execute(
-      "INSERT OR REPLACE INTO system_settings (key, value, created_at) VALUES ('human_secret_token', ?, ?)",
-      [token, created_at]
-    );
-    return token;
-  }
-
   async register(data: RegisterAgent): Promise<Agent> {
-    const humanSecret = await this.getHumanSecretToken();
+    const id = data.agent_id || data.id || ulid();
+    const now = new Date().toISOString();
 
-    // Verify secret token if provided
-    if (data.secret_token && data.secret_token !== humanSecret) {
-      throw new Error('Invalid secret token. Provided secret token does not match the human owner token.');
-    }
+    // Check if re-binding an existing agent
+    const existing = await this.getById(id);
+    if (existing) {
+      const name = data.name || existing.name;
+      const status = data.status || 'active';
 
-    const targetId = data.agent_id || data.id;
-
-    // Check if re-binding an existing registered agent
-    if (targetId) {
-      const existing = await this.getById(targetId);
-      if (existing) {
-        const last_seen_at = new Date().toISOString();
-        const status = data.status || 'active';
-        const name = data.name || existing.name;
-        const role = data.role || existing.role;
-
-        let capabilitiesStr: string | null = existing.capabilities ? JSON.stringify(existing.capabilities) : null;
-        if (data.capabilities) {
-          if (typeof data.capabilities === 'string') {
-            capabilitiesStr = JSON.stringify(data.capabilities.split(',').map(s => s.trim()));
-          } else if (Array.isArray(data.capabilities)) {
-            capabilitiesStr = JSON.stringify(data.capabilities);
-          }
+      let capabilitiesStr: string | null = existing.capabilities ? JSON.stringify(existing.capabilities) : null;
+      if (data.capabilities) {
+        if (typeof data.capabilities === 'string') {
+          capabilitiesStr = JSON.stringify(data.capabilities.split(',').map(s => s.trim()));
+        } else if (Array.isArray(data.capabilities)) {
+          capabilitiesStr = JSON.stringify(data.capabilities);
         }
-
-        await this.db.execute(
-          `UPDATE agent_registration
-           SET name = ?, role = ?, capabilities = ?, status = ?, last_seen_at = ?
-           WHERE id = ?`,
-          [name, role, capabilitiesStr, status, last_seen_at, existing.id]
-        );
-
-        return (await this.getById(existing.id))!;
       }
+
+      await this.db.execute(
+        `UPDATE agent SET name = ?, capabilities = ?, status = ?, last_seen_at = ? WHERE id = ?`,
+        [name, capabilitiesStr, status, now, id]
+      );
+
+      return (await this.getById(id))!;
     }
 
-    // Create a new agent registration
-    const id = targetId || ulid();
-    const created_at = new Date().toISOString();
-    const last_seen_at = created_at;
-    const status = data.status || 'active';
-    const name = data.name || 'AI Agent';
-    const type = data.type || 'ai_agent';
-    const role = data.role || 'contributor';
-    const owner_id = data.owner_id || 'human_owner';
-    const secret_token = data.secret_token || humanSecret;
-
-    let capabilitiesStr: string | null = null;
-    if (data.capabilities) {
-      if (typeof data.capabilities === 'string') {
-        capabilitiesStr = JSON.stringify(data.capabilities.split(',').map(s => s.trim()));
-      } else if (Array.isArray(data.capabilities)) {
-        capabilitiesStr = JSON.stringify(data.capabilities);
-      }
-    }
-
+    // Create a new agent — requires a principal row first
+    const kind = 'agent';
     await this.db.execute(
-      `INSERT INTO agent_registration (id, name, type, role, capabilities, status, last_seen_at, created_at, owner_id, secret_token)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, name, type, role, capabilitiesStr, status, last_seen_at, created_at, owner_id, secret_token]
+      `INSERT INTO principal (id, kind, created_at) VALUES (?, ?, ?)`,
+      [id, kind, now]
     );
 
-    const agent: Agent = {
+    const name = data.name || 'AI Agent';
+    const status = data.status || 'active';
+    const capabilitiesStr = data.capabilities
+      ? (typeof data.capabilities === 'string'
+        ? JSON.stringify(data.capabilities.split(',').map(s => s.trim()))
+        : JSON.stringify(data.capabilities))
+      : null;
+
+    await this.db.execute(
+      `INSERT INTO agent (id, name, capabilities, status, last_seen_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, name, capabilitiesStr, status, now, now]
+    );
+
+    if (this.eventService) {
+      // No project context for agent registration — skip event for now.
+    }
+
+    return {
       id,
       name,
-      type,
-      role,
       capabilities: capabilitiesStr ? JSON.parse(capabilitiesStr) : [],
       status,
-      last_seen_at,
-      created_at,
-      owner_id,
-      secret_token,
+      last_seen_at: now,
+      operator_user_id: null,
+      role_id: null,
+      workspace_id: null,
+      created_at: now,
     };
-
-    return agent;
   }
 
   async unregister(id: string, actorId?: string): Promise<void> {
     const existing = await this.getById(id);
     if (!existing) throw new Error(`Agent with ID ${id} not found`);
-    await this.db.execute('DELETE FROM agent_registration WHERE id = ?', [id]);
+    await this.db.execute('DELETE FROM agent WHERE id = ?', [id]);
+    await this.db.execute('DELETE FROM principal WHERE id = ?', [id]);
   }
 
-  async update(id: string, data: { name?: string; role?: 'owner' | 'contributor' | 'observer'; capabilities?: string | string[]; status?: 'active' | 'idle' | 'offline'; owner_id?: string | null }): Promise<Agent> {
+  async update(id: string, data: UpdateAgent): Promise<Agent> {
     const existing = await this.getById(id);
     if (!existing) throw new Error(`Agent with ID ${id} not found`);
 
     const name = data.name !== undefined ? data.name : existing.name;
-    const role = data.role !== undefined ? data.role : existing.role;
     const status = data.status !== undefined ? data.status : existing.status;
-    const owner_id = data.owner_id !== undefined ? data.owner_id : existing.owner_id;
+    const operator_user_id = data.operator_user_id !== undefined ? data.operator_user_id : existing.operator_user_id;
+    const role_id = data.role_id !== undefined ? data.role_id : existing.role_id;
 
     let capabilitiesStr: string | null = existing.capabilities ? JSON.stringify(existing.capabilities) : null;
     if (data.capabilities !== undefined) {
@@ -133,75 +101,68 @@ export class AgentService {
     }
 
     await this.db.execute(
-      `UPDATE agent_registration
-       SET name = ?, role = ?, capabilities = ?, status = ?, owner_id = ?
-       WHERE id = ?`,
-      [name, role, capabilitiesStr, status, owner_id, id]
+      `UPDATE agent SET name = ?, capabilities = ?, status = ?, operator_user_id = ?, role_id = ? WHERE id = ?`,
+      [name, capabilitiesStr, status, operator_user_id, role_id, id]
     );
 
     return (await this.getById(id))!;
   }
 
-
   async getById(id: string): Promise<Agent | null> {
-    const rows = await this.db.query<any>('SELECT * FROM agent_registration WHERE id = ?', [id]);
+    const rows = await this.db.query<any>('SELECT * FROM agent WHERE id = ?', [id]);
     const row = rows[0];
     if (!row) return null;
 
     return {
-      ...row,
+      id: row.id,
+      name: row.name,
       capabilities: row.capabilities ? JSON.parse(row.capabilities) : [],
+      status: row.status,
+      last_seen_at: row.last_seen_at,
+      operator_user_id: row.operator_user_id,
+      role_id: row.role_id,
+      workspace_id: row.workspace_id,
+      created_at: row.created_at,
     };
   }
 
   async list(): Promise<Agent[]> {
-    const rows = await this.db.query<any>('SELECT * FROM agent_registration ORDER BY created_at ASC');
-    const agents = rows.map(row => ({
-      ...row,
+    const rows = await this.db.query<any>('SELECT * FROM agent ORDER BY created_at ASC');
+    return rows.map(row => ({
+      id: row.id,
+      name: row.name,
       capabilities: row.capabilities ? JSON.parse(row.capabilities) : [],
+      status: row.status,
+      last_seen_at: row.last_seen_at,
+      operator_user_id: row.operator_user_id,
+      role_id: row.role_id,
+      workspace_id: row.workspace_id,
+      created_at: row.created_at,
     }));
-
-    // Auto-seed a default human operator if no human agent exists yet
-    const hasHuman = agents.some(a => a.type === 'human');
-    if (!hasHuman) {
-      const defaultHuman = await this.register({
-        name: 'Human Operator',
-        type: 'human',
-        role: 'owner',
-        capabilities: ['owner', 'architecture', 'review']
-      });
-      agents.unshift(defaultHuman);
-    }
-
-    return agents;
   }
-
 
   async heartbeat(id: string): Promise<Agent> {
     const existing = await this.getById(id);
     if (!existing) throw new Error(`Agent with ID ${id} not found`);
 
     const last_seen_at = new Date().toISOString();
-    const status = 'active';
-
     await this.db.execute(
-      'UPDATE agent_registration SET last_seen_at = ?, status = ? WHERE id = ?',
-      [last_seen_at, status, id]
+      'UPDATE agent SET last_seen_at = ?, status = ? WHERE id = ?',
+      [last_seen_at, 'active', id]
     );
 
-    return { ...existing, last_seen_at, status };
+    return { ...existing, last_seen_at, status: 'active' };
   }
 
-  async updateStatus(id?: string, status?: UpdateAgentStatus['status']): Promise<void> {
-    if (id && status) {
-      const last_seen_at = new Date().toISOString();
-      await this.db.execute('UPDATE agent_registration SET status = ?, last_seen_at = ? WHERE id = ?', [status, last_seen_at, id]);
+  async updateStatus(agentId?: string, status?: 'active' | 'idle' | 'offline'): Promise<void> {
+    if (agentId && status) {
+      await this.db.execute('UPDATE agent SET status = ?, last_seen_at = ? WHERE id = ?', [status, new Date().toISOString(), agentId]);
       return;
     }
 
     // Passive update: set agents to 'idle' if >5m, 'offline' if >15m
     const now = new Date().getTime();
-    const agents = await this.db.query<any>('SELECT id, status, last_seen_at FROM agent_registration');
+    const agents = await this.db.query<any>('SELECT id, status, last_seen_at FROM agent');
 
     for (const agent of agents) {
       const lastSeen = new Date(agent.last_seen_at).getTime();
@@ -215,7 +176,7 @@ export class AgentService {
       }
 
       if (newStatus !== agent.status) {
-        await this.db.execute('UPDATE agent_registration SET status = ? WHERE id = ?', [newStatus, agent.id]);
+        await this.db.execute('UPDATE agent SET status = ? WHERE id = ?', [newStatus, agent.id]);
       }
     }
   }
