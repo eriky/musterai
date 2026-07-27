@@ -1,4 +1,5 @@
 import { Card } from './types.js';
+import { rankBetween } from '../shared/lexorank.js';
 
 export type CardDateSortOrder = 'newest' | 'oldest';
 
@@ -46,4 +47,21 @@ export const getLaneCards = (
     visible,
     hiddenCount: all.length - visible.length,
   };
+};
+
+// Given the current ordering and a drag from sourceIndex to destinationIndex,
+// returns the lexorank position that places the moved item between its new
+// neighbors (matching the ordering scheme columns and cards already use).
+export const computeReorderedPosition = (
+  items: { position: string }[],
+  sourceIndex: number,
+  destinationIndex: number
+): string => {
+  const reordered = [...items];
+  const [moved] = reordered.splice(sourceIndex, 1);
+  reordered.splice(destinationIndex, 0, moved);
+
+  const before = reordered[destinationIndex - 1];
+  const after = reordered[destinationIndex + 1];
+  return rankBetween(before?.position ?? null, after?.position ?? null);
 };

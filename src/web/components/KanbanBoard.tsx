@@ -2,12 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Board, Column, Card, Agent, CardDetails, Document, CardLinkRelationType, CardWorkLinkKind, CardWorkLinkProvider } from '../types.js';
-import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, Copy, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, Bot, UserRound, GitPullRequest, GitCommit, Workflow, ExternalLink } from 'lucide-react';
+import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, Copy, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, Bot, UserRound, GitPullRequest, GitCommit, Workflow, ExternalLink, GripVertical } from 'lucide-react';
 import { renderMarkdown } from '../markdown.js';
 import { api } from '../api.js';
 import {
   CardDateSortOrder,
   DONE_LANE_PAGE_SIZE,
+  computeReorderedPosition,
   getLaneCards,
   isDoneLane,
 } from '../kanban.js';
@@ -24,6 +25,7 @@ interface KanbanBoardProps {
   projectId: string | null;
   newCardRequest?: { columnId?: string; token: number } | null;
   onMoveCard: (cardId: string, targetColumnId: string, position?: string) => void;
+  onMoveColumn: (columnId: string, position: string) => void;
   onNewCardRequestHandled?: () => void;
   onOpenNewColumn: () => void;
   onDeleteBoard: (boardId: string) => void;
@@ -77,6 +79,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   projectId,
   newCardRequest,
   onMoveCard,
+  onMoveColumn,
   onNewCardRequestHandled,
   onOpenNewColumn,
   onDeleteBoard,
@@ -217,9 +220,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   };
 
   const handleDragEnd = (result: DropResult) => {
-    const { destination, source, draggableId } = result;
+    const { destination, source, draggableId, type } = result;
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+
+    if (type === 'COLUMN') {
+      onMoveColumn(draggableId, computeReorderedPosition(columns, source.index, destination.index));
+      return;
+    }
 
     onMoveCard(draggableId, destination.droppableId);
   };
@@ -553,8 +561,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
       {/* Kanban Drag and Drop Context (Stretches 100% height!) */}
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex-1 flex space-x-4 overflow-x-auto min-h-0 h-full pb-2">
-          {columns.map((column) => {
+        <Droppable droppableId="board-columns" type="COLUMN" direction="horizontal">
+          {(columnsProvided) => (
+        <div
+          ref={columnsProvided.innerRef}
+          {...columnsProvided.droppableProps}
+          className="flex-1 flex space-x-4 overflow-x-auto min-h-0 h-full pb-2"
+        >
+          {columns.map((column, columnIndex) => {
             const doneVisibleLimit = doneVisibleLimits[column.id] ?? DONE_LANE_PAGE_SIZE;
             const {
               all: columnCards,
@@ -571,9 +585,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             const isExceededWip = column.wip_limit !== null && columnCards.length > column.wip_limit;
 
             return (
+              <Draggable key={column.id} draggableId={column.id} index={columnIndex}>
+                {(columnDragProvided, columnDragSnapshot) => (
               <div
-                key={column.id}
-                className="w-80 flex-shrink-0 bg-muster-surface rounded-xl tactical-border flex flex-col h-full min-h-0"
+                ref={columnDragProvided.innerRef}
+                {...columnDragProvided.draggableProps}
+                className={`w-80 flex-shrink-0 bg-muster-surface rounded-xl tactical-border flex flex-col h-full min-h-0 ${
+                  columnDragSnapshot.isDragging ? 'shadow-lg ring-1 ring-brand-500/60' : ''
+                }`}
               >
 
                 {/* Column Header */}
@@ -583,6 +602,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   'border-muster-border text-neutral-200'
                 }`}>
                   <div className="flex items-center space-x-2">
+                    <span
+                      {...columnDragProvided.dragHandleProps}
+                      className="cursor-grab active:cursor-grabbing muster-text-muted hover:text-neutral-200 -ml-1 flex-shrink-0"
+                      title="Drag to reorder column"
+                      aria-label={`Drag to reorder ${column.name} column`}
+                    >
+                      <GripVertical className="w-3.5 h-3.5" />
+                    </span>
                     <h3 className="font-sans text-xs font-bold tracking-wide uppercase">{column.name}</h3>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-neutral-900 muster-text-secondary border border-neutral-700">
                       {columnCards.length}
@@ -793,9 +820,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 </Droppable>
 
               </div>
+                )}
+              </Draggable>
             );
           })}
+          {columnsProvided.placeholder}
         </div>
+          )}
+        </Droppable>
       </DragDropContext>
 
       {/* Card Detail Modal */}

@@ -262,6 +262,15 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleMoveColumn = async (columnId: string, position: string) => {
+    try {
+      await api.moveColumn(columnId, position);
+      loadProjectData();
+    } catch (err) {
+      console.error('Failed to move column:', err);
+    }
+  };
+
   const handleAgentHeartbeat = async (agentId: string) => {
     try {
       await api.agentHeartbeat(agentId);
@@ -364,6 +373,7 @@ export const App: React.FC = () => {
             projectId={selectedProjectId}
             newCardRequest={newCardRequest}
             onMoveCard={handleMoveCard}
+            onMoveColumn={handleMoveColumn}
             onNewCardRequestHandled={() => setNewCardRequest(null)}
             onOpenNewColumn={() => setShowNewColumnModal(true)}
             onDeleteBoard={handleDeleteBoard}

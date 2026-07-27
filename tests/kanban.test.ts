@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DONE_LANE_PAGE_SIZE,
+  computeReorderedPosition,
   getLaneCards,
   isDoneLane,
   sortCardsByUpdatedAt,
@@ -105,5 +106,29 @@ describe('kanban card arrangement', () => {
     expect(result.visible).toHaveLength(DONE_LANE_PAGE_SIZE * 2);
     expect(result.hiddenCount).toBe(1);
     expect(result.visible[0].id).toBe('card-0');
+  });
+});
+
+describe('computeReorderedPosition (column drag-and-drop reordering)', () => {
+  const columns = [
+    { position: 'a' },
+    { position: 'm' },
+    { position: 'z' },
+  ];
+
+  it('places a column moved to the front before the new first neighbor', () => {
+    const position = computeReorderedPosition(columns, 2, 0);
+    expect(position < columns[0].position).toBe(true);
+  });
+
+  it('places a column moved to the end after the new last neighbor', () => {
+    const position = computeReorderedPosition(columns, 0, 2);
+    expect(position > columns[2].position).toBe(true);
+  });
+
+  it('places a column moved into the middle between its new neighbors', () => {
+    const position = computeReorderedPosition(columns, 0, 1);
+    expect(position > columns[1].position).toBe(true);
+    expect(position < columns[2].position).toBe(true);
   });
 });
