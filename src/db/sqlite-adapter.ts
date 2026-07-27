@@ -6,6 +6,11 @@ import { DatabaseAdapter, ExecutionResult } from './adapter.js';
 
 export class SQLiteAdapter implements DatabaseAdapter {
   private db: Database.Database;
+  // better-sqlite3 is one synchronous connection: a second BEGIN IMMEDIATE while
+  // a transaction is still open throws immediately instead of waiting. Chain
+  // transaction() calls through this queue so concurrent callers serialize
+  // instead of crashing on a nested transaction.
+  private txQueue: Promise<unknown> = Promise.resolve();
 
   constructor(filepath: string) {
     if (filepath !== ':memory:') {
@@ -34,20 +39,25 @@ export class SQLiteAdapter implements DatabaseAdapter {
   }
 
   async transaction<T>(fn: (adapter: DatabaseAdapter) => Promise<T>): Promise<T> {
-    // Execute inside a synchronous SQLite transaction wrapper while accommodating async callbacks
-    this.db.exec('BEGIN IMMEDIATE');
-    try {
-      const result = await fn(this);
-      this.db.exec('COMMIT');
-      return result;
-    } catch (error) {
+    const run = async (): Promise<T> => {
+      this.db.exec('BEGIN IMMEDIATE');
       try {
-        this.db.exec('ROLLBACK');
-      } catch {
-        // Ignore rollback failure if already rolled back
+        const result = await fn(this);
+        this.db.exec('COMMIT');
+        return result;
+      } catch (error) {
+        try {
+          this.db.exec('ROLLBACK');
+        } catch {
+          // Ignore rollback failure if already rolled back
+        }
+        throw error;
       }
-      throw error;
-    }
+    };
+
+    const scheduled = this.txQueue.then(run, run);
+    this.txQueue = scheduled.catch(() => undefined);
+    return scheduled;
   }
 
   async migrate(sql: string): Promise<void> {

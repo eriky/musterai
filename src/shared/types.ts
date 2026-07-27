@@ -78,7 +78,23 @@ export interface Card {
   created_at: string;
   updated_at: string;
   archived: number;
+  claimed_by: string | null;
+  claimed_at: string | null;
+  claim_expires_at: string | null;
   assignees?: CardAssignee[];
+}
+
+export interface ClaimCard {
+  agent_id: string;
+  ttl_seconds?: number;
+}
+
+export interface ClaimRefusal {
+  success: false;
+  reason: 'already_claimed';
+  card_id: string;
+  held_by: { id: string; name: string | null };
+  claim_expires_at: string;
 }
 
 export interface CreateCard {
