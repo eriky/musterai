@@ -1,4 +1,4 @@
--- File: src/db/migrations/009-card-keys.sql
+-- File: src/db/migrations/010-card-keys.sql
 -- Human-readable, JIRA-style card keys (e.g. "MUS-42") alongside the
 -- existing ULID primary key. key_prefix/card_seq/key are backfilled
 -- by Migrator.backfillCardKeys() since deriving a prefix from a name
