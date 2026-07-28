@@ -28,9 +28,11 @@ interface KanbanBoardProps {
   documents: Document[];
   projectId: string | null;
   newCardRequest?: { columnId?: string; token: number } | null;
+  openCardRequest?: { cardId: string; token: number } | null;
   onMoveCard: (cardId: string, targetColumnId: string, position?: string) => void;
   onMoveColumn: (columnId: string, position: string) => void;
   onNewCardRequestHandled?: () => void;
+  onOpenCardRequestHandled?: () => void;
   onOpenNewColumn: () => void;
   onDeleteBoard: (boardId: string) => void;
   onOpenDocumentInVault?: (docId: string) => void;
@@ -88,9 +90,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   documents,
   projectId,
   newCardRequest,
+  openCardRequest,
   onMoveCard,
   onMoveColumn,
   onNewCardRequestHandled,
+  onOpenCardRequestHandled,
   onOpenNewColumn,
   onDeleteBoard,
   onOpenDocumentInVault,
@@ -161,6 +165,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     onNewCardRequestHandled?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newCardRequest]);
+
+  useEffect(() => {
+    if (!openCardRequest) return;
+    handleOpenCard(openCardRequest.cardId);
+    onOpenCardRequestHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openCardRequest]);
 
   const handleRenameBoard = async () => {
     if (!board || !boardNameInput.trim()) return;
