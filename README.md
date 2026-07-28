@@ -52,6 +52,13 @@ npm start
 
 Open **`http://localhost:3000`** in your browser. The MCP server is available at **`http://localhost:3000/mcp`**.
 
+By default Muster runs in **open mode** — no login required — whenever it's
+bound to `localhost`/`127.0.0.1` (the default). This is fine for solo/local
+use. Binding to any other host switches the default to **enforced mode**
+(OIDC login required for every request); see
+[docs/deployment.md](docs/deployment.md) for OIDC setup, multi-user roles,
+PostgreSQL, and everything else needed for a shared/public deployment.
+
 ### 2. Development Mode (Hot Reload)
 
 ```bash
@@ -108,6 +115,39 @@ mcpServer.prompt('collaboration_protocol')
 ```
 
 This returns the **Agent Operating Protocol (AOP)** — the 5 standardized rules all agents must follow for optimal collaboration. See [AGENTS.md](AGENTS.md) for the full protocol.
+
+### Connecting to a remote or enforced-mode server
+
+The config above assumes a local, open-mode server with no login. Against
+an enforced-mode deployment (see [docs/deployment.md](docs/deployment.md)),
+an MCP client needs credentials. Two ways to get them, both driven by the
+`muster` CLI — installed globally via `npm link` or `npm install -g .` in
+this repo, or run in place with `npm run login --` / `npm run connect --`
+(the trailing `--` is required so npm passes the flags through instead of
+consuming them itself):
+
+1. **`muster connect`** — the recommended path for most MCP clients, which
+   can't send custom `Authorization` headers. It runs a small local proxy
+   that authenticates to the remote server on your behalf:
+
+   ```bash
+   muster login --server https://muster.example.com    # opens a device-code login flow in your browser
+   muster connect --server https://muster.example.com  # starts a local proxy, prints the mcp.json to use
+   ```
+
+   Point your MCP client at the printed `http://127.0.0.1:<port>/mcp` — no
+   further config needed.
+
+2. **Direct MCP-native OAuth** — for clients that support the OAuth 2.0
+   Device Authorization Grant / Dynamic Client Registration directly
+   against `/mcp` (no local proxy). Point the client straight at
+   `https://muster.example.com/mcp`; discovery is served from
+   `/.well-known/oauth-protected-resource`.
+
+A personal access token (minted from the web UI's **Tokens** page) also
+works as a static `Authorization: Bearer <token>` header for either
+transport — useful for scripts and CI, where an interactive login flow
+isn't an option.
 
 ---
 
@@ -207,7 +247,15 @@ muster/
 | :--- | :--- | :--- |
 | `MUSTER_PORT` | `3000` | HTTP server listen port |
 | `MUSTER_DB_PATH` | `data/muster.db` | Path to the SQLite database file |
+| `MUSTER_AUTH_MODE` | derived from `MUSTER_HOST` | `open` (solo/localhost) or `enforced` (shared/public host) |
+| `MUSTER_PUBLIC_URL` | `http://localhost:<port>` | Required for a public deployment — see [docs/deployment.md](docs/deployment.md) |
 | `NODE_ENV` | `development` | Runtime environment |
+
+**Deploying on a shared, public host?** See **[docs/deployment.md](docs/deployment.md)**
+for the full environment variable reference, reverse-proxy configs (Caddy/nginx
+with TLS), SQLite backup/restore, and a pre-launch checklist. Publishing port
+3000 directly to the internet, without a reverse proxy in front of it, is not
+a supported deployment — that document explains why and what to do instead.
 
 ---
 
@@ -229,11 +277,17 @@ docker-compose down
 The platform will be available at `http://localhost:3000`.  
 Health telemetry: `http://localhost:3000/api/v1/health`
 
+⚠️ The `docker-compose.yml` in this repo publishes port 3000 to all
+interfaces (`0.0.0.0`) for local getting-started convenience. **Before
+exposing Muster on a public host, follow [docs/deployment.md](docs/deployment.md)**
+to put a TLS-terminating reverse proxy in front of it and bind Muster itself
+to loopback only.
+
 ---
 
 ## 🧪 Testing
 
-Muster maintains strict test isolation — automated tests **never touch `data/muster.db`**.
+Muster maintains strict test isolation — automated tests **never touch `data/muster.db`**. Each test file that needs a database creates its own temporary SQLite file under `data/` and deletes it in `afterEach`/`afterAll`.
 
 ### Unit & Integration Tests (Vitest)
 
@@ -241,7 +295,19 @@ Muster maintains strict test isolation — automated tests **never touch `data/m
 npm test
 ```
 
-Runs `tests/lexorank.test.ts` and `tests/services.test.ts` (9 tests total).
+Runs the full suite under `tests/*.test.ts` (200+ tests, spanning kanban/card logic, auth — OIDC, device grant, PATs, MCP OAuth — permissions, and hardening).
+
+### PostgreSQL Adapter Tests
+
+`tests/postgres-adapter.test.ts` is skipped automatically unless `MUSTER_TEST_PG_URL` is set — SQLite stays the zero-config default and this suite never blocks a plain `npm test` on a machine without Postgres. To exercise it locally against a real Postgres instance:
+
+```bash
+# Point at any empty database — the test suite runs migrations itself,
+# and resets the schema between tests.
+MUSTER_TEST_PG_URL=postgres://user:pass@localhost:5432/muster_test npm test
+```
+
+CI runs this automatically against a `postgres:16` service container (see `.github/workflows/ci.yml`), so every push exercises both backends without any local setup.
 
 ### Playwright Browser E2E Test
 

@@ -55,25 +55,32 @@ export class EventService {
   }
 
   async list(projectId: string, options: { entity_type?: string; entity_id?: string; since?: string; limit?: number } = {}): Promise<Event[]> {
-    let sql = 'SELECT * FROM event WHERE project_id = ?';
+    // LEFT JOINs both concrete principal tables so the activity feed can name
+    // a human actor, not just an agent — see MUS-32.
+    let sql = `SELECT e.*, COALESCE(a.name, u.display_name) as actor_name, p.kind as actor_kind
+               FROM event e
+               LEFT JOIN principal p ON e.actor_id = p.id
+               LEFT JOIN agent a ON e.actor_id = a.id
+               LEFT JOIN app_user u ON e.actor_id = u.id
+               WHERE e.project_id = ?`;
     const params: unknown[] = [projectId];
 
     if (options.entity_type) {
-      sql += ' AND entity_type = ?';
+      sql += ' AND e.entity_type = ?';
       params.push(options.entity_type);
     }
 
     if (options.entity_id) {
-      sql += ' AND entity_id = ?';
+      sql += ' AND e.entity_id = ?';
       params.push(options.entity_id);
     }
 
     if (options.since) {
-      sql += ' AND created_at >= ?';
+      sql += ' AND e.created_at >= ?';
       params.push(options.since);
     }
 
-    sql += ' ORDER BY created_at DESC';
+    sql += ' ORDER BY e.created_at DESC';
 
     if (options.limit) {
       sql += ' LIMIT ?';

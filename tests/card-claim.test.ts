@@ -6,23 +6,35 @@ import { createDatabaseAdapter } from '../src/db/factory.js';
 import { DatabaseAdapter } from '../src/db/adapter.js';
 import { Migrator } from '../src/db/migrator.js';
 import {
-  ProjectService,
+  AgentService,
+  CardService,
   BoardService,
   ColumnService,
-  CardService,
+  ProjectService,
   CommentService,
   DocumentService,
-  AgentService,
   EventService,
-  KBService
+  KBService,
+  RoleService,
 } from '../src/services/index.js';
 import { createMcpServer, Services } from '../src/mcp/server.js';
+import { AuthContext } from '../src/shared/auth-context.js';
 import { ClaimRefusal, CardDetails } from '../src/shared/types.js';
 
 const TEST_DB = path.join(process.cwd(), 'data', 'test-card-claim.db');
 
 function isRefusal(result: CardDetails | ClaimRefusal): result is ClaimRefusal {
   return 'success' in result && result.success === false;
+}
+
+function makeAuth(principalId: string): AuthContext {
+  return {
+    principal: { kind: 'agent', id: principalId },
+    workspace_id: null,
+    permissions: [],
+    is_operator_override: false,
+    role_name: null,
+  };
 }
 
 describe('Atomic card claiming and lease expiry', () => {
@@ -47,6 +59,15 @@ describe('Atomic card claiming and lease expiry', () => {
     eventService = new EventService(db);
     boardService = new BoardService(db, eventService);
     projectService = new ProjectService(db, eventService, boardService);
+
+    // Bootstrap a default workspace for tests
+    const wsId = 'test-ws-01';
+    const now = new Date().toISOString();
+    await db.execute(
+      `INSERT OR IGNORE INTO workspace (id, name, slug, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+      [wsId, 'Test Workspace', 'test', now, now]
+    );
+
     columnService = new ColumnService(db, eventService);
     cardService = new CardService(db, eventService);
     commentService = new CommentService(db, eventService);
@@ -69,8 +90,8 @@ describe('Atomic card claiming and lease expiry', () => {
 
   it('two concurrent claim_card calls for the same card: exactly one succeeds, the other names the holder', async () => {
     const card = await makeCard();
-    const agentA = await agentService.register({ name: 'Agent A', type: 'ai_agent', role: 'contributor' });
-    const agentB = await agentService.register({ name: 'Agent B', type: 'ai_agent', role: 'contributor' });
+    const agentA = await agentService.register({ name: 'Agent A' });
+    const agentB = await agentService.register({ name: 'Agent B' });
 
     const [resultA, resultB] = await Promise.all([
       cardService.claim(card.id, agentA.id),
@@ -97,7 +118,7 @@ describe('Atomic card claiming and lease expiry', () => {
 
   it('the same agent re-claiming its own card succeeds and simply extends the lease', async () => {
     const card = await makeCard();
-    const agent = await agentService.register({ name: 'Solo Agent', type: 'ai_agent', role: 'contributor' });
+    const agent = await agentService.register({ name: 'Solo Agent' });
 
     const first = await cardService.claim(card.id, agent.id, 60);
     expect(isRefusal(first)).toBe(false);
@@ -111,8 +132,8 @@ describe('Atomic card claiming and lease expiry', () => {
 
   it('an expired lease is reclaimable by a different agent', async () => {
     const card = await makeCard();
-    const holder = await agentService.register({ name: 'Original Holder', type: 'ai_agent', role: 'contributor' });
-    const claimant = await agentService.register({ name: 'New Claimant', type: 'ai_agent', role: 'contributor' });
+    const holder = await agentService.register({ name: 'Original Holder' });
+    const claimant = await agentService.register({ name: 'New Claimant' });
 
     const claimed = await cardService.claim(card.id, holder.id, 1);
     expect(isRefusal(claimed)).toBe(false);
@@ -130,7 +151,7 @@ describe('Atomic card claiming and lease expiry', () => {
 
   it('renewClaims (heartbeat) extends the lease for the holding agent', async () => {
     const card = await makeCard();
-    const agent = await agentService.register({ name: 'Heartbeat Agent', type: 'ai_agent', role: 'contributor' });
+    const agent = await agentService.register({ name: 'Heartbeat Agent' });
 
     const claimed = await cardService.claim(card.id, agent.id, 60) as CardDetails;
     const originalExpiry = new Date(claimed.claim_expires_at!).getTime();
@@ -146,7 +167,7 @@ describe('Atomic card claiming and lease expiry', () => {
     const boards = await boardService.list(project.id);
     const columns = await columnService.list(boards[0].id);
     const card = await cardService.create({ column_id: columns[0].id, title: 'Sweep me' });
-    const agent = await agentService.register({ name: 'Dead Agent', type: 'ai_agent', role: 'contributor' });
+    const agent = await agentService.register({ name: 'Dead Agent' });
 
     await cardService.claim(card.id, agent.id, 1);
     await db.execute('UPDATE card SET claim_expires_at = ? WHERE id = ?', [
@@ -169,7 +190,7 @@ describe('Atomic card claiming and lease expiry', () => {
   it('claiming an unclaimed card by an unrelated agent does not affect other cards', async () => {
     const card = await makeCard();
     const other = await makeCard('Untouched card');
-    const agent = await agentService.register({ name: 'Focused Agent', type: 'ai_agent', role: 'contributor' });
+    const agent = await agentService.register({ name: 'Focused Agent' });
 
     await cardService.claim(card.id, agent.id);
     const untouched = await cardService.getById(other.id);
@@ -192,38 +213,44 @@ describe('Atomic card claiming and lease expiry', () => {
       agentService,
       eventService,
       kbService,
+      roleService: {} as RoleService,
     };
 
-    // Each POST /mcp request builds a fresh McpServer (see src/index.ts), so two
-    // concurrently-connected agents are simulated with two independent instances —
-    // this is exactly the scenario where the old module-level lastRegisteredAgentId
-    // global used to leak identity from one agent's connection into another's.
-    const reqA = { headers: {} } as any;
-    const reqB = { headers: {} } as any;
-    const serverA = createMcpServer(services, reqA) as any;
-    const serverB = createMcpServer(services, reqB) as any;
+    // MUS-23: each server instance gets an auth context with its principal identity.
+    // Pre-create principal + app_user rows so that agent registration's
+    // operator_user_id FK constraint is satisfied.
+    const authAId = 'human-operator-a';
+    const authBId = 'human-operator-b';
+    const now = new Date().toISOString();
+    for (const id of [authAId, authBId]) {
+      await db.execute('INSERT OR IGNORE INTO principal (id, kind, created_at) VALUES (?, ?, ?)', [id, 'user', now]);
+      await db.execute('INSERT OR IGNORE INTO app_user (id, display_name, status, created_at) VALUES (?, ?, ?, ?)', [id, id, 'active', now]);
+    }
+    const authA = makeAuth(authAId);
+    const authB = makeAuth(authBId);
+    const serverA = createMcpServer(services, { headers: {} } as any, authA) as any;
+    const serverB = createMcpServer(services, { headers: {} } as any, authB) as any;
 
     const registerA = await serverA._registeredTools['register_agent'].handler(
-      { name: 'Connected Agent A', type: 'ai_agent', role: 'contributor' },
+      { name: 'Connected Agent A' },
       {}
     );
     const agentA = JSON.parse(registerA.content[0].text);
 
     const registerB = await serverB._registeredTools['register_agent'].handler(
-      { name: 'Connected Agent B', type: 'ai_agent', role: 'contributor' },
+      { name: 'Connected Agent B' },
       {}
     );
     const agentB = JSON.parse(registerB.content[0].text);
 
-    // Server B identifies itself explicitly, as a real client must across
-    // separate stateless requests — it must be attributed to B, never A.
+    // Server B's auth principal is human-operator-b — the comment is attributed to that identity.
     const commentResult = await serverB._registeredTools['add_comment'].handler(
-      { card_id: card.id, content: 'From agent B', agent_id: agentB.id },
+      { card_id: card.id, content: 'From agent B' },
       {}
     );
     const comment = JSON.parse(commentResult.content[0].text);
-    expect(comment.author_id).toBe(agentB.id);
-    expect(comment.author_id).not.toBe(agentA.id);
+    expect(comment.author_id).toBe('human-operator-b');
+    expect(comment.author_id).not.toBe('human-operator-a');
   });
 
   it('fails loudly instead of inventing an actor when no identity can be determined', async () => {
@@ -242,13 +269,14 @@ describe('Atomic card claiming and lease expiry', () => {
       agentService,
       eventService,
       kbService,
+      roleService: {} as RoleService,
     };
 
     const server = createMcpServer(services, { headers: {} } as any) as any;
 
-    // Nobody registered on this server instance and no agent_id/header was
-    // supplied — this must fail loudly (throw) rather than silently
-    // inventing an actor id (e.g. a magic 'system' string).
+    // MUS-23: with no auth principal (OPEN_AUTH_CONTEXT default), the handler
+    // passes undefined author_id to the comment service. The SQL NOT NULL constraint
+    // on comment.author_id rejects it — no fabricated actor.
     await expect(
       server._registeredTools['add_comment'].handler({ card_id: card.id, content: 'Whose comment is this?' }, {})
     ).rejects.toThrow();

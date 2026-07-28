@@ -3,6 +3,7 @@ import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
 import { Comment, CreateComment } from '../shared/types.js';
 import { EventService } from './event.service.js';
+import { assertMaxLength, CARD_TEXT_MAX_CHARS } from '../shared/content-limits.js';
 
 export class CommentService {
   constructor(
@@ -11,6 +12,7 @@ export class CommentService {
   ) {}
 
   async create(data: CreateComment): Promise<Comment> {
+    assertMaxLength(data.content, CARD_TEXT_MAX_CHARS, 'Comment content');
     const id = ulid();
     const created_at = new Date().toISOString();
 

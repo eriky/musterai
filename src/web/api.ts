@@ -1,5 +1,5 @@
 // File: src/web/api.ts
-import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType, CreateCardWorkLink } from './types.js';
+import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, User, AuthMe, Role, Invitation, CreatedInvitation, DeviceGrantInfo, McpAuthorizeDetails, AuditRecord, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType, CreateCardWorkLink, ApiToken, CreatedApiToken } from './types.js';
 
 const API_BASE = '/api/v1';
 
@@ -10,16 +10,24 @@ export class ApiError extends Error {
   }
 }
 
-let activeHumanId: string | null = typeof window !== 'undefined' ? localStorage.getItem('muster_active_human_id') : null;
+/**
+ * Present only when this SPA is being served by `muster connect` (MUS-27) —
+ * the local proxy injects it into index.html. `muster serve` never sets it,
+ * so this is a no-op there. See src/connect/proxy.ts.
+ */
+export function getLocalProxyToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  return document.querySelector('meta[name="muster-local-token"]')?.getAttribute('content') || null;
+}
 
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
 
-  if (activeHumanId) {
-    headers['x-agent-id'] = activeHumanId;
-    headers['x-actor-id'] = activeHumanId;
+  const localToken = getLocalProxyToken();
+  if (localToken) {
+    headers['Authorization'] = `Bearer ${localToken}`;
   }
 
   const res = await fetch(`${API_BASE}${url}`, {
@@ -43,15 +51,6 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  getActiveHumanId: () => activeHumanId,
-  setActiveHumanId: (id: string | null) => {
-    activeHumanId = id;
-    if (typeof window !== 'undefined') {
-      if (id) localStorage.setItem('muster_active_human_id', id);
-      else localStorage.removeItem('muster_active_human_id');
-    }
-  },
-
   // Projects
   getProjects: () => fetchJSON<Project[]>('/projects'),
   createProject: (data: { name: string; description?: string }) => fetchJSON<Project>('/projects', { method: 'POST', body: JSON.stringify(data) }),
@@ -69,7 +68,7 @@ export const api = {
   deleteBoard: (id: string) => fetchJSON<void>(`/boards/${id}`, { method: 'DELETE' }),
 
   // Columns
-  createColumn: (boardId: string, name: string, wipLimit?: number) => fetchJSON<Column>(`/boards/${boardId}/columns`, { method: 'POST', body: JSON.stringify({ name, wip_limit: wipLimit }) }),
+  createColumn: (boardId: string, name: string, wipLimit?: number, isTerminal?: boolean) => fetchJSON<Column>(`/boards/${boardId}/columns`, { method: 'POST', body: JSON.stringify({ name, wip_limit: wipLimit, is_terminal: isTerminal }) }),
   updateColumn: (id: string, data: Partial<Column>) => fetchJSON<Column>(`/columns/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   moveColumn: (id: string, position: string) => fetchJSON<Column>(`/columns/${id}`, { method: 'PUT', body: JSON.stringify({ position }) }),
   deleteColumn: (id: string) => fetchJSON<void>(`/columns/${id}`, { method: 'DELETE' }),
@@ -111,12 +110,56 @@ export const api = {
   setDocumentStatus: (id: string, status: string) => fetchJSON<Document>(`/documents/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   getDocumentHistory: (id: string) => fetchJSON<DocumentVersion[]>(`/documents/${id}/versions`),
 
+  // Auth
+  getMe: () => fetchJSON<AuthMe>('/auth/me'),
+
+  // Users (workspace members — humans only)
+  getUsers: () => fetchJSON<User[]>(`/users`),
+  changeMemberRole: (workspaceId: string, userId: string, roleId: string) =>
+    fetchJSON<User>(`/workspaces/${workspaceId}/members/${userId}`, { method: 'PUT', body: JSON.stringify({ role_id: roleId }) }),
+  removeMember: (workspaceId: string, userId: string) =>
+    fetchJSON<void>(`/workspaces/${workspaceId}/members/${userId}`, { method: 'DELETE' }),
+
+  // Roles
+  getRoles: (workspaceId: string) => fetchJSON<Role[]>(`/workspaces/${workspaceId}/roles`),
+  createRole: (workspaceId: string, data: { key: string; name: string; description?: string; permissions: string[]; rank?: number }) =>
+    fetchJSON<Role>(`/workspaces/${workspaceId}/roles`, { method: 'POST', body: JSON.stringify(data) }),
+  updateRole: (id: string, data: { name?: string; description?: string; permissions?: string[]; rank?: number }) =>
+    fetchJSON<Role>(`/roles/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteRole: (id: string) => fetchJSON<void>(`/roles/${id}`, { method: 'DELETE' }),
+  cloneRole: (id: string, newKey: string, newName?: string) =>
+    fetchJSON<Role>(`/roles/${id}/clone`, { method: 'POST', body: JSON.stringify({ new_key: newKey, new_name: newName }) }),
+
+  // Invitations
+  getInvitations: (workspaceId: string) => fetchJSON<Invitation[]>(`/workspaces/${workspaceId}/invitations`),
+  createInvitation: (workspaceId: string, email: string, roleId: string) =>
+    fetchJSON<CreatedInvitation>(`/workspaces/${workspaceId}/invitations`, { method: 'POST', body: JSON.stringify({ email, role_id: roleId }) }),
+  revokeInvitation: (id: string) => fetchJSON<void>(`/invitations/${id}`, { method: 'DELETE' }),
+
+  // Device Authorization Grant (MUS-28) — the `muster login` approval screen
+  deviceLookup: (userCode: string) => fetchJSON<DeviceGrantInfo>(`/oauth/device/lookup?user_code=${encodeURIComponent(userCode)}`),
+  deviceApprove: (userCode: string) => fetchJSON<{ message: string }>(`/oauth/device/approve`, { method: 'POST', body: JSON.stringify({ user_code: userCode }) }),
+  deviceDeny: (userCode: string) => fetchJSON<{ message: string }>(`/oauth/device/deny`, { method: 'POST', body: JSON.stringify({ user_code: userCode }) }),
+
+  // MCP-native OAuth (MUS-29) — the `claude mcp add` consent screen
+  mcpAuthorizeDetails: (queryString: string) => fetchJSON<McpAuthorizeDetails>(`/oauth/authorize/details?${queryString}`),
+  mcpAuthorizeConsent: (payload: Record<string, string>) =>
+    fetchJSON<{ redirect_uri: string }>(`/oauth/authorize/consent`, { method: 'POST', body: JSON.stringify(payload) }),
+
+  // Audit log (MUS-30)
+  getAuditLog: (workspaceId: string, filters: { actor_id?: string; action?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (filters.actor_id) qs.set('actor_id', filters.actor_id);
+    if (filters.action) qs.set('action', filters.action);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return fetchJSON<AuditRecord[]>(`/workspaces/${workspaceId}/audit-log${suffix}`);
+  },
+
   // Agents & Settings
   getAgents: () => fetchJSON<Agent[]>(`/agents`),
-  getHumanSecretToken: () => fetchJSON<{ secret_token: string }>(`/settings/human-secret`),
-  registerAgent: (data: { name: string; type: string; role: string; capabilities?: string; secret_token?: string }) =>
+  registerAgent: (data: { name: string; capabilities?: string }) =>
     fetchJSON<Agent>(`/agents`, { method: 'POST', body: JSON.stringify(data) }),
-  updateAgent: (id: string, data: { name?: string; role?: string; capabilities?: string; status?: string; owner_id?: string | null }) =>
+  updateAgent: (id: string, data: { name?: string; capabilities?: string; status?: string; operator_user_id?: string | null; role_id?: string | null }) =>
     fetchJSON<Agent>(`/agents/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   unregisterAgent: (id: string) => fetchJSON<void>(`/agents/${id}`, { method: 'DELETE' }),
   agentHeartbeat: (id: string) => fetchJSON<Agent>(`/agents/${id}/heartbeat`, { method: 'POST' }),
@@ -162,5 +205,11 @@ export const api = {
     fetchJSON<KBEntity>(`/kbs/entities/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   addRelation: (data: { kb_id: string; source_entity_id: string; target_entity_id: string; relation_type: string; description?: string }) =>
     fetchJSON<KBRelation>('/kbs/relations', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Personal Access Tokens
+  getTokens: () => fetchJSON<ApiToken[]>('/tokens'),
+  createToken: (data: { name: string; expires_at?: string | null }) =>
+    fetchJSON<CreatedApiToken>('/tokens', { method: 'POST', body: JSON.stringify(data) }),
+  revokeToken: (id: string) => fetchJSON<{ message: string; id: string }>(`/tokens/${id}`, { method: 'DELETE' }),
 };
 

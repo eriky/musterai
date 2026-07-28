@@ -137,6 +137,53 @@ Comment on:
 
 ---
 
+### Rule 6: Roles & Permission Enforcement
+
+Muster enforces a **permission model** on every MCP tool and REST endpoint. Each agent and human operator has a **role** that determines which permissions they hold. Permissions are verbs from the catalog (e.g. `card.create`, `doc.approve`, `project.delete`), and every tool is mapped to exactly one required permission.
+
+**How it works:**
+
+- Every MCP tool handler checks the caller's effective permissions before executing. A missing or insufficient permission produces a **structured 403 refusal** — not a generic error.
+- Every REST route is checked by middleware against the same permission map.
+- **Default-deny**: if a tool or route has no permission mapping, the request is refused with a 403. This ensures a new tool cannot be added without an explicit decision about who may call it.
+- Under `MUSTER_AUTH_MODE=open` (default on localhost), all permission checks pass — single-operator development is unaffected.
+
+**Refusal payload shape** (MCP JSON-RPC error or REST JSON body):
+
+```json
+{
+  "error": "forbidden",
+  "required_permission": "doc.approve",
+  "your_role": "senior_engineer",
+  "message": "Forbidden: requires \"doc.approve\" (your role: senior_engineer)"
+}
+```
+
+An agent receiving this should log the refusal and report the blocker to its operator — do not silently retry the same operation.
+
+**Effective permissions:**
+
+An agent's effective permissions are the **intersection** of its own role and its human operator's role. An agent can never exceed the human who runs it. For example, an agent with the `architect` role (includes `doc.approve`) operated by a `junior_engineer` (does not include `doc.approve`) will not have `doc.approve`.
+
+**Scope-restricted operations:**
+
+Without `card.assign_others`, agents may update or move only cards to which they (or an agent they operate) are assigned. Tools that attempt to modify an out-of-scope card will be refused even if the caller holds `card.update` or `card.move`.
+
+**Preset roles:**
+
+| Role | Description |
+| :--- | :--- |
+| `owner` | Full control over the workspace |
+| `architect` | Can approve docs, manage boards and roles |
+| `senior_engineer` | Full card control, doc creation, agent registration — cannot approve docs or manage boards |
+| `junior_engineer` | Work on assigned cards, create/submit docs, register agents — cannot delete, assign others, or approve |
+| `tester` | Bug-report cards, comment, KB access |
+| `observer` | Read-only access |
+
+Custom roles can be created via `create_role`, and system roles can be cloned via `clone_role`.
+
+---
+
 ## 🛠️ Complete MCP Tool Registry (57 Tools)
 
 ### Project Tools
@@ -304,6 +351,8 @@ npx tsx scripts/mcp-agent-test.ts
 | :--- | :--- | :--- |
 | `MUSTER_PORT` | `3000` | HTTP server port |
 | `MUSTER_DB_PATH` | `data/muster.db` | SQLite database file path |
+| `MUSTER_AUTH_MODE` | `open` (auto-detected) | Auth enforcement: `open` bypasses checks, `enforced` requires valid credentials |
+| `MUSTER_HOST` | `localhost` | Bind address; setting to `0.0.0.0` auto-enables `enforced` mode |
 | `NODE_ENV` | `development` | Environment (`development` \| `production`) |
 
 ---

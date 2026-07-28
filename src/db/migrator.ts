@@ -4,130 +4,20 @@ import path from 'node:path';
 import { DatabaseAdapter } from './adapter.js';
 import { deriveKeyPrefix, formatCardKey } from '../shared/card-key.js';
 
-const INITIAL_SQL = `-- Migration fallback
-CREATE TABLE IF NOT EXISTS project (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  description TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS board (
-  id TEXT PRIMARY KEY,
-  project_id TEXT NOT NULL REFERENCES project(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS "column" (
-  id TEXT PRIMARY KEY,
-  board_id TEXT NOT NULL REFERENCES board(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  position TEXT NOT NULL,
-  wip_limit INTEGER
-);
-
-CREATE TABLE IF NOT EXISTS card (
-  id TEXT PRIMARY KEY,
-  column_id TEXT NOT NULL REFERENCES "column"(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  description TEXT,
-  position TEXT NOT NULL,
-  priority TEXT NOT NULL DEFAULT 'medium',
-  due_date TEXT,
-  status TEXT NOT NULL DEFAULT 'active',
-  blocked_reason TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL,
-  archived INTEGER NOT NULL DEFAULT 0
-);
-
-CREATE TABLE IF NOT EXISTS label (
-  id TEXT PRIMARY KEY,
-  board_id TEXT NOT NULL REFERENCES board(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  color TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS card_label (
-  card_id TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
-  label_id TEXT NOT NULL REFERENCES label(id) ON DELETE CASCADE,
-  PRIMARY KEY (card_id, label_id)
-);
-
-CREATE TABLE IF NOT EXISTS agent_registration (
-  id TEXT PRIMARY KEY,
-  project_id TEXT NOT NULL REFERENCES project(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  type TEXT NOT NULL,
-  role TEXT NOT NULL,
-  capabilities TEXT,
-  status TEXT NOT NULL DEFAULT 'active',
-  last_seen_at TEXT NOT NULL,
-  created_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS card_assignee (
-  card_id TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
-  agent_id TEXT NOT NULL REFERENCES agent_registration(id) ON DELETE CASCADE,
-  PRIMARY KEY (card_id, agent_id)
-);
-
-CREATE TABLE IF NOT EXISTS comment (
-  id TEXT PRIMARY KEY,
-  card_id TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
-  author_id TEXT NOT NULL REFERENCES agent_registration(id) ON DELETE CASCADE,
-  content TEXT NOT NULL,
-  created_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS attachment (
-  id TEXT PRIMARY KEY,
-  card_id TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
-  filename TEXT NOT NULL,
-  path TEXT NOT NULL,
-  mime_type TEXT NOT NULL,
-  size_bytes INTEGER NOT NULL,
-  created_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS document (
-  id TEXT PRIMARY KEY,
-  project_id TEXT NOT NULL REFERENCES project(id) ON DELETE CASCADE,
-  parent_id TEXT REFERENCES document(id) ON DELETE SET NULL,
-  title TEXT NOT NULL,
-  content TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'draft',
-  author_id TEXT REFERENCES agent_registration(id) ON DELETE SET NULL,
-  version INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS document_version (
-  id TEXT PRIMARY KEY,
-  document_id TEXT NOT NULL REFERENCES document(id) ON DELETE CASCADE,
-  version INTEGER NOT NULL,
-  title TEXT NOT NULL,
-  content TEXT NOT NULL,
-  author_id TEXT REFERENCES agent_registration(id) ON DELETE SET NULL,
-  change_summary TEXT,
-  created_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS event (
-  id TEXT PRIMARY KEY,
-  project_id TEXT NOT NULL REFERENCES project(id) ON DELETE CASCADE,
-  entity_type TEXT NOT NULL,
-  entity_id TEXT NOT NULL,
-  action TEXT NOT NULL,
-  actor_id TEXT REFERENCES agent_registration(id) ON DELETE SET NULL,
-  payload TEXT,
-  created_at TEXT NOT NULL
-);
-`;
+/**
+ * The migrations directory is one canonical set of files, not a fork per
+ * dialect — everything in it is already portable SQL (see MUS-31's audit)
+ * except this one DEFAULT expression, which this function swaps for
+ * Postgres's equivalent. `to_char` with these format tokens produces the
+ * exact same "2026-01-01T00:00:00.000Z" shape strftime does, which matters
+ * because created_at is compared and sorted as TEXT throughout the app.
+ */
+export function translateForPostgres(sql: string): string {
+  return sql.replace(
+    /strftime\('%Y-%m-%dT%H:%M:%fZ',\s*'now'\)/gi,
+    `to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`,
+  );
+}
 
 export class Migrator {
   private db: DatabaseAdapter;
@@ -147,25 +37,39 @@ export class Migrator {
       }
     }
 
-    let sqlToRun = INITIAL_SQL;
-    if (fs.existsSync(targetDir)) {
-      const files = fs.readdirSync(targetDir).filter(f => f.endsWith('.sql')).sort();
-      if (files.length > 0) {
-        sqlToRun = files.map(file => fs.readFileSync(path.join(targetDir, file), 'utf-8')).join('\n;\n');
-      }
-    }
+    if (!fs.existsSync(targetDir)) return;
+
+    const files = fs.readdirSync(targetDir).filter(f => f.endsWith('.sql')).sort();
+    if (files.length === 0) return;
+
+    // Splitting is a naive `;`-scan below, so `--` line comments are
+    // stripped first — a semicolon inside a comment (e.g. "one grant;
+    // rotating on reuse") would otherwise silently cut a CREATE TABLE in
+    // half and fail with a confusing "syntax error near ..." far from its
+    // actual cause. None of these files put `--` inside a string literal.
+    const stripLineComments = (sql: string): string =>
+      sql.split('\n').map(line => line.replace(/--.*$/, '')).join('\n');
+
+    const sqlToRun = files
+      .map(file => stripLineComments(fs.readFileSync(path.join(targetDir, file), 'utf-8')))
+      .join('\n;\n');
 
     const statements = sqlToRun
       .split(';')
       .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .filter(s => s.length > 0)
+      .map(stmt => this.db.dialect === 'postgres' ? translateForPostgres(stmt) : stmt);
 
     for (const stmt of statements) {
       try {
         await this.db.migrate(stmt);
       } catch (err: any) {
-        if (err.message && err.message.includes('duplicate column name')) {
-          // Column already exists, ignore
+        // Column-already-exists is the one error every migration here is
+        // meant to tolerate (idempotent ADD COLUMN, e.g. 002/005) — the
+        // exact wording differs by dialect: SQLite says "duplicate column
+        // name", Postgres says `column "x" of relation "y" already exists`.
+        const message: string = err.message || '';
+        if (message.includes('duplicate column name') || (message.includes('column') && message.includes('already exists'))) {
           continue;
         }
         throw err;
@@ -177,9 +81,7 @@ export class Migrator {
 
   /**
    * Assigns key_prefix/key to any project/card rows left over from before
-   * migration 008. Deriving a prefix from a name (word-initials, collision
-   * avoidance) isn't practical in plain SQL, so it's done here once at
-   * startup; it's a no-op once every row has been backfilled.
+   * card keys were introduced. No-op once every row has been backfilled.
    */
   private async backfillCardKeys(): Promise<void> {
     const projects = await this.db.query<{ id: string; name: string; key_prefix: string | null }>(

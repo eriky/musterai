@@ -24,13 +24,15 @@ export interface Column {
   name: string;
   position: string;
   wip_limit: number | null;
+  is_terminal: number;
 }
 
 export interface CardAssignee {
   id: string;
   name: string;
-  type: 'ai_agent' | 'human';
-  status: 'active' | 'idle' | 'offline';
+  kind: 'user' | 'agent';
+  /** Liveness is agent-only telemetry — always null for a human assignee. */
+  status: 'active' | 'idle' | 'offline' | null;
 }
 
 export interface Card {
@@ -62,31 +64,46 @@ export interface Label {
 export interface Agent {
   id: string;
   name: string;
-  type: 'ai_agent' | 'human';
-  role: 'owner' | 'contributor' | 'observer';
   capabilities: string[];
   status: 'active' | 'idle' | 'offline';
   last_seen_at: string;
   created_at: string;
-  owner_id?: string | null;
-  secret_token?: string | null;
+  operator_user_id?: string | null;
+  role_id?: string | null;
+  workspace_id?: string | null;
 }
+
+/** A human workspace member — see the Agent/User split in DESIGN_LANGUAGE.md and design doc §4.1. */
+export interface User {
+  id: string;
+  email: string | null;
+  display_name: string;
+  avatar_url: string | null;
+  role_id: string;
+  role_name: string;
+  joined_at: string;
+}
+
+/** Places that genuinely accept either kind — assignees, comment authors, event actors. */
+export type Principal = (User & { kind: 'user' }) | (Agent & { kind: 'agent' });
 
 
 /** Document without its markdown body — cards embed this, never the full content. */
 export type DocumentSummary = Omit<Document, 'content'>;
 
 export interface CardDetails extends Card {
-  assignees: Agent[];
+  assignees: CardAssignee[];
   labels: Label[];
   linked_documents: DocumentSummary[];
   linked_cards: LinkedCardSummary[];
   work_links: CardWorkLink[];
+  epic_progress: { total: number; done: number } | null;
   comments: {
     id: string;
     card_id: string;
     author_id: string;
     author_name?: string;
+    author_kind?: 'user' | 'agent';
     content: string;
     created_at: string;
   }[];
@@ -128,8 +145,10 @@ export interface LinkedCardSummary {
   relation_type: CardLinkRelationType;
   card: {
     id: string;
+    key: string;
     title: string;
     column_id: string;
+    column_name: string;
     status: 'active' | 'blocked' | 'in_review';
     priority: 'critical' | 'high' | 'medium' | 'low';
     archived: number;
@@ -169,6 +188,8 @@ export interface Event {
 
   action: string;
   actor_id: string | null;
+  actor_name?: string | null;
+  actor_kind?: 'user' | 'agent' | null;
   payload: any;
   created_at: string;
 }
@@ -213,7 +234,7 @@ export interface KBFact {
   content: string;
   category: string;
   confidence: number;
-  source_agent_id: string | null;
+  source_principal_id: string | null;
   created_at: string;
   updated_at: string;
   entity_name?: string;
@@ -259,4 +280,86 @@ export interface KBGraphLink {
 export interface KBGraphTree {
   nodes: KBGraphNode[];
   links: KBGraphLink[];
+}
+
+/** Response shape of GET /auth/me — the signed-in state of the current browser session. */
+export interface AuthMe {
+  authenticated: boolean;
+  admitted: boolean;
+  user: { id: string; email: string | null; display_name: string; avatar_url: string | null; status: string } | null;
+  role: string | null;
+  workspace: { id: string; name: string } | null;
+}
+
+export interface Role {
+  id: string;
+  workspace_id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  permissions: string[];
+  is_system: number;
+  rank: number;
+}
+
+export interface Invitation {
+  id: string;
+  workspace_id: string;
+  email: string;
+  role_id: string;
+  expires_at: string;
+  accepted_at: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface CreatedInvitation extends Invitation {
+  token: string;
+}
+
+/** What the `muster login` device-approval screen shows before the user approves. */
+export interface DeviceGrantInfo {
+  user_code: string;
+  workspace_name: string | null;
+  principal_display_name: string | null;
+  role_name: string | null;
+}
+
+/** What the MCP-native OAuth consent screen shows before the user picks an agent identity + role. */
+export interface McpAuthorizeDetails {
+  client_name: string;
+  resource: string;
+  agents: { id: string; name: string; role_id: string | null }[];
+  roles: { id: string; name: string }[];
+}
+
+/** A privileged-action audit record (MUS-30) — security trail, never client-writable. */
+export interface AuditRecord {
+  id: string;
+  workspace_id: string | null;
+  actor_id: string | null;
+  actor_kind: 'user' | 'agent' | null;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  payload: Record<string, unknown> | null;
+  ip: string | null;
+  created_at: string;
+}
+
+export interface ApiToken {
+  id: string;
+  principal_id: string;
+  workspace_id: string;
+  name: string;
+  prefix: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+/** Returned only once, on creation — the plaintext secret is never retrievable again. */
+export interface CreatedApiToken extends ApiToken {
+  token: string;
 }

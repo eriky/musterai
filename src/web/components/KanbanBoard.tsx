@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Board, Column, Card, Agent, CardDetails, Document, CardLinkRelationType, CardWorkLinkKind, CardWorkLinkProvider } from '../types.js';
-import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, Copy, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, Bot, UserRound, GitPullRequest, GitCommit, Workflow, ExternalLink, GripVertical, Layers } from 'lucide-react';
+import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, Copy, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, GitPullRequest, GitCommit, Workflow, ExternalLink, GripVertical, Layers } from 'lucide-react';
 import { renderMarkdown } from '../markdown.js';
 import { api } from '../api.js';
 import {
@@ -14,6 +14,8 @@ import {
 } from '../kanban.js';
 import { EditColumnModal } from './Modals.js';
 import { DocumentReaderModal } from './DocumentReaderModal.js';
+import { PrincipalChip } from './PrincipalChip.js';
+import { User, AuthMe } from '../types.js';
 
 
 interface KanbanBoardProps {
@@ -21,6 +23,8 @@ interface KanbanBoardProps {
   columns: Column[];
   cards: Card[];
   agents: Agent[];
+  users: User[];
+  currentUser: AuthMe['user'] | null;
   documents: Document[];
   projectId: string | null;
   newCardRequest?: { columnId?: string; token: number } | null;
@@ -79,6 +83,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   columns,
   cards,
   agents,
+  users,
+  currentUser,
   documents,
   projectId,
   newCardRequest,
@@ -321,10 +327,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCardId || !commentText.trim() || !selectedAuthorId) return;
+    const authorId = currentUser?.id || selectedAuthorId;
+    if (!selectedCardId || !commentText.trim() || !authorId) return;
 
     try {
-      await api.addComment(selectedCardId, selectedAuthorId, commentText);
+      await api.addComment(selectedCardId, authorId, commentText);
       setCommentText('');
       const updated = await api.getCardDetails(selectedCardId);
       setCardDetails(updated);
@@ -410,8 +417,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     }
   };
 
-  const handleUnlinkCard = async (linkId: string) => {
+  const handleUnlinkCard = async (linkId: string, otherCardTitle: string) => {
     if (!selectedCardId) return;
+    if (!confirm(`Remove the link to "${otherCardTitle}"? This does not delete the card, only the relationship.`)) return;
     try {
       const updated = await api.unlinkCard(selectedCardId, linkId);
       setCardDetails(updated);
@@ -776,28 +784,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                               {card.assignees && card.assignees.length > 0 && (
                                 <div
                                   className="flex flex-wrap gap-1 mb-2"
-                                  aria-label={`Assigned to ${card.assignees.map(agent => `${agent.name} (${agent.status})`).join(', ')}`}
+                                  aria-label={`Assigned to ${card.assignees.map(agent => agent.status ? `${agent.name} (${agent.status})` : agent.name).join(', ')}`}
                                 >
                                   {card.assignees.map((agent) => (
-                                    <span
-                                      key={agent.id}
-                                      className="muster-chip max-w-full"
-                                      title={`Assigned to ${agent.name} — ${agent.status}`}
-                                      data-agent-status={agent.status}
-                                    >
-                                      {agent.status === 'active' && (
-                                        <span className="relative flex h-2 w-2 flex-shrink-0" aria-hidden="true">
-                                          <span className="absolute inline-flex h-full w-full animate-ping motion-reduce:animate-none rounded-full bg-success-400 opacity-75" />
-                                          <span className="relative inline-flex h-2 w-2 rounded-full bg-success-500" />
-                                        </span>
-                                      )}
-                                      {agent.type === 'ai_agent' ? (
-                                        <Bot className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
-                                      ) : (
-                                        <UserRound className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
-                                      )}
-                                      <span className="truncate">{agent.name}</span>
-                                    </span>
+                                    <PrincipalChip key={agent.id} name={agent.name} kind={agent.kind} status={agent.status} />
                                   ))}
                                 </div>
                               )}
@@ -900,6 +890,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       <span className="muster-badge muster-badge-accent flex items-center" title="Epic — a container for related work">
                         <Layers className="w-3 h-3 mr-1" aria-hidden="true" />
                         EPIC
+                      </span>
+                    )}
+                    {cardDetails.epic_progress && (
+                      <span
+                        className="muster-badge muster-badge-neutral"
+                        title={`${cardDetails.epic_progress.done} of ${cardDetails.epic_progress.total} child cards in a terminal column`}
+                      >
+                        {cardDetails.epic_progress.done}/{cardDetails.epic_progress.total}
                       </span>
                     )}
                     {getPriorityBadge(cardDetails.priority)}
@@ -1156,8 +1154,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {cardDetails.assignees.length > 0 ? (
                       cardDetails.assignees.map((agent) => (
-                        <span key={agent.id} className="muster-chip">
-                          <span>🤖 {agent.name}</span>
+                        <span key={agent.id} className="inline-flex items-center gap-1">
+                          <PrincipalChip name={agent.name} kind={agent.kind} status={agent.status} />
                           <button
                             type="button"
                             onClick={() => handleUnassignAgent(agent.id)}
@@ -1181,7 +1179,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       onChange={(e) => setAssignAgentId(e.target.value)}
                       className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1 flex-1"
                     >
-                      <option value="">Select Agent...</option>
+                      <option value="">Assign to...</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>{u.display_name}</option>
+                      ))}
                       {agents.map((a) => (
                         <option key={a.id} value={a.id}>{a.name}</option>
                       ))}
@@ -1310,6 +1311,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                           <span className={`muster-badge ${CARD_LINK_BADGE_CLASSES[link.relation_type]} flex-shrink-0`}>
                             {CARD_LINK_RELATION_LABELS[link.relation_type]}
                           </span>
+                          <span className="font-mono text-[10px] text-neutral-500 group-hover:text-info-400 flex-shrink-0">
+                            {link.card.key}
+                          </span>
                           <span className="text-xs font-sans text-neutral-200 group-hover:text-info-300 truncate font-semibold">
                             {link.card.title}
                           </span>
@@ -1317,16 +1321,21 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             <span className="muster-badge muster-badge-neutral flex-shrink-0">archived</span>
                           ) : null}
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleUnlinkCard(link.id);
-                          }}
-                          className="muster-btn muster-btn-icon muster-btn-ghost-danger opacity-0 group-hover:opacity-100 flex-shrink-0"
-                          title="Unlink card"
-                        >
-                          <Unlink className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center space-x-1.5 flex-shrink-0">
+                          <span className="muster-badge muster-badge-neutral flex-shrink-0" title="Current lane">
+                            {link.card.column_name}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUnlinkCard(link.id, link.card.title);
+                            }}
+                            className="muster-btn muster-btn-icon muster-btn-ghost-danger opacity-0 group-hover:opacity-100 flex-shrink-0"
+                            title="Unlink card"
+                          >
+                            <Unlink className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     ))
                   ) : (
@@ -1501,7 +1510,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   {cardDetails.comments.map((c) => (
                     <div key={c.id} className="bg-muster-surface p-3 rounded-lg border border-muster-border space-y-1.5">
                       <div className="flex items-center justify-between text-[11px] muster-text-muted">
-                        <span className="muster-accent font-semibold">{c.author_name || 'Agent/User'}</span>
+                        <PrincipalChip name={c.author_name || 'Unknown'} kind={c.author_kind || 'agent'} />
                         <span>{new Date(c.created_at).toLocaleString()}</span>
                       </div>
                       <div
@@ -1513,18 +1522,28 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 </div>
 
                 <form onSubmit={handleAddComment} className="flex flex-col space-y-2">
-                  <div className="flex space-x-2">
-                    <select
-                      value={selectedAuthorId}
-                      onChange={(e) => setSelectedAuthorId(e.target.value)}
-                      className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2.5 py-1.5"
-                    >
-                      <option value="">Select Author...</option>
-                      {agents.map((a) => (
-                        <option key={a.id} value={a.id}>{a.name}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {currentUser ? (
+                    <div className="flex items-center space-x-1.5 text-[11px] muster-text-muted">
+                      <span>Commenting as</span>
+                      <PrincipalChip name={currentUser.display_name} kind="user" />
+                    </div>
+                  ) : (
+                    <div className="flex space-x-2">
+                      <select
+                        value={selectedAuthorId}
+                        onChange={(e) => setSelectedAuthorId(e.target.value)}
+                        className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2.5 py-1.5"
+                      >
+                        <option value="">Select Author...</option>
+                        {users.map((u) => (
+                          <option key={u.id} value={u.id}>{u.display_name}</option>
+                        ))}
+                        {agents.map((a) => (
+                          <option key={a.id} value={a.id}>{a.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div className="flex space-x-2 items-start">
                     <textarea
                       rows={2}
@@ -1535,7 +1554,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     />
                     <button
                       type="submit"
-                      disabled={!commentText.trim() || !selectedAuthorId}
+                      disabled={!commentText.trim() || !(currentUser || selectedAuthorId)}
                       className="muster-btn muster-btn-lg muster-btn-primary"
                     >
                       Comment

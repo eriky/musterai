@@ -171,8 +171,11 @@ role class:
 <FileText className="muster-entity-icon muster-entity-document" />
 ```
 
-Available: `muster-entity-{card,agent,document,board,project,kb}`. The selector
-class only picks a foreground/background pair; the role class consumes it.
+Available: `muster-entity-{card,agent,user,document,board,project,kb}`. The
+selector class only picks a foreground/background pair; the role class
+consumes it. `user` marks a human principal (as opposed to `agent`, an AI
+worker) — kind, not status, so it must not borrow a semantic colour family
+either.
 
 **Knowledge-graph nodes** (`TYPE_COLORS_DARK` / `TYPE_COLORS_LIGHT` in
 `KnowledgeGraphCanvas.tsx`). Rendered to canvas by vis-network, so it is

@@ -1,13 +1,15 @@
 // File: src/web/App.tsx
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Project, Board, Column, Card, Agent, Document, Event, ProjectSummary } from './types.js';
-import { api, ApiError } from './api.js';
+import { Project, Board, Column, Card, Agent, User, AuthMe, Document, Event, ProjectSummary } from './types.js';
+import { api, ApiError, getLocalProxyToken } from './api.js';
 import { Header } from './components/Header.js';
 import { AgentGrid } from './components/AgentGrid.js';
 import { KanbanBoard } from './components/KanbanBoard.js';
 import { DocumentVault } from './components/DocumentVault.js';
 import { TacticalTerminal } from './components/TacticalTerminal.js';
 import { KnowledgeBaseView } from './components/KnowledgeBase.js';
+import { TokensView } from './components/TokensView.js';
+import { WorkspaceAdmin } from './components/WorkspaceAdmin.js';
 import { ThemeProvider } from './ThemeContext.js';
 import {
   NewProjectModal,
@@ -18,7 +20,7 @@ import {
   NewDocModal,
 } from './components/Modals.js';
 
-type TabType = 'board' | 'agents' | 'docs' | 'activity' | 'kb';
+type TabType = 'board' | 'agents' | 'docs' | 'activity' | 'kb' | 'tokens' | 'admin';
 
 // ─── URL Routing Helpers (HTML5 History API — No Hash) ─────────────────────────
 
@@ -28,7 +30,7 @@ function parseLocation(): { projectId: string | null; tab: TabType; docId: strin
   if (parts[0] === 'projects' && parts[1]) {
     const projectId = parts[1];
     const rawTab = parts[2];
-    const validTabs: TabType[] = ['board', 'agents', 'docs', 'activity', 'kb'];
+    const validTabs: TabType[] = ['board', 'agents', 'docs', 'activity', 'kb', 'tokens', 'admin'];
     const tab = validTabs.includes(rawTab as TabType) ? (rawTab as TabType) : 'board';
     const docId = tab === 'docs' && parts[3] ? parts[3] : null;
     const entityId = tab === 'kb' && parts[3] ? parts[3] : null;
@@ -77,8 +79,12 @@ export const App: React.FC = () => {
   const [columns, setColumns] = useState<Column[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [currentUser, setCurrentUser] = useState<AuthMe['user'] | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Modals visibility
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
@@ -89,8 +95,6 @@ export const App: React.FC = () => {
   const [showNewDocModal, setShowNewDocModal] = useState(false);
   const [newCardRequest, setNewCardRequest] = useState<{ columnId?: string; token: number } | null>(null);
   const newCardTokenRef = useRef(0);
-
-  const [selectedHumanId, setSelectedHumanId] = useState<string | null>(api.getActiveHumanId());
 
   // Load Projects
   const loadProjects = useCallback(async (selectId?: string) => {
@@ -124,26 +128,21 @@ export const App: React.FC = () => {
     if (!selectedProjectId) return;
 
     try {
-      const [sumData, boardsData, agentsData, docsData, eventsData] = await Promise.all([
+      const [sumData, boardsData, agentsData, usersData, docsData, eventsData] = await Promise.all([
         api.getProjectSummary(selectedProjectId),
         api.getBoards(selectedProjectId),
         api.getAgents(),
+        api.getUsers(),
         api.getDocuments(selectedProjectId),
         api.getEvents(selectedProjectId, 40),
       ]);
 
       setSummary(sumData);
       setAgents(agentsData);
+      setUsers(usersData);
       setDocuments(docsData);
       setEvents(eventsData);
-
-      // Auto-select human operator if not selected yet
-      const humanAgents = agentsData.filter(a => a.type === 'human');
-      const activeId = api.getActiveHumanId();
-      if ((!activeId || !humanAgents.some(h => h.id === activeId)) && humanAgents.length > 0) {
-        setSelectedHumanId(humanAgents[0].id);
-        api.setActiveHumanId(humanAgents[0].id);
-      }
+      setConnectionError(null);
 
 
       if (boardsData.length > 0) {
@@ -165,9 +164,14 @@ export const App: React.FC = () => {
         setColumns([]);
         setCards([]);
         setAgents([]);
+        setUsers([]);
         setDocuments([]);
         setEvents([]);
         loadProjects();
+      } else if (err instanceof ApiError && err.status === 502) {
+        // The local muster connect proxy couldn't reach the upstream
+        // server — never render this as a silent empty board.
+        setConnectionError('Cannot reach the Muster server. Retrying…');
       } else {
         console.error('Error loading project data:', err);
       }
@@ -215,6 +219,17 @@ export const App: React.FC = () => {
     loadProjects();
   }, [loadProjects]);
 
+  // Who's signed in — drives the header display, comment authorship default,
+  // and per-user theme storage. Null in open/local mode (no OIDC session).
+  useEffect(() => {
+    api.getMe()
+      .then((me) => {
+        setCurrentUser(me.user);
+        setWorkspaceId(me.workspace?.id || null);
+      })
+      .catch((err) => console.error('Error loading current user:', err));
+  }, []);
+
   useEffect(() => {
     loadProjectData();
   }, [loadProjectData]);
@@ -224,7 +239,11 @@ export const App: React.FC = () => {
     if (!selectedProjectId) return;
 
     // 1. Real-Time SSE EventSource
-    const sseUrl = `/api/v1/projects/${selectedProjectId}/events/stream`;
+    // EventSource can't set an Authorization header, so under `muster
+    // connect` (MUS-27) the loopback token rides along as a query param —
+    // the proxy's requireLocalToken() gate accepts either.
+    const localToken = getLocalProxyToken();
+    const sseUrl = `/api/v1/projects/${selectedProjectId}/events/stream${localToken ? `?local_token=${encodeURIComponent(localToken)}` : ''}`;
     const eventSource = new EventSource(sseUrl);
 
     const handleEvent = (e: MessageEvent) => {
@@ -297,11 +316,6 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleSelectHuman = (id: string) => {
-    setSelectedHumanId(id);
-    api.setActiveHumanId(id);
-  };
-
   const handleDeleteProject = async (projectId: string) => {
     try {
       await api.deleteProject(projectId);
@@ -324,9 +338,9 @@ export const App: React.FC = () => {
   };
 
   return (
-    <ThemeProvider userId={selectedHumanId}>
+    <ThemeProvider userId={currentUser?.id ?? null}>
     <div className="h-screen flex flex-col bg-muster-base muster-text-primary font-sans w-full overflow-hidden">
-      
+
       {/* Platform Header */}
       <Header
         projects={projects}
@@ -342,11 +356,14 @@ export const App: React.FC = () => {
         onOpenRegisterAgent={() => setShowRegisterAgentModal(true)}
         onOpenNewCard={() => handleOpenNewCardModal()}
         onOpenNewDoc={() => setShowNewDocModal(true)}
-        agents={agents}
-        selectedHumanId={selectedHumanId}
-        onSelectHuman={handleSelectHuman}
+        currentUser={currentUser}
       />
 
+      {connectionError && (
+        <div className="flex-none bg-danger-950 border-b border-danger-600/40 text-danger-300 text-xs font-sans px-4 py-2 text-center">
+          {connectionError}
+        </div>
+      )}
 
       {/* Main Full-Width View Area */}
       <main className="flex-1 flex flex-col min-h-0 w-full px-4 sm:px-6 lg:px-8 py-4 overflow-hidden">
@@ -354,7 +371,9 @@ export const App: React.FC = () => {
         {activeTab === 'agents' && (
           <AgentGrid
             agents={agents}
+            users={users}
             cards={cards}
+            workspaceId={workspaceId}
             onHeartbeat={handleAgentHeartbeat}
             onUnregisterAgent={handleUnregisterAgent}
             onOpenRegisterAgent={() => setShowRegisterAgentModal(true)}
@@ -369,6 +388,8 @@ export const App: React.FC = () => {
             columns={columns}
             cards={cards}
             agents={agents}
+            users={users}
+            currentUser={currentUser}
             documents={documents}
             projectId={selectedProjectId}
             newCardRequest={newCardRequest}
@@ -418,6 +439,14 @@ export const App: React.FC = () => {
             documents={documents}
             onRefresh={loadProjectData}
           />
+        )}
+
+        {activeTab === 'tokens' && <TokensView />}
+
+        {activeTab === 'admin' && (
+          workspaceId
+            ? <WorkspaceAdmin workspaceId={workspaceId} currentUser={currentUser} />
+            : <div className="text-center py-16 muster-text-muted text-sm">No workspace found yet.</div>
         )}
       </main>
 

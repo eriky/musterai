@@ -25,14 +25,19 @@ export class ProjectService {
     );
     const key_prefix = deriveKeyPrefix(data.name, new Set(existingPrefixes.map(p => p.key_prefix)));
 
+    // Look up the default workspace — projects must belong to a workspace.
+    const wsRows = await this.db.query<{ id: string }>('SELECT id FROM workspace LIMIT 1');
+    const workspaceId = wsRows[0]?.id || '';
+
     await this.db.execute(
-      `INSERT INTO project (id, name, description, key_prefix, card_seq, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 0, ?, ?)`,
-      [id, data.name, data.description || null, key_prefix, created_at, updated_at]
+      `INSERT INTO project (id, workspace_id, name, description, key_prefix, card_seq, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+      [id, workspaceId, data.name, data.description || null, key_prefix, created_at, updated_at]
     );
 
     const project: Project = {
       id,
+      workspace_id: workspaceId,
       name: data.name,
       description: data.description || null,
       key_prefix,
@@ -161,11 +166,11 @@ All AI agents and human operators collaborating within this project must observe
     );
     const card_count = Number(cards[0]?.count || 0);
 
-    const agents = await this.db.query<{ count: number }>('SELECT COUNT(*) as count FROM agent_registration');
+    const agents = await this.db.query<{ count: number }>('SELECT COUNT(*) as count FROM agent');
     const agent_count = Number(agents[0]?.count || 0);
 
     const activeAgents = await this.db.query<{ count: number }>(
-      'SELECT COUNT(*) as count FROM agent_registration WHERE status = ?',
+      'SELECT COUNT(*) as count FROM agent WHERE status = ?',
       ['active']
     );
     const active_agent_count = Number(activeAgents[0]?.count || 0);

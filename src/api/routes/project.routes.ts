@@ -1,8 +1,10 @@
 // File: src/api/routes/project.routes.ts
 import { Router, Request, Response, NextFunction } from 'express';
 import { ProjectService } from '../../services/project.service.js';
+import { AuditService } from '../../services/audit.service.js';
+import { AuthContext } from '../../shared/auth-context.js';
 
-export function createProjectRouter(projectService: ProjectService): Router {
+export function createProjectRouter(projectService: ProjectService, auditService: AuditService): Router {
   const router = Router();
 
   router.get('/', async (req: Request, res: Response, next: NextFunction) => {
@@ -44,7 +46,16 @@ export function createProjectRouter(projectService: ProjectService): Router {
 
   router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const project = await projectService.getById(req.params.id);
       await projectService.delete(req.params.id);
+      const auth: AuthContext | undefined = (req as any).authContext;
+      await auditService.logAs(auth, {
+        action: 'project.delete',
+        target_type: 'project',
+        target_id: req.params.id,
+        payload: project ? { name: project.name } : undefined,
+        ip: req.ip,
+      });
       res.status(204).end();
     } catch (err) {
       next(err);

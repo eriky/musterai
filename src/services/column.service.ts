@@ -22,11 +22,12 @@ export class ColumnService {
     }
 
     const wip_limit = data.wip_limit !== undefined ? data.wip_limit : null;
+    const is_terminal = data.is_terminal ? 1 : 0;
 
     await this.db.execute(
-      `INSERT INTO "column" (id, board_id, name, position, wip_limit)
-       VALUES (?, ?, ?, ?, ?)`,
-      [id, data.board_id, data.name, position, wip_limit]
+      `INSERT INTO "column" (id, board_id, name, position, wip_limit, is_terminal)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, data.board_id, data.name, position, wip_limit, is_terminal]
     );
 
     const col: Column = {
@@ -35,6 +36,7 @@ export class ColumnService {
       name: data.name,
       position,
       wip_limit,
+      is_terminal,
     };
 
     if (this.eventService) {
@@ -70,13 +72,14 @@ export class ColumnService {
     const name = data.name !== undefined ? data.name : existing.name;
     const wip_limit = data.wip_limit !== undefined ? data.wip_limit : existing.wip_limit;
     const position = data.position !== undefined ? data.position : existing.position;
+    const is_terminal = data.is_terminal !== undefined ? (data.is_terminal ? 1 : 0) : existing.is_terminal;
 
     await this.db.execute(
-      'UPDATE "column" SET name = ?, wip_limit = ?, position = ? WHERE id = ?',
-      [name, wip_limit, position, id]
+      'UPDATE "column" SET name = ?, wip_limit = ?, position = ?, is_terminal = ? WHERE id = ?',
+      [name, wip_limit, position, is_terminal, id]
     );
 
-    const updated: Column = { ...existing, name, wip_limit, position };
+    const updated: Column = { ...existing, name, wip_limit, position, is_terminal };
 
     if (this.eventService) {
       const boardRows = await this.db.query<{ project_id: string }>('SELECT project_id FROM board WHERE id = ?', [existing.board_id]);

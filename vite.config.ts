@@ -19,7 +19,11 @@ export default defineConfig({
         target: 'http://localhost:3000',
         changeOrigin: true,
       },
-      '^/mcp(/|$)': {
+      // Exact match only — the real endpoint is POST /mcp with no
+      // sub-paths. A prefix match would also swallow the SPA's own
+      // /mcp/authorize consent screen (MUS-29) and proxy it to the backend
+      // instead of letting vite serve the dev-mode index.html.
+      '^/mcp$': {
         target: 'http://localhost:3000',
         changeOrigin: true,
       },

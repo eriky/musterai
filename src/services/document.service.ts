@@ -3,6 +3,7 @@ import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
 import { Document, DocumentVersion, CreateDocument, UpdateDocument } from '../shared/types.js';
 import { EventService } from './event.service.js';
+import { assertMaxLength, DOCUMENT_CONTENT_MAX_CHARS } from '../shared/content-limits.js';
 
 export class DocumentService {
   constructor(
@@ -11,6 +12,7 @@ export class DocumentService {
   ) {}
 
   async create(data: CreateDocument, actorId?: string): Promise<Document> {
+    assertMaxLength(data.content, DOCUMENT_CONTENT_MAX_CHARS, 'Document content');
     const id = ulid();
     const created_at = new Date().toISOString();
     const updated_at = created_at;
@@ -108,6 +110,7 @@ export class DocumentService {
   }
 
   async update(id: string, data: UpdateDocument, actorId?: string): Promise<Document> {
+    assertMaxLength(data.content, DOCUMENT_CONTENT_MAX_CHARS, 'Document content');
     const existing = await this.getById(id);
     if (!existing) throw new Error(`Document with ID ${id} not found`);
 
@@ -183,8 +186,9 @@ export class DocumentService {
 
   async getHistory(id: string): Promise<DocumentVersion[]> {
     return this.db.query<DocumentVersion>(
-      `SELECT v.*, a.name as author_name FROM document_version v
-       LEFT JOIN agent_registration a ON v.author_id = a.id
+      `SELECT v.*, COALESCE(a.name, u.display_name) as author_name FROM document_version v
+       LEFT JOIN agent a ON v.author_id = a.id
+       LEFT JOIN app_user u ON v.author_id = u.id
        WHERE v.document_id = ? ORDER BY v.version DESC`,
       [id]
     );

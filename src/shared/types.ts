@@ -1,7 +1,126 @@
 // File: src/shared/types.ts
 
+// ============================================================
+// Identity & access control
+// ============================================================
+
+export interface Workspace {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PrincipalKind = 'user' | 'agent';
+
+export interface Principal {
+  id: string;
+  kind: PrincipalKind;
+  created_at: string;
+}
+
+export interface User {
+  id: string;
+  email: string | null;
+  display_name: string;
+  avatar_url: string | null;
+  status: 'active' | 'idle' | 'offline';
+  created_at: string;
+}
+
+export interface Role {
+  id: string;
+  workspace_id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  permissions: string[];
+  is_system: number;
+  rank: number;
+  created_at?: string;
+}
+
+export interface CreateRole {
+  workspace_id: string;
+  key: string;
+  name: string;
+  description?: string;
+  permissions: string[];
+  is_system?: boolean;
+  rank?: number;
+}
+
+export interface UpdateRole {
+  name?: string;
+  description?: string;
+  permissions?: string[];
+  rank?: number;
+}
+
+export interface Agent {
+  id: string;
+  name: string;
+  capabilities: string[];
+  status: 'active' | 'idle' | 'offline';
+  last_seen_at: string;
+  operator_user_id: string | null;
+  role_id: string | null;
+  workspace_id: string | null;
+  created_at: string;
+}
+
+export interface RegisterAgent {
+  id?: string;
+  agent_id?: string;
+  name?: string;
+  capabilities?: string | string[];
+  status?: 'active' | 'idle' | 'offline';
+}
+
+export interface UpdateAgent {
+  name?: string;
+  capabilities?: string | string[];
+  status?: 'active' | 'idle' | 'offline';
+  operator_user_id?: string | null;
+  role_id?: string | null;
+}
+
+// ============================================================
+// API Tokens (MUS-24)
+// ============================================================
+
+export interface ApiToken {
+  id: string;
+  principal_id: string;
+  workspace_id: string;
+  name: string;
+  prefix: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+  last_used_at: string | null;
+  created_at: string;
+}
+
+export interface CreateApiToken {
+  principal_id: string;
+  workspace_id: string;
+  name: string;
+  expires_at?: string | null;
+}
+
+/** Returned on token creation — the plaintext secret is shown exactly once. */
+export interface CreatedApiToken extends ApiToken {
+  token: string;
+}
+
+// ============================================================
+// Projects & Boards
+// ============================================================
+
 export interface Project {
   id: string;
+  workspace_id: string;
   name: string;
   description: string | null;
   key_prefix: string;
@@ -45,6 +164,8 @@ export interface Column {
   name: string;
   position: string;
   wip_limit: number | null;
+  /** Cards sitting in a terminal column count toward an Epic's "done" total. A board may flag more than one (e.g. both "Done" and an archival lane). Display-only — never changes a card's own `status`. */
+  is_terminal: number;
 }
 
 export interface CreateColumn {
@@ -52,19 +173,26 @@ export interface CreateColumn {
   name: string;
   position?: string;
   wip_limit?: number;
+  is_terminal?: boolean | number;
 }
 
 export interface UpdateColumn {
   name?: string;
   wip_limit?: number | null;
   position?: string;
+  is_terminal?: boolean | number;
 }
+
+// ============================================================
+// Cards
+// ============================================================
 
 export interface CardAssignee {
   id: string;
   name: string;
-  type: 'ai_agent' | 'human';
-  status: 'active' | 'idle' | 'offline';
+  kind: 'user' | 'agent';
+  /** Liveness is agent-only telemetry — always null for a human assignee. */
+  status: 'active' | 'idle' | 'offline' | null;
 }
 
 export interface Card {
@@ -84,13 +212,12 @@ export interface Card {
   claimed_by: string | null;
   claimed_at: string | null;
   claim_expires_at: string | null;
-  /** Marks this card as a container for related work — see 'parent_of' link type. */
   is_epic: number;
   assignees?: CardAssignee[];
 }
 
 export interface ClaimCard {
-  agent_id: string;
+  principal_id: string;
   ttl_seconds?: number;
 }
 
@@ -145,59 +272,25 @@ export interface CreateLabel {
   color: string;
 }
 
-export interface Agent {
-  id: string;
-  name: string;
-  type: 'ai_agent' | 'human';
-  role: 'owner' | 'contributor' | 'observer';
-  capabilities: string[];
-  status: 'active' | 'idle' | 'offline';
-  last_seen_at: string;
-  created_at: string;
-  owner_id?: string | null;
-  secret_token?: string | null;
-}
-
-export interface RegisterAgent {
-  id?: string;
-  agent_id?: string;
-  name?: string;
-  type?: 'ai_agent' | 'human';
-  role?: 'owner' | 'contributor' | 'observer';
-  capabilities?: string | string[];
-  status?: 'active' | 'idle' | 'offline';
-  secret_token?: string;
-  owner_id?: string;
-}
-
-
-export interface UpdateAgentStatus {
-  status: 'active' | 'idle' | 'offline';
-}
-
-export interface UpdateAgent {
-  name?: string;
-  role?: 'owner' | 'contributor' | 'observer';
-  capabilities?: string | string[];
-  status?: 'active' | 'idle' | 'offline';
-  owner_id?: string | null;
-}
-
-
 export interface Comment {
   id: string;
   card_id: string;
-  author_id: string;
+  author_id?: string;
   content: string;
   created_at: string;
   author_name?: string;
+  author_kind?: 'user' | 'agent';
 }
 
 export interface CreateComment {
   card_id: string;
-  author_id: string;
+  author_id?: string;
   content: string;
 }
+
+// ============================================================
+// Documents
+// ============================================================
 
 export interface Document {
   id: string;
@@ -236,9 +329,15 @@ export interface DocumentVersion {
   author_id: string | null;
   change_summary: string | null;
   created_at: string;
-  /** Joined from agent_registration; absent if the author was never registered. */
   author_name?: string | null;
 }
+
+/** Document without its markdown body — cards embed this, never the full content. */
+export type DocumentSummary = Omit<Document, 'content'>;
+
+// ============================================================
+// Events
+// ============================================================
 
 export interface Event {
   id: string;
@@ -249,6 +348,8 @@ export interface Event {
   actor_id: string | null;
   payload: Record<string, unknown> | null;
   created_at: string;
+  actor_name?: string | null;
+  actor_kind?: 'user' | 'agent' | null;
 }
 
 export interface CreateEvent {
@@ -260,16 +361,19 @@ export interface CreateEvent {
   payload?: Record<string, unknown>;
 }
 
-/** Document without its markdown body — cards embed this, never the full content. */
-export type DocumentSummary = Omit<Document, 'content'>;
+// ============================================================
+// Card details (aggregated)
+// ============================================================
 
 export interface CardDetails extends Card {
-  assignees: Agent[];
+  assignees: CardAssignee[];
   labels: Label[];
   comments: Comment[];
   linked_documents: DocumentSummary[];
   linked_cards: LinkedCardSummary[];
   work_links: CardWorkLink[];
+  /** Only computed for Epics with at least one child (null otherwise, including non-Epics — never "0/0"). `done` counts children currently sitting in a terminal column. */
+  epic_progress: { total: number; done: number } | null;
 }
 
 export type CardWorkLinkKind = 'branch' | 'pull_request' | 'commit' | 'pipeline';
@@ -320,13 +424,20 @@ export interface LinkedCardSummary {
   relation_type: CardLinkRelationType;
   card: {
     id: string;
+    key: string;
     title: string;
     column_id: string;
+    /** The linked card's current lane name (e.g. "Done", "In Progress") — a quick read on where it stands without opening it. */
+    column_name: string;
     status: 'active' | 'blocked' | 'in_review';
     priority: 'critical' | 'high' | 'medium' | 'low';
     archived: number;
   };
 }
+
+// ============================================================
+// Aggregates
+// ============================================================
 
 export interface ProjectSummary {
   project_id: string;
@@ -339,6 +450,10 @@ export interface ProjectSummary {
   document_count: number;
   kb_count?: number;
 }
+
+// ============================================================
+// Knowledge Base
+// ============================================================
 
 export interface KnowledgeBase {
   id: string;
@@ -391,7 +506,7 @@ export interface KBFact {
   content: string;
   category: string;
   confidence: number;
-  source_agent_id: string | null;
+  source_principal_id: string | null;
   created_at: string;
   updated_at: string;
   entity_name?: string;
@@ -408,7 +523,7 @@ export interface AddGainedKnowledge {
   entity_type?: string;
   entity_identifier?: string;
   confidence?: number;
-  source_agent_id?: string;
+  source_principal_id?: string;
 }
 
 export interface UpdateKBFact {
@@ -421,7 +536,6 @@ export interface UpdateKBFact {
   entity_identifier?: string;
   confidence?: number;
 }
-
 
 export interface KBRelation {
   id: string;
@@ -442,6 +556,10 @@ export interface AddKBRelation {
   relation_type: string;
   description?: string;
 }
+
+// ============================================================
+// Knowledge Graph response types
+// ============================================================
 
 export interface EntityKnowledgeResult {
   entity: KBEntity;
