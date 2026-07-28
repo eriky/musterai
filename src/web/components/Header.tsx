@@ -1,10 +1,10 @@
 import React from 'react';
 import { Project, ProjectSummary, AuthMe } from '../types.js';
-import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, UserPlus, Trash2, Edit2, KeyRound } from 'lucide-react';
+import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, UserPlus, Trash2, Edit2, KeyRound, ShieldCheck } from 'lucide-react';
 import { ThemePicker } from './ThemePicker.js';
 import { PrincipalChip } from './PrincipalChip.js';
 
-type TabId = 'agents' | 'board' | 'docs' | 'activity' | 'kb' | 'tokens';
+type TabId = 'agents' | 'board' | 'docs' | 'activity' | 'kb' | 'tokens' | 'admin';
 
 interface HeaderProps {
   projects: Project[];
@@ -56,6 +56,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'kb', icon: Database, label: 'Knowledge Base' },
     { id: 'activity', icon: Activity, label: 'Activity Log' },
     { id: 'tokens', icon: KeyRound, label: 'Tokens' },
+    { id: 'admin', icon: ShieldCheck, label: 'Admin' },
   ];
 
   return (

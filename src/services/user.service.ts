@@ -6,6 +6,7 @@
 
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
+import { ValidationError } from '../shared/errors.js';
 
 export interface AppUser {
   id: string;
@@ -112,5 +113,69 @@ export class UserService {
        ORDER BY u.display_name ASC`,
       [workspaceId],
     );
+  }
+
+  /**
+   * Number of members currently holding a role that grants workspace.admin —
+   * the "owner" rank, regardless of whether that role is still named/keyed
+   * "owner" after editing. Used to refuse leaving a workspace ownerless.
+   */
+  async countAdmins(workspaceId: string): Promise<number> {
+    const rows = await this.db.query<{ count: number }>(
+      `SELECT COUNT(*) as count
+       FROM workspace_member wm
+       JOIN role r ON r.id = wm.role_id
+       WHERE wm.workspace_id = ? AND r.permissions_json LIKE '%"workspace.admin"%'`,
+      [workspaceId],
+    );
+    return rows[0]?.count ?? 0;
+  }
+
+  private async isSoleAdmin(workspaceId: string, userId: string, roleId: string): Promise<boolean> {
+    const roleRows = await this.db.query<{ permissions_json: string }>('SELECT permissions_json FROM role WHERE id = ?', [roleId]);
+    const permissions: string[] = roleRows[0] ? JSON.parse(roleRows[0].permissions_json) : [];
+    if (!permissions.includes('workspace.admin')) return false;
+    return (await this.countAdmins(workspaceId)) <= 1;
+  }
+
+  /** Change a member's role. Refuses to demote the last remaining admin — a workspace must always keep an owner. */
+  async changeMemberRole(workspaceId: string, userId: string, newRoleId: string): Promise<void> {
+    const memberRows = await this.db.query<{ role_id: string }>(
+      'SELECT role_id FROM workspace_member WHERE workspace_id = ? AND user_id = ?',
+      [workspaceId, userId],
+    );
+    if (memberRows.length === 0) throw new ValidationError('User is not a member of this workspace');
+    const currentRoleId = memberRows[0].role_id;
+
+    if (currentRoleId !== newRoleId && await this.isSoleAdmin(workspaceId, userId, currentRoleId)) {
+      throw new ValidationError('Cannot change the role of the last owner — promote another member first');
+    }
+
+    await this.db.execute(
+      'UPDATE workspace_member SET role_id = ? WHERE workspace_id = ? AND user_id = ?',
+      [newRoleId, workspaceId, userId],
+    );
+  }
+
+  /**
+   * Remove a member from the workspace. Refuses to remove the last admin.
+   * Agents the member operates are never orphaned silently — they are
+   * unassigned (operator_user_id = NULL) and surface in the roster's
+   * "Unassigned" group rather than being deleted or left pointing at a
+   * principal no longer in the workspace.
+   */
+  async removeMember(workspaceId: string, userId: string): Promise<void> {
+    const memberRows = await this.db.query<{ role_id: string }>(
+      'SELECT role_id FROM workspace_member WHERE workspace_id = ? AND user_id = ?',
+      [workspaceId, userId],
+    );
+    if (memberRows.length === 0) throw new ValidationError('User is not a member of this workspace');
+
+    if (await this.isSoleAdmin(workspaceId, userId, memberRows[0].role_id)) {
+      throw new ValidationError('Cannot remove the last owner — promote another member first');
+    }
+
+    await this.db.execute('UPDATE agent SET operator_user_id = NULL WHERE operator_user_id = ?', [userId]);
+    await this.db.execute('DELETE FROM workspace_member WHERE workspace_id = ? AND user_id = ?', [workspaceId, userId]);
   }
 }

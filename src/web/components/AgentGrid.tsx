@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Agent, Card, User } from '../types.js';
+import { Agent, Card, User, Role } from '../types.js';
 import { Bot, Clock, RefreshCw, UserPlus, Trash2, ShieldCheck, Edit3, Pencil, X, Save } from 'lucide-react';
 import { api } from '../api.js';
+import { effectivePermissions } from '../../shared/permissions.js';
 import { PrincipalChip } from './PrincipalChip.js';
 
 function getOperatorName(users: User[], operatorUserId?: string | null): string | null {
@@ -44,6 +45,7 @@ interface AgentGridProps {
   agents: Agent[];
   users: User[];
   cards: Card[];
+  workspaceId: string | null;
   onHeartbeat: (agentId: string) => void;
   onUnregisterAgent: (agentId: string) => void;
   onOpenRegisterAgent: () => void;
@@ -54,11 +56,35 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
   agents,
   users,
   cards,
+  workspaceId,
   onHeartbeat,
   onUnregisterAgent,
   onOpenRegisterAgent,
   onRefresh,
 }) => {
+  const [roles, setRoles] = useState<Role[]>([]);
+
+  useEffect(() => {
+    if (!workspaceId) return;
+    api.getRoles(workspaceId).then(setRoles).catch((err) => console.error('Failed to load roles:', err));
+  }, [workspaceId]);
+
+  const roleById = new Map(roles.map(r => [r.id, r]));
+
+  /** effective = agent.role ∩ operator.role — design doc §4, "an agent can never exceed its operator". */
+  function effectiveFor(agent: Agent): { nominal: string[]; effective: string[]; reducedBy: string | null } {
+    const agentRole = agent.role_id ? roleById.get(agent.role_id) : undefined;
+    const nominal = agentRole?.permissions || [];
+    if (!agent.operator_user_id) return { nominal, effective: nominal, reducedBy: null };
+
+    const operator = users.find(u => u.id === agent.operator_user_id);
+    const operatorRole = operator ? roleById.get(operator.role_id) : undefined;
+    if (!operatorRole) return { nominal, effective: nominal, reducedBy: null };
+
+    const effective = effectivePermissions(nominal, operatorRole.permissions);
+    return { nominal, effective, reducedBy: effective.length < nominal.length ? operator!.display_name : null };
+  }
+
   // Edit Modal State
   const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [editName, setEditName] = useState('');
@@ -234,6 +260,29 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
                           )}
                         </div>
                       </div>
+
+                      {/* Effective permissions — the operator intersection, design doc §4 */}
+                      {agent.role_id && (() => {
+                        const { nominal, effective, reducedBy } = effectiveFor(agent);
+                        return (
+                          <div className="mt-3 pt-3 border-t border-muster-border/60">
+                            <div className="text-[11px] font-sans muster-text-muted mb-1 font-medium flex items-center justify-between">
+                              <span>Effective permissions:</span>
+                              <span
+                                className={reducedBy ? 'muster-text-warning font-semibold' : 'muster-text-secondary'}
+                                title={effective.join(', ') || 'none'}
+                              >
+                                {effective.length}/{nominal.length}
+                              </span>
+                            </div>
+                            {reducedBy && (
+                              <p className="text-[10px] muster-text-warning">
+                                Reduced by operator {reducedBy}'s role — the agent's nominal role grants more than {reducedBy} holds.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Bottom Row */}

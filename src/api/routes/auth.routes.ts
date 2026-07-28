@@ -141,9 +141,12 @@ export function createAuthRouter(
 
   router.get('/auth/me', async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const wsRows = await db.query<{ id: string; name: string }>('SELECT id, name FROM workspace LIMIT 1');
+      const workspace = wsRows[0] || null;
+
       const auth = req.authContext;
       if (!auth?.principal || auth.principal.kind !== 'user') {
-        res.json({ authenticated: false, admitted: false, user: null, role: null });
+        res.json({ authenticated: false, admitted: false, user: null, role: null, workspace });
         return;
       }
 
@@ -158,6 +161,7 @@ export function createAuthRouter(
         admitted,
         user: userRows[0] || null,
         role: auth.role_name,
+        workspace,
       });
     } catch (err) {
       next(err);

@@ -1,5 +1,5 @@
 // File: src/web/api.ts
-import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, User, AuthMe, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType, CreateCardWorkLink, ApiToken, CreatedApiToken } from './types.js';
+import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, User, AuthMe, Role, Invitation, CreatedInvitation, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType, CreateCardWorkLink, ApiToken, CreatedApiToken } from './types.js';
 
 const API_BASE = '/api/v1';
 
@@ -100,6 +100,26 @@ export const api = {
 
   // Users (workspace members — humans only)
   getUsers: () => fetchJSON<User[]>(`/users`),
+  changeMemberRole: (workspaceId: string, userId: string, roleId: string) =>
+    fetchJSON<User>(`/workspaces/${workspaceId}/members/${userId}`, { method: 'PUT', body: JSON.stringify({ role_id: roleId }) }),
+  removeMember: (workspaceId: string, userId: string) =>
+    fetchJSON<void>(`/workspaces/${workspaceId}/members/${userId}`, { method: 'DELETE' }),
+
+  // Roles
+  getRoles: (workspaceId: string) => fetchJSON<Role[]>(`/workspaces/${workspaceId}/roles`),
+  createRole: (workspaceId: string, data: { key: string; name: string; description?: string; permissions: string[]; rank?: number }) =>
+    fetchJSON<Role>(`/workspaces/${workspaceId}/roles`, { method: 'POST', body: JSON.stringify(data) }),
+  updateRole: (id: string, data: { name?: string; description?: string; permissions?: string[]; rank?: number }) =>
+    fetchJSON<Role>(`/roles/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteRole: (id: string) => fetchJSON<void>(`/roles/${id}`, { method: 'DELETE' }),
+  cloneRole: (id: string, newKey: string, newName?: string) =>
+    fetchJSON<Role>(`/roles/${id}/clone`, { method: 'POST', body: JSON.stringify({ new_key: newKey, new_name: newName }) }),
+
+  // Invitations
+  getInvitations: (workspaceId: string) => fetchJSON<Invitation[]>(`/workspaces/${workspaceId}/invitations`),
+  createInvitation: (workspaceId: string, email: string, roleId: string) =>
+    fetchJSON<CreatedInvitation>(`/workspaces/${workspaceId}/invitations`, { method: 'POST', body: JSON.stringify({ email, role_id: roleId }) }),
+  revokeInvitation: (id: string) => fetchJSON<void>(`/invitations/${id}`, { method: 'DELETE' }),
 
   // Agents & Settings
   getAgents: () => fetchJSON<Agent[]>(`/agents`),

@@ -220,6 +220,10 @@ export const REST_ROUTE_PERMISSIONS: RoutePattern[] = [
 
   // ── Users (MUS-32) — read-only workspace member list ──
   { method: 'GET', pattern: /^\/api\/v1\/users$/, permission: 'project.create', readOnly: true },
+
+  // ── Members (MUS-26) — role change and removal ──
+  { method: 'PUT', pattern: /\/workspaces\/[^/]+\/members\/[^/]+$/, permission: 'member.manage' },
+  { method: 'DELETE', pattern: /\/workspaces\/[^/]+\/members\/[^/]+$/, permission: 'member.manage' },
   { method: 'POST', pattern: /^\/api\/v1\/agents$/, permission: 'agent.register' },
   { method: 'POST', pattern: /\/agents\/[^/]+\/heartbeat$/, permission: 'project.create' },
   { method: 'PUT', pattern: /\/agents\/[^/]+$/, permission: 'agent.register' },
@@ -363,6 +367,23 @@ export function requireRestPermission(
 // ============================================================
 // MCP handler wrapper — wraps a tool handler with permission check
 // ============================================================
+
+/**
+ * A principal can never grant a permission it does not itself hold — the
+ * same "can't exceed yourself" rule the agent/operator intersection
+ * enforces (design doc §4), applied to role editing and role assignment.
+ * Open mode has no meaningful permission set to check against, so it is
+ * exempt like every other enforcement path.
+ */
+export function assertPermissionsGrantable(auth: AuthContext, permissions: string[]): void {
+  if (config.auth.mode === 'open') return;
+  if (auth.permissions.includes('workspace.admin')) return;
+  const held = new Set(auth.permissions);
+  const ungranted = permissions.filter(p => !held.has(p));
+  if (ungranted.length > 0) {
+    throw new PermissionDeniedError(ungranted.join(', '), auth.role_name || null);
+  }
+}
 
 export function withPermission<A extends Record<string, unknown>>(
   toolName: string,

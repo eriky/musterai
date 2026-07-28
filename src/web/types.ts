@@ -284,6 +284,33 @@ export interface AuthMe {
   admitted: boolean;
   user: { id: string; email: string | null; display_name: string; avatar_url: string | null; status: string } | null;
   role: string | null;
+  workspace: { id: string; name: string } | null;
+}
+
+export interface Role {
+  id: string;
+  workspace_id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  permissions: string[];
+  is_system: number;
+  rank: number;
+}
+
+export interface Invitation {
+  id: string;
+  workspace_id: string;
+  email: string;
+  role_id: string;
+  expires_at: string;
+  accepted_at: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface CreatedInvitation extends Invitation {
+  token: string;
 }
 
 export interface ApiToken {

@@ -9,6 +9,7 @@ import { DocumentVault } from './components/DocumentVault.js';
 import { TacticalTerminal } from './components/TacticalTerminal.js';
 import { KnowledgeBaseView } from './components/KnowledgeBase.js';
 import { TokensView } from './components/TokensView.js';
+import { WorkspaceAdmin } from './components/WorkspaceAdmin.js';
 import { ThemeProvider } from './ThemeContext.js';
 import {
   NewProjectModal,
@@ -19,7 +20,7 @@ import {
   NewDocModal,
 } from './components/Modals.js';
 
-type TabType = 'board' | 'agents' | 'docs' | 'activity' | 'kb' | 'tokens';
+type TabType = 'board' | 'agents' | 'docs' | 'activity' | 'kb' | 'tokens' | 'admin';
 
 // ─── URL Routing Helpers (HTML5 History API — No Hash) ─────────────────────────
 
@@ -29,7 +30,7 @@ function parseLocation(): { projectId: string | null; tab: TabType; docId: strin
   if (parts[0] === 'projects' && parts[1]) {
     const projectId = parts[1];
     const rawTab = parts[2];
-    const validTabs: TabType[] = ['board', 'agents', 'docs', 'activity', 'kb', 'tokens'];
+    const validTabs: TabType[] = ['board', 'agents', 'docs', 'activity', 'kb', 'tokens', 'admin'];
     const tab = validTabs.includes(rawTab as TabType) ? (rawTab as TabType) : 'board';
     const docId = tab === 'docs' && parts[3] ? parts[3] : null;
     const entityId = tab === 'kb' && parts[3] ? parts[3] : null;
@@ -82,6 +83,7 @@ export const App: React.FC = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [currentUser, setCurrentUser] = useState<AuthMe['user'] | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   // Modals visibility
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
@@ -215,7 +217,10 @@ export const App: React.FC = () => {
   // and per-user theme storage. Null in open/local mode (no OIDC session).
   useEffect(() => {
     api.getMe()
-      .then((me) => setCurrentUser(me.user))
+      .then((me) => {
+        setCurrentUser(me.user);
+        setWorkspaceId(me.workspace?.id || null);
+      })
       .catch((err) => console.error('Error loading current user:', err));
   }, []);
 
@@ -353,6 +358,7 @@ export const App: React.FC = () => {
             agents={agents}
             users={users}
             cards={cards}
+            workspaceId={workspaceId}
             onHeartbeat={handleAgentHeartbeat}
             onUnregisterAgent={handleUnregisterAgent}
             onOpenRegisterAgent={() => setShowRegisterAgentModal(true)}
@@ -421,6 +427,12 @@ export const App: React.FC = () => {
         )}
 
         {activeTab === 'tokens' && <TokensView />}
+
+        {activeTab === 'admin' && (
+          workspaceId
+            ? <WorkspaceAdmin workspaceId={workspaceId} currentUser={currentUser} />
+            : <div className="text-center py-16 muster-text-muted text-sm">No workspace found yet.</div>
+        )}
       </main>
 
 
