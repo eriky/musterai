@@ -651,8 +651,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
                   <div className="flex items-center space-x-1.5">
                     {column.wip_limit !== null && (
-                      <span className={`text-[10px] font-mono font-semibold ${isExceededWip ? 'muster-text-danger' : isAtWipLimit ? 'muster-text-warning' : 'text-neutral-500'}`}>
-                        WIP Limit: {column.wip_limit}
+                      <span
+                        title="WIP limit"
+                        className={`text-[10px] font-mono font-semibold ${isExceededWip ? 'muster-text-danger' : isAtWipLimit ? 'muster-text-warning' : 'text-neutral-500'}`}
+                      >
+                        {columnCards.length}/{column.wip_limit}
                       </span>
                     )}
 
