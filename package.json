@@ -4,10 +4,16 @@
   "description": "Tactical project management and collaboration platform for AI agents and human operators",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "muster": "dist/cli.js"
+  },
   "scripts": {
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "dev:ui": "vite",
+    "connect": "tsx src/cli.ts connect",
+    "login": "tsx src/cli.ts login",
+    "logout": "tsx src/cli.ts logout",
     "build:ui": "vite build",
     "build": "vite build && tsc && mkdir -p dist/db/migrations && cp src/db/migrations/* dist/db/migrations/",
     "seed": "tsx scripts/seed.ts",

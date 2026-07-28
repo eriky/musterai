@@ -1,7 +1,7 @@
 // File: src/web/App.tsx
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Project, Board, Column, Card, Agent, User, AuthMe, Document, Event, ProjectSummary } from './types.js';
-import { api, ApiError } from './api.js';
+import { api, ApiError, getLocalProxyToken } from './api.js';
 import { Header } from './components/Header.js';
 import { AgentGrid } from './components/AgentGrid.js';
 import { KanbanBoard } from './components/KanbanBoard.js';
@@ -84,6 +84,7 @@ export const App: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [currentUser, setCurrentUser] = useState<AuthMe['user'] | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // Modals visibility
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
@@ -141,6 +142,7 @@ export const App: React.FC = () => {
       setUsers(usersData);
       setDocuments(docsData);
       setEvents(eventsData);
+      setConnectionError(null);
 
 
       if (boardsData.length > 0) {
@@ -166,6 +168,10 @@ export const App: React.FC = () => {
         setDocuments([]);
         setEvents([]);
         loadProjects();
+      } else if (err instanceof ApiError && err.status === 502) {
+        // The local muster connect proxy couldn't reach the upstream
+        // server — never render this as a silent empty board.
+        setConnectionError('Cannot reach the Muster server. Retrying…');
       } else {
         console.error('Error loading project data:', err);
       }
@@ -233,7 +239,11 @@ export const App: React.FC = () => {
     if (!selectedProjectId) return;
 
     // 1. Real-Time SSE EventSource
-    const sseUrl = `/api/v1/projects/${selectedProjectId}/events/stream`;
+    // EventSource can't set an Authorization header, so under `muster
+    // connect` (MUS-27) the loopback token rides along as a query param —
+    // the proxy's requireLocalToken() gate accepts either.
+    const localToken = getLocalProxyToken();
+    const sseUrl = `/api/v1/projects/${selectedProjectId}/events/stream${localToken ? `?local_token=${encodeURIComponent(localToken)}` : ''}`;
     const eventSource = new EventSource(sseUrl);
 
     const handleEvent = (e: MessageEvent) => {
@@ -349,6 +359,11 @@ export const App: React.FC = () => {
         currentUser={currentUser}
       />
 
+      {connectionError && (
+        <div className="flex-none bg-danger-950 border-b border-danger-600/40 text-danger-300 text-xs font-sans px-4 py-2 text-center">
+          {connectionError}
+        </div>
+      )}
 
       {/* Main Full-Width View Area */}
       <main className="flex-1 flex flex-col min-h-0 w-full px-4 sm:px-6 lg:px-8 py-4 overflow-hidden">

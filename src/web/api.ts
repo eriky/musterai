@@ -10,10 +10,25 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Present only when this SPA is being served by `muster connect` (MUS-27) —
+ * the local proxy injects it into index.html. `muster serve` never sets it,
+ * so this is a no-op there. See src/connect/proxy.ts.
+ */
+export function getLocalProxyToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  return document.querySelector('meta[name="muster-local-token"]')?.getAttribute('content') || null;
+}
+
 async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
+
+  const localToken = getLocalProxyToken();
+  if (localToken) {
+    headers['Authorization'] = `Bearer ${localToken}`;
+  }
 
   const res = await fetch(`${API_BASE}${url}`, {
     headers: {
