@@ -891,6 +891,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         EPIC
                       </span>
                     )}
+                    {cardDetails.epic_progress && (
+                      <span
+                        className="muster-badge muster-badge-neutral"
+                        title={`${cardDetails.epic_progress.done} of ${cardDetails.epic_progress.total} child cards in a terminal column`}
+                      >
+                        {cardDetails.epic_progress.done}/{cardDetails.epic_progress.total}
+                      </span>
+                    )}
                     {getPriorityBadge(cardDetails.priority)}
                     {cardDetails.status === 'blocked' && (
                       <span className="px-2 py-0.5 rounded text-xs font-medium bg-danger-950/80 text-danger-300 border border-danger-500/50 flex items-center">

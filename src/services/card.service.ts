@@ -175,6 +175,9 @@ export class CardService {
 
     const linked_cards = await this.getLinkedCards(id, db);
     const work_links = await this.listWorkLinks(id, db);
+    const epic_progress = card.is_epic
+      ? await this.getEpicProgress(linked_cards, db)
+      : null;
 
     return {
       ...card,
@@ -189,7 +192,36 @@ export class CardService {
       linked_documents,
       linked_cards,
       work_links,
+      epic_progress,
     };
+  }
+
+  /**
+   * "6 of 13 done" for an Epic. Deliberately scoped to the single-card
+   * detail path (getById), not the board list — computing this per card on
+   * a board fetch would be an N+1 query for every board with an Epic on it.
+   * Children come from `linked_cards` (already fetched for this call), not
+   * a fresh query. Zero children returns null rather than "0/0" — an empty
+   * Epic hasn't been broken down yet, which reads differently from "not
+   * started".
+   */
+  private async getEpicProgress(
+    linkedCards: LinkedCardSummary[],
+    db: DatabaseAdapter
+  ): Promise<{ total: number; done: number } | null> {
+    const children = linkedCards.filter(l => l.relation_type === 'parent_of');
+    if (children.length === 0) return null;
+
+    const columnIds = [...new Set(children.map(c => c.card.column_id))];
+    const placeholders = columnIds.map(() => '?').join(', ');
+    const terminalRows = await db.query<{ id: string }>(
+      `SELECT id FROM "column" WHERE is_terminal = 1 AND id IN (${placeholders})`,
+      columnIds
+    );
+    const terminalColumnIds = new Set(terminalRows.map(r => r.id));
+    const done = children.filter(c => terminalColumnIds.has(c.card.column_id)).length;
+
+    return { total: children.length, done };
   }
 
   private async getLinkedCards(cardId: string, db: DatabaseAdapter = this.db): Promise<LinkedCardSummary[]> {

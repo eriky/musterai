@@ -298,6 +298,7 @@ interface NewColumnModalProps {
 export const NewColumnModal: React.FC<NewColumnModalProps> = ({ boardId, onClose, onSuccess }) => {
   const [name, setName] = useState('');
   const [wipLimit, setWipLimit] = useState<string>('');
+  const [isTerminal, setIsTerminal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -309,7 +310,7 @@ export const NewColumnModal: React.FC<NewColumnModalProps> = ({ boardId, onClose
     setError(null);
     try {
       const limit = wipLimit ? parseInt(wipLimit, 10) : undefined;
-      await api.createColumn(boardId, name, limit);
+      await api.createColumn(boardId, name, limit, isTerminal);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -364,6 +365,16 @@ export const NewColumnModal: React.FC<NewColumnModalProps> = ({ boardId, onClose
             />
           </div>
 
+          <label className="flex items-center space-x-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isTerminal}
+              onChange={(e) => setIsTerminal(e.target.checked)}
+              className="rounded border-muster-border bg-muster-base text-brand-600 focus:ring-brand-500 focus:ring-offset-0"
+            />
+            <span className="muster-label !mb-0">Terminal column (counts as "done" for Epic progress)</span>
+          </label>
+
           <div className="pt-3 flex justify-end space-x-2">
             <button
               type="button"
@@ -395,6 +406,7 @@ interface EditColumnModalProps {
 export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClose, onSuccess }) => {
   const [name, setName] = useState(column.name);
   const [wipLimit, setWipLimit] = useState<string>(column.wip_limit !== null && column.wip_limit !== undefined ? String(column.wip_limit) : '');
+  const [isTerminal, setIsTerminal] = useState(!!column.is_terminal);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -406,7 +418,7 @@ export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClos
     setError(null);
     try {
       const limit = wipLimit.trim() !== '' ? parseInt(wipLimit, 10) : null;
-      await api.updateColumn(column.id, { name: name.trim(), wip_limit: limit });
+      await api.updateColumn(column.id, { name: name.trim(), wip_limit: limit, is_terminal: isTerminal ? 1 : 0 });
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -460,6 +472,16 @@ export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClos
               className="muster-input"
             />
           </div>
+
+          <label className="flex items-center space-x-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={isTerminal}
+              onChange={(e) => setIsTerminal(e.target.checked)}
+              className="rounded border-muster-border bg-muster-base text-brand-600 focus:ring-brand-500 focus:ring-offset-0"
+            />
+            <span className="muster-label !mb-0">Terminal column (counts as "done" for Epic progress)</span>
+          </label>
 
           <div className="pt-3 flex justify-end space-x-2">
             <button

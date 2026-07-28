@@ -164,6 +164,8 @@ export interface Column {
   name: string;
   position: string;
   wip_limit: number | null;
+  /** Cards sitting in a terminal column count toward an Epic's "done" total. A board may flag more than one (e.g. both "Done" and an archival lane). Display-only — never changes a card's own `status`. */
+  is_terminal: number;
 }
 
 export interface CreateColumn {
@@ -171,12 +173,14 @@ export interface CreateColumn {
   name: string;
   position?: string;
   wip_limit?: number;
+  is_terminal?: boolean | number;
 }
 
 export interface UpdateColumn {
   name?: string;
   wip_limit?: number | null;
   position?: string;
+  is_terminal?: boolean | number;
 }
 
 // ============================================================
@@ -368,6 +372,8 @@ export interface CardDetails extends Card {
   linked_documents: DocumentSummary[];
   linked_cards: LinkedCardSummary[];
   work_links: CardWorkLink[];
+  /** Only computed for Epics with at least one child (null otherwise, including non-Epics — never "0/0"). `done` counts children currently sitting in a terminal column. */
+  epic_progress: { total: number; done: number } | null;
 }
 
 export type CardWorkLinkKind = 'branch' | 'pull_request' | 'commit' | 'pipeline';

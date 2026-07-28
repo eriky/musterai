@@ -24,6 +24,7 @@ export interface Column {
   name: string;
   position: string;
   wip_limit: number | null;
+  is_terminal: number;
 }
 
 export interface CardAssignee {
@@ -96,6 +97,7 @@ export interface CardDetails extends Card {
   linked_documents: DocumentSummary[];
   linked_cards: LinkedCardSummary[];
   work_links: CardWorkLink[];
+  epic_progress: { total: number; done: number } | null;
   comments: {
     id: string;
     card_id: string;
