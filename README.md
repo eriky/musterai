@@ -52,10 +52,11 @@ npm start
 
 Open **`http://localhost:3000`** in your browser. The MCP server is available at **`http://localhost:3000/mcp`**.
 
-By default Muster runs in **open mode** — no login required — whenever it's
-bound to `localhost`/`127.0.0.1` (the default). This is fine for solo/local
-use. Binding to any other host switches the default to **enforced mode**
-(OIDC login required for every request); see
+By default Muster runs in **open mode** — no login required — whenever
+`MUSTER_HOST` is unset, `localhost`, or `127.0.0.1`. This is fine for
+solo/local use. Any other value switches the default to **enforced mode**
+(OIDC login required for every request). Docker sets `MUSTER_HOST=0.0.0.0`, so
+containers always start in enforced mode. See
 [docs/deployment.md](docs/deployment.md) for OIDC setup, multi-user roles,
 PostgreSQL, and everything else needed for a shared/public deployment.
 
@@ -173,8 +174,8 @@ Muster exposes **54 MCP tools** across 7 categories. All tools communicate via s
 ### Boards & Columns (9)
 `list_boards` · `create_board` · `get_board` · `update_board` · `delete_board` · `create_column` · `update_column` · `move_column` · `delete_column`
 
-### Cards (18)
-`list_cards` · `create_card` · `get_card` · `update_card` · `move_card` · `delete_card` · `assign_card` · `unassign_card` · `add_comment` · `add_label` · `remove_label` · `archive_card` · `create_label` · `list_labels` · `link_card` · `unlink_card` · `link_document_to_card` · `unlink_document_from_card`
+### Cards (20)
+`list_cards` · `create_card` · `get_card` · `update_card` · `move_card` · `delete_card` · `assign_card` · `unassign_card` · `add_comment` · `update_comment` · `delete_comment` · `add_label` · `remove_label` · `archive_card` · `create_label` · `list_labels` · `link_card` · `unlink_card` · `link_document_to_card` · `unlink_document_from_card`
 
 ### Documents (6)
 `list_documents` · `create_document` · `get_document` · `update_document` · `set_document_status` · `get_document_history`

@@ -309,6 +309,34 @@ describe('Atomic card claiming and lease expiry', () => {
     expect(comment.author_id).toBe('local-agent-1');
   });
 
+  it('open mode: also honors agent_id as an alias for author_id (matches claim_card/assign_card convention)', async () => {
+    expect(config.auth.mode).toBe('open'); // sanity: this suite runs under the open-mode default
+
+    const project = await projectService.create({ name: 'Open Mode Agent Id Alias' });
+    const boards = await boardService.list(project.id);
+    const columns = await columnService.list(boards[0].id);
+    const card = await cardService.create({ column_id: columns[0].id, title: 'Local install comment via agent_id' });
+
+    const services: Services = {
+      projectService, boardService, columnService, cardService, commentService,
+      documentService, agentService, eventService, kbService, roleService: {} as RoleService,
+    };
+
+    const now = new Date().toISOString();
+    await db.execute('INSERT OR IGNORE INTO principal (id, kind, created_at) VALUES (?, ?, ?)', ['local-agent-2', 'agent', now]);
+
+    // Regression: the zod tool schema must declare `agent_id`, or the MCP SDK
+    // silently strips it before resolveActor() ever sees it, leaving no actor
+    // and tripping comment.author_id's NOT NULL constraint.
+    const server = createMcpServer(services, { headers: {} } as any) as any;
+    const result = await server._registeredTools['add_comment'].handler(
+      { card_id: card.id, agent_id: 'local-agent-2', content: 'Posted using agent_id instead of author_id' },
+      {}
+    );
+    const comment = JSON.parse(result.content[0].text);
+    expect(comment.author_id).toBe('local-agent-2');
+  });
+
   it('enforced mode: a caller-supplied author_id is ignored — the authenticated principal always wins', async () => {
     const originalMode = config.auth.mode;
     (config.auth as any).mode = 'enforced';
