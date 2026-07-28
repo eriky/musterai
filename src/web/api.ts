@@ -1,5 +1,5 @@
 // File: src/web/api.ts
-import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, User, AuthMe, Role, Invitation, CreatedInvitation, DeviceGrantInfo, McpAuthorizeDetails, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType, CreateCardWorkLink, ApiToken, CreatedApiToken } from './types.js';
+import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, User, AuthMe, Role, Invitation, CreatedInvitation, DeviceGrantInfo, McpAuthorizeDetails, AuditRecord, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType, CreateCardWorkLink, ApiToken, CreatedApiToken } from './types.js';
 
 const API_BASE = '/api/v1';
 
@@ -145,6 +145,15 @@ export const api = {
   mcpAuthorizeDetails: (queryString: string) => fetchJSON<McpAuthorizeDetails>(`/oauth/authorize/details?${queryString}`),
   mcpAuthorizeConsent: (payload: Record<string, string>) =>
     fetchJSON<{ redirect_uri: string }>(`/oauth/authorize/consent`, { method: 'POST', body: JSON.stringify(payload) }),
+
+  // Audit log (MUS-30)
+  getAuditLog: (workspaceId: string, filters: { actor_id?: string; action?: string } = {}) => {
+    const qs = new URLSearchParams();
+    if (filters.actor_id) qs.set('actor_id', filters.actor_id);
+    if (filters.action) qs.set('action', filters.action);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return fetchJSON<AuditRecord[]>(`/workspaces/${workspaceId}/audit-log${suffix}`);
+  },
 
   // Agents & Settings
   getAgents: () => fetchJSON<Agent[]>(`/agents`),

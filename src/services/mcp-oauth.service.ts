@@ -13,6 +13,7 @@ import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
 import { TokenService, hashToken } from './token.service.js';
 import { AgentService } from './agent.service.js';
+import { AuditService } from './audit.service.js';
 import { CreatedApiToken } from '../shared/types.js';
 
 const AUTH_CODE_TTL_SECONDS = 120;
@@ -72,6 +73,7 @@ export class McpOAuthService {
     private db: DatabaseAdapter,
     private tokenService: TokenService,
     private agentService: AgentService,
+    private auditService?: AuditService,
   ) {}
 
   async registerClient(data: { client_name?: string; redirect_uris: string[]; token_endpoint_auth_method?: string }): Promise<OAuthClient> {
@@ -208,12 +210,22 @@ export class McpOAuthService {
   }
 
   async revokeFamily(familyId: string): Promise<void> {
-    const rows = await this.db.query<{ current_api_token_id: string | null }>(
-      'SELECT current_api_token_id FROM oauth_refresh_token WHERE family_id = ? AND revoked = 0',
+    const rows = await this.db.query<{ current_api_token_id: string | null; agent_principal_id: string; workspace_id: string }>(
+      'SELECT current_api_token_id, agent_principal_id, workspace_id FROM oauth_refresh_token WHERE family_id = ? AND revoked = 0',
       [familyId],
     );
     for (const row of rows) {
-      if (row.current_api_token_id) await this.tokenService.revoke(row.current_api_token_id);
+      if (row.current_api_token_id) {
+        await this.tokenService.revoke(row.current_api_token_id);
+        await this.auditService?.log({
+          workspace_id: row.workspace_id,
+          actor: { id: row.agent_principal_id, kind: 'agent' },
+          action: 'token.revoke',
+          target_type: 'api_token',
+          target_id: row.current_api_token_id,
+          payload: { reason: 'refresh_token_reuse_detected', family_id: familyId },
+        });
+      }
     }
     await this.db.execute('UPDATE oauth_refresh_token SET revoked = 1 WHERE family_id = ?', [familyId]);
   }
@@ -239,6 +251,15 @@ export class McpOAuthService {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [hashToken(refreshToken), params.familyId, params.clientId, params.agentPrincipalId, params.workspaceId, params.resource, token.id, now],
     );
+
+    await this.auditService?.log({
+      workspace_id: params.workspaceId,
+      actor: { id: params.agentPrincipalId, kind: 'agent' },
+      action: 'token.create',
+      target_type: 'api_token',
+      target_id: token.id,
+      payload: { name: token.name, via: 'mcp_oauth', client_id: params.clientId },
+    });
 
     return { ok: true, token, refreshToken };
   }

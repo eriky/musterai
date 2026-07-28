@@ -23,6 +23,7 @@ import { InvitationService } from '../src/services/invitation.service.js';
 import { RoleService } from '../src/services/role.service.js';
 import { AgentService } from '../src/services/agent.service.js';
 import { TokenService } from '../src/services/token.service.js';
+import { AuditService } from '../src/services/audit.service.js';
 import { createAuthRouter } from '../src/api/routes/auth.routes.js';
 import { createAuthMiddleware } from '../src/api/middleware/auth.js';
 import { config } from '../src/config/index.js';
@@ -79,12 +80,13 @@ describe('MUS-25: auth routes (end-to-end over HTTP)', () => {
     invitationService = new InvitationService(db);
     const agentService = new AgentService(db);
     const tokenService = new TokenService(db);
+    const auditService = new AuditService(db);
 
     const app = express();
     app.use(express.json());
     app.use(createAuthMiddleware(db, tokenService, roleService, agentService, sessionService));
     const v1 = express.Router();
-    v1.use(createAuthRouter(db, oidcService, sessionService, userService, invitationService, roleService));
+    v1.use(createAuthRouter(db, oidcService, sessionService, userService, invitationService, roleService, auditService));
     app.use('/api/v1', v1);
 
     server = app.listen(0, '127.0.0.1');

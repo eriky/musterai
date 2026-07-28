@@ -19,6 +19,7 @@ import {
   UserService,
   DeviceGrantService,
   McpOAuthService,
+  AuditService,
 } from '../services/index.js';
 import { AuthContext, OPEN_AUTH_CONTEXT } from '../shared/auth-context.js';
 import { withPermission } from '../shared/permission-enforcer.js';
@@ -43,6 +44,7 @@ export interface Services {
   userService: UserService;
   deviceGrantService: DeviceGrantService;
   mcpOAuthService: McpOAuthService;
+  auditService: AuditService;
 }
 
 import { Request } from 'express';

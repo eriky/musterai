@@ -6,6 +6,7 @@ import { rankAfter } from '../shared/lexorank.js';
 import { formatCardKey } from '../shared/card-key.js';
 import { ValidationError } from '../shared/errors.js';
 import { config } from '../config/index.js';
+import { assertMaxLength, CARD_TEXT_MAX_CHARS } from '../shared/content-limits.js';
 
 function assertHttpUrl(url: string): void {
   let parsed: URL;
@@ -28,6 +29,7 @@ export class CardService {
   ) {}
 
   async create(data: CreateCard, actorId?: string): Promise<Card> {
+    assertMaxLength(data.description, CARD_TEXT_MAX_CHARS, 'Card description');
     const id = ulid();
     const created_at = new Date().toISOString();
     const updated_at = created_at;
@@ -306,6 +308,7 @@ export class CardService {
   }
 
   async update(id: string, data: UpdateCard, actorId?: string): Promise<CardDetails> {
+    assertMaxLength(data.description, CARD_TEXT_MAX_CHARS, 'Card description');
     const existing = await this.getById(id);
 
     const title = data.title !== undefined ? data.title : existing.title;

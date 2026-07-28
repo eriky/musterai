@@ -329,6 +329,20 @@ export interface McpAuthorizeDetails {
   roles: { id: string; name: string }[];
 }
 
+/** A privileged-action audit record (MUS-30) — security trail, never client-writable. */
+export interface AuditRecord {
+  id: string;
+  workspace_id: string | null;
+  actor_id: string | null;
+  actor_kind: 'user' | 'agent' | null;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  payload: Record<string, unknown> | null;
+  ip: string | null;
+  created_at: string;
+}
+
 export interface ApiToken {
   id: string;
   principal_id: string;

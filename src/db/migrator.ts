@@ -27,7 +27,17 @@ export class Migrator {
     const files = fs.readdirSync(targetDir).filter(f => f.endsWith('.sql')).sort();
     if (files.length === 0) return;
 
-    const sqlToRun = files.map(file => fs.readFileSync(path.join(targetDir, file), 'utf-8')).join('\n;\n');
+    // Splitting is a naive `;`-scan below, so `--` line comments are
+    // stripped first — a semicolon inside a comment (e.g. "one grant;
+    // rotating on reuse") would otherwise silently cut a CREATE TABLE in
+    // half and fail with a confusing "syntax error near ..." far from its
+    // actual cause. None of these files put `--` inside a string literal.
+    const stripLineComments = (sql: string): string =>
+      sql.split('\n').map(line => line.replace(/--.*$/, '')).join('\n');
+
+    const sqlToRun = files
+      .map(file => stripLineComments(fs.readFileSync(path.join(targetDir, file), 'utf-8')))
+      .join('\n;\n');
 
     const statements = sqlToRun
       .split(';')

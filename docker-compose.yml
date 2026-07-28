@@ -1,4 +1,9 @@
 # docker-compose.yml - Muster
+#
+# This is a local/solo getting-started config: it publishes port 3000 to
+# all interfaces with no TLS. Before running this on a public host, read
+# docs/deployment.md — change the ports mapping below to "127.0.0.1:3000:3000"
+# and put a TLS-terminating reverse proxy (Caddy/nginx) in front of it.
 version: '3.8'
 
 services:

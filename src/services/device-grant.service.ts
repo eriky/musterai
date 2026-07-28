@@ -8,6 +8,7 @@ import crypto from 'node:crypto';
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
 import { TokenService, hashToken } from './token.service.js';
+import { AuditService } from './audit.service.js';
 import { CreatedApiToken } from '../shared/types.js';
 
 const DEVICE_CODE_BYTES = 32;
@@ -39,7 +40,7 @@ function randomUserCode(): string {
 }
 
 export class DeviceGrantService {
-  constructor(private db: DatabaseAdapter, private tokenService: TokenService) {}
+  constructor(private db: DatabaseAdapter, private tokenService: TokenService, private auditService?: AuditService) {}
 
   async createDeviceCode(): Promise<DeviceCodeResult> {
     const deviceCode = crypto.randomBytes(DEVICE_CODE_BYTES).toString('hex');
@@ -141,6 +142,14 @@ export class DeviceGrantService {
       name: 'muster login (device)',
     });
     await this.db.execute('DELETE FROM device_grant WHERE id = ?', [row.id]);
+    await this.auditService?.log({
+      workspace_id: row.workspace_id,
+      actor: { id: row.principal_id, kind: 'user' },
+      action: 'token.create',
+      target_type: 'api_token',
+      target_id: token.id,
+      payload: { name: token.name, via: 'device_grant' },
+    });
     return { ok: true, token };
   }
 }

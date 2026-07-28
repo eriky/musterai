@@ -207,7 +207,15 @@ muster/
 | :--- | :--- | :--- |
 | `MUSTER_PORT` | `3000` | HTTP server listen port |
 | `MUSTER_DB_PATH` | `data/muster.db` | Path to the SQLite database file |
+| `MUSTER_AUTH_MODE` | derived from `MUSTER_HOST` | `open` (solo/localhost) or `enforced` (shared/public host) |
+| `MUSTER_PUBLIC_URL` | `http://localhost:<port>` | Required for a public deployment — see [docs/deployment.md](docs/deployment.md) |
 | `NODE_ENV` | `development` | Runtime environment |
+
+**Deploying on a shared, public host?** See **[docs/deployment.md](docs/deployment.md)**
+for the full environment variable reference, reverse-proxy configs (Caddy/nginx
+with TLS), SQLite backup/restore, and a pre-launch checklist. Publishing port
+3000 directly to the internet, without a reverse proxy in front of it, is not
+a supported deployment — that document explains why and what to do instead.
 
 ---
 
@@ -228,6 +236,12 @@ docker-compose down
 
 The platform will be available at `http://localhost:3000`.  
 Health telemetry: `http://localhost:3000/api/v1/health`
+
+⚠️ The `docker-compose.yml` in this repo publishes port 3000 to all
+interfaces (`0.0.0.0`) for local getting-started convenience. **Before
+exposing Muster on a public host, follow [docs/deployment.md](docs/deployment.md)**
+to put a TLS-terminating reverse proxy in front of it and bind Muster itself
+to loopback only.
 
 ---
 

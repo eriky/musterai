@@ -20,6 +20,11 @@ import { AgentService } from '../../services/agent.service.js';
 import { RoleService } from '../../services/role.service.js';
 import { AuthContext } from '../../shared/auth-context.js';
 import { config } from '../../config/index.js';
+import { createRateLimiter } from '../middleware/generic-rate-limiter.js';
+
+// Registration is cheap but unauthenticated — a flat per-IP cap keeps it
+// from being used to fill the oauth_client table.
+const registerRateLimiter = createRateLimiter({ windowMs: 60_000, max: 20, message: 'Too many client registrations. Try again later.' });
 
 export function canonicalMcpResource(): string {
   return `${config.oidc.publicUrl}/mcp`;
@@ -76,7 +81,7 @@ export function createMcpOAuthRouter(
   const router = Router();
 
   // ── RFC 7591 Dynamic Client Registration ──
-  router.post('/oauth/register', async (req: Request, res: Response) => {
+  router.post('/oauth/register', registerRateLimiter, async (req: Request, res: Response) => {
     try {
       const client = await oauthService.registerClient({
         client_name: req.body?.client_name,

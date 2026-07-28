@@ -19,6 +19,7 @@ import { SessionService } from '../../services/session.service.js';
 import { UserService } from '../../services/user.service.js';
 import { InvitationService } from '../../services/invitation.service.js';
 import { RoleService } from '../../services/role.service.js';
+import { AuditService } from '../../services/audit.service.js';
 import { DatabaseAdapter } from '../../db/adapter.js';
 import { config, isOidcConfigured } from '../../config/index.js';
 import { parseCookies, serializeCookie, clearCookieHeader } from '../../shared/cookies.js';
@@ -44,6 +45,7 @@ export function createAuthRouter(
   userService: UserService,
   invitationService: InvitationService,
   roleService: RoleService,
+  auditService: AuditService,
 ): Router {
   const router = Router();
 
@@ -96,6 +98,15 @@ export function createAuthRouter(
             if (invite) {
               await invitationService.accept(invite.id, user.id);
               admitted = true;
+              await auditService.log({
+                workspace_id: workspaceId,
+                actor: { id: user.id, kind: 'user' },
+                action: 'invitation.accept',
+                target_type: 'invitation',
+                target_id: invite.id,
+                payload: { email: result.email },
+                ip: req.ip || null,
+              });
             }
           }
         }
@@ -184,6 +195,14 @@ export function createAuthRouter(
         role_id,
         created_by: createdBy,
       });
+      await auditService.logAs(req.authContext, {
+        workspace_id: req.params.workspaceId,
+        action: 'invitation.create',
+        target_type: 'invitation',
+        target_id: invitation.id,
+        payload: { email, role_id },
+        ip: req.ip,
+      });
       res.status(201).json(invitation);
     } catch (err) {
       next(err);
@@ -201,7 +220,16 @@ export function createAuthRouter(
 
   router.delete('/invitations/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const invite = await invitationService.getById(req.params.id);
       await invitationService.revoke(req.params.id);
+      await auditService.logAs(req.authContext, {
+        workspace_id: invite?.workspace_id || null,
+        action: 'invitation.revoke',
+        target_type: 'invitation',
+        target_id: req.params.id,
+        payload: invite ? { email: invite.email } : undefined,
+        ip: req.ip,
+      });
       res.status(204).send();
     } catch (err) {
       next(err);

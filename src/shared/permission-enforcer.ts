@@ -269,6 +269,9 @@ export const REST_ROUTE_PERMISSIONS: RoutePattern[] = [
   { method: 'GET', pattern: /^\/api\/v1\/oauth\/authorize\/details$/, permission: 'project.create', readOnly: true },
   { method: 'POST', pattern: /^\/api\/v1\/oauth\/authorize\/consent$/, permission: 'project.create' },
 
+  // ── Audit log (MUS-30) — admin-only; a security record, not a collaboration feed ──
+  { method: 'GET', pattern: /^\/api\/v1\/workspaces\/[^/]+\/audit-log$/, permission: 'workspace.admin', readOnly: false },
+
   // ── Invitations (MUS-25) — auth/login/callback/logout/me are exempted in permissionGuard ──
   { method: 'GET', pattern: /\/workspaces\/[^/]+\/invitations$/, permission: 'member.invite', readOnly: true },
   { method: 'POST', pattern: /\/workspaces\/[^/]+\/invitations$/, permission: 'member.invite' },

@@ -39,8 +39,11 @@ import { InvitationService } from './services/invitation.service.js';
 import { UserService } from './services/user.service.js';
 import { DeviceGrantService } from './services/device-grant.service.js';
 import { McpOAuthService } from './services/mcp-oauth.service.js';
+import { AuditService } from './services/audit.service.js';
 import { createAuthMiddleware } from './api/middleware/auth.js';
 import { createWellKnownRouter, canonicalMcpResource } from './api/routes/mcp-oauth.routes.js';
+import { corsMiddleware, securityHeadersMiddleware } from './api/middleware/security.js';
+import { createRateLimiter } from './api/middleware/generic-rate-limiter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -65,9 +68,10 @@ export async function startServer(): Promise<void> {
   const oidcService = new OidcService(db);
   const invitationService = new InvitationService(db);
   const userService = new UserService(db);
-  const deviceGrantService = new DeviceGrantService(db, tokenService);
+  const auditService = new AuditService(db);
+  const deviceGrantService = new DeviceGrantService(db, tokenService, auditService);
   const agentService = new AgentService(db, eventService);
-  const mcpOAuthService = new McpOAuthService(db, tokenService, agentService);
+  const mcpOAuthService = new McpOAuthService(db, tokenService, agentService, auditService);
   const services: Services = {
     projectService: new ProjectService(db, eventService, boardService, documentService),
     boardService,
@@ -83,6 +87,7 @@ export async function startServer(): Promise<void> {
     sessionService,
     oidcService,
     invitationService,
+    auditService,
     deviceGrantService,
     mcpOAuthService,
     userService,
@@ -121,7 +126,14 @@ export async function startServer(): Promise<void> {
   const authMiddleware = createAuthMiddleware(db, tokenService, roleService, agentService, sessionService);
 
   const app = express();
-  app.use(express.json());
+  app.use(corsMiddleware);
+  app.use(securityHeadersMiddleware);
+  // Explicit, not the body-parser default — large enough for a real design
+  // doc (design doc §13 calls out "tens of KB" as normal), small enough
+  // that an unbounded body isn't a trivial DoS against a single-connection
+  // SQLite. Document/card content itself is capped tighter still — see
+  // document.service.ts / card.service.ts.
+  app.use(express.json({ limit: '5mb' }));
 
   // RFC 8615 well-known URIs must live at the true origin root, not under /api.
   app.use(createWellKnownRouter());
@@ -143,8 +155,19 @@ export async function startServer(): Promise<void> {
     app.use(express.static(publicDir));
   }
 
+  // Per-principal once authenticated (so one noisy agent doesn't throttle
+  // everyone else on the same box), falling back to per-IP before auth
+  // resolves — e.g. the unauthenticated request that triggers the 401 +
+  // WWW-Authenticate challenge in the first place (MUS-29).
+  const mcpRateLimiter = createRateLimiter({
+    windowMs: 60_000,
+    max: 300,
+    keyFn: (req) => (req as any).authContext?.principal?.id || req.ip || 'unknown',
+    message: 'Too many MCP requests. Slow down.',
+  });
+
   // MCP Streamable HTTP Transport
-  app.post('/mcp', async (req: Request, res: Response) => {
+  app.post('/mcp', mcpRateLimiter, async (req: Request, res: Response) => {
     const auth = (req as any).authContext || OPEN_AUTH_CONTEXT;
     const mcpServer = createMcpServer(services, req, auth);
 

@@ -1,6 +1,7 @@
 // File: src/api/routes/document.routes.ts
 import { Router, Request, Response, NextFunction } from 'express';
 import { DocumentService } from '../../services/document.service.js';
+import { AuditService } from '../../services/audit.service.js';
 import { AuthContext } from '../../shared/auth-context.js';
 
 function getActorId(req: Request): string | undefined {
@@ -8,7 +9,7 @@ function getActorId(req: Request): string | undefined {
   return auth?.principal?.id;
 }
 
-export function createDocumentRouter(documentService: DocumentService): Router {
+export function createDocumentRouter(documentService: DocumentService, auditService: AuditService): Router {
   const router = Router();
 
   router.get('/projects/:projectId/documents', async (req: Request, res: Response, next: NextFunction) => {
@@ -56,7 +57,17 @@ export function createDocumentRouter(documentService: DocumentService): Router {
 
   router.patch('/documents/:id/status', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const doc = await documentService.setStatus(req.params.id, req.body.status);
+      const doc = await documentService.setStatus(req.params.id, req.body.status, getActorId(req));
+      if (req.body.status === 'approved') {
+        const auth: AuthContext | undefined = (req as any).authContext;
+        await auditService.logAs(auth, {
+          action: 'document.approve',
+          target_type: 'document',
+          target_id: doc.id,
+          payload: { title: doc.title, project_id: doc.project_id },
+          ip: req.ip,
+        });
+      }
       res.json(doc);
     } catch (err) {
       next(err);

@@ -8,9 +8,10 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import { TokenService } from '../../services/token.service.js';
+import { AuditService } from '../../services/audit.service.js';
 import { AuthContext } from '../../shared/auth-context.js';
 
-export function createTokenRouter(tokenService: TokenService): Router {
+export function createTokenRouter(tokenService: TokenService, auditService: AuditService): Router {
   const router = Router();
 
   // List tokens for the authenticated principal
@@ -60,6 +61,13 @@ export function createTokenRouter(tokenService: TokenService): Router {
         name: name.trim(),
         expires_at: expires_at || null,
       });
+      await auditService.logAs(auth, {
+        action: 'token.create',
+        target_type: 'api_token',
+        target_id: created.id,
+        payload: { name: created.name, principal_id: principalId },
+        ip: req.ip,
+      });
 
       res.status(201).json(created);
     } catch (err) {
@@ -94,6 +102,13 @@ export function createTokenRouter(tokenService: TokenService): Router {
       }
 
       await tokenService.revoke(req.params.id);
+      await auditService.logAs(auth, {
+        action: 'token.revoke',
+        target_type: 'api_token',
+        target_id: req.params.id,
+        payload: { name: token.name },
+        ip: req.ip,
+      });
       res.status(200).json({ message: 'Token revoked', id: req.params.id });
     } catch (err) {
       next(err);

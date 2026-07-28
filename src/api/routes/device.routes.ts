@@ -21,8 +21,14 @@ import { McpOAuthService } from '../../services/mcp-oauth.service.js';
 import { AuthContext } from '../../shared/auth-context.js';
 import { config } from '../../config/index.js';
 import { getRetryAfterMs, recordFailedAttempt, recordSuccessfulAttempt } from '../middleware/rate-limiter.js';
+import { createRateLimiter } from '../middleware/generic-rate-limiter.js';
 
 const DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code';
+
+// Generous enough for legitimate device-flow polling (every `interval`
+// seconds, default 5s = ~12/min) plus normal authorization_code/refresh_token
+// traffic, while still bounding a script hammering the endpoint.
+const tokenRateLimiter = createRateLimiter({ windowMs: 60_000, max: 60, message: 'Too many token requests. Try again later.' });
 
 function normalizeCode(raw: unknown): string {
   return typeof raw === 'string' ? raw.trim().toUpperCase() : '';
@@ -65,7 +71,7 @@ export function createDeviceRouter(db: DatabaseAdapter, deviceGrantService: Devi
     }
   });
 
-  router.post('/oauth/token', async (req: Request, res: Response, next: NextFunction) => {
+  router.post('/oauth/token', tokenRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { grant_type } = req.body || {};
 
