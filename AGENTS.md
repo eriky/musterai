@@ -125,6 +125,13 @@ Comment on:
 - Architectural decisions made during implementation
 - Test results and verification outcomes
 
+`author_id` (or `agent_id` — both are accepted) is only needed on a local/open-mode
+install with no authenticated principal; it's self-asserted and trusted as given
+in that mode, and ignored (in favor of your real authenticated identity) on a
+hosted/enforced install. You can edit or delete your own comments afterward with
+`update_comment` / `delete_comment`; editing or deleting someone else's comment
+requires `workspace.admin`.
+
 ---
 
 ### Rule 5: Peer Review & Task Completion
@@ -222,6 +229,8 @@ Custom roles can be created via `create_role`, and system roles can be cloned vi
 | `assign_card` | Assign an agent to a card. |
 | `unassign_card` | Remove an agent assignment from a card. |
 | `add_comment` | Post a progress update, blocker note, or review comment to a card. |
+| `update_comment` | Edit a comment's content. Author-only, or `workspace.admin`. |
+| `delete_comment` | Delete a comment. Author-only, or `workspace.admin`. |
 | `add_label` | Attach a label to a card. |
 | `remove_label` | Remove a label from a card. |
 | `archive_card` | Archive a card (soft-delete, hidden from active board). |

@@ -24,6 +24,8 @@ export const ALL_PERMISSIONS = [
   'card.assign_self',
   'card.assign_others',
   'comment.create',
+  'comment.update',
+  'comment.delete',
   'doc.create',
   'doc.update',
   'doc.submit_review',
@@ -93,7 +95,7 @@ export const PRESET_ROLES: PresetRole[] = [
     description: 'Can work on assigned cards, create/submit docs, register agents — cannot delete, assign others, or approve',
     permissions: [
       'card.create', 'card.update', 'card.move', 'card.assign_self',
-      'card.claim', 'comment.create',
+      'card.claim', 'comment.create', 'comment.update', 'comment.delete',
       'doc.create', 'doc.submit_review',
       'kb.read', 'kb.write', 'agent.register',
     ],
@@ -106,7 +108,7 @@ export const PRESET_ROLES: PresetRole[] = [
     description: 'Create bug-report cards, update/move cards, comment, KB access',
     permissions: [
       'card.create', 'card.update', 'card.move',
-      'comment.create', 'kb.read', 'kb.write',
+      'comment.create', 'comment.update', 'comment.delete', 'kb.read', 'kb.write',
     ],
     is_system: true,
     rank: 20,

@@ -112,6 +112,26 @@ async function validateAgentOwnershipOrAdmin(
   await agentService.validateAgentOwnership(agentId, auth.principal.id);
 }
 
+/**
+ * Row-level scope check for comment.update/comment.delete: a principal may
+ * only edit/delete their own comments unless they hold workspace.admin.
+ * Mirrors the update_card/move_card "own resource" pattern for junior_engineer
+ * card scope — skipped entirely in open mode (no principal, no differential
+ * trust to enforce across).
+ */
+async function requireCommentOwnershipOrAdmin(
+  commentService: CommentService,
+  auth: AuthContext,
+  commentId: string,
+  action: 'edit' | 'delete',
+): Promise<void> {
+  if (auth.permissions.includes('workspace.admin') || !auth.principal) return;
+  const owns = await commentService.validateCommentOwnership(commentId, auth.principal.id);
+  if (!owns) {
+    throw new Error(`Forbidden: you may only ${action} your own comments (principal: ${auth.principal.id})`);
+  }
+}
+
 export function createMcpServer(services: Services, req?: Request, auth: AuthContext = OPEN_AUTH_CONTEXT): McpServer {
   const server = new McpServer({
     name: 'muster',
@@ -146,7 +166,7 @@ All AI agents and human operators collaborating within Muster must follow this p
 
 4. **Transparent Progress & Human-Readable Task Descriptions**:
    - Always state current work using full human-readable task titles and work summaries out loud (e.g. \`Muster Task: "Create user authentication middleware"\`), never raw ID strings like \`Work on card #01J3K...\`.
-   - Log key progress updates, code diffs, or blockers on cards using \`add_comment\`.
+   - Log key progress updates, code diffs, or blockers on cards using \`add_comment\`. On a local/open-mode install with no authenticated principal, pass your own \`agent_id\` (or \`author_id\`) with the call to attribute the comment to yourself — it is self-asserted and trusted as given in that mode. You can edit or delete your own comments afterward with \`update_comment\` / \`delete_comment\`.
 
 5. **Peer Review & Task Completion**:
    - Before moving a card to 'In Review', attach the branch, pull request, or commit you worked on via \`add_work_link\` — the human operator should never have to go find the work themselves.
@@ -362,12 +382,36 @@ All AI agents and human operators collaborating within Muster must follow this p
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
   }));
 
-  server.tool('add_comment', { card_id: z.string(), author_id: z.string().optional(), content: z.string() }, withPermission('add_comment', auth, async (args) => {
-    // author_id in args is only ever honored by resolveActor() in open mode
-    // (see its doc comment) — the authenticated principal wins otherwise.
+  server.tool('add_comment', {
+    card_id: z.string(),
+    content: z.string(),
+    author_id: z.string().optional().describe(
+      'Local/open-mode installs only: self-assert who is posting (e.g. your agent_id) when there is no authenticated principal to derive it from — trusted as given, since open mode has no per-caller auth to spoof. Ignored under enforced/hosted auth, where the authenticated principal always wins.'
+    ),
+    agent_id: z.string().optional().describe('Alias for author_id — accepted for consistency with claim_card/assign_card.'),
+  }, withPermission('add_comment', auth, async (args) => {
+    // author_id/agent_id in args are only ever honored by resolveActor() in
+    // open mode (see its doc comment) — the authenticated principal wins otherwise.
     const author_id = resolveActor(auth, args);
     const comment = await services.commentService.create({ ...args, author_id });
     return { content: [{ type: 'text', text: JSON.stringify(comment, null, 2) }] };
+  }));
+
+  server.tool('update_comment', {
+    comment_id: z.string(),
+    content: z.string(),
+  }, withPermission('update_comment', auth, async ({ comment_id, content }) => {
+    await requireCommentOwnershipOrAdmin(services.commentService, auth, comment_id, 'edit');
+    const comment = await services.commentService.update(comment_id, content, resolveActor(auth));
+    return { content: [{ type: 'text', text: JSON.stringify(comment, null, 2) }] };
+  }));
+
+  server.tool('delete_comment', {
+    comment_id: z.string(),
+  }, withPermission('delete_comment', auth, async ({ comment_id }) => {
+    await requireCommentOwnershipOrAdmin(services.commentService, auth, comment_id, 'delete');
+    await services.commentService.delete(comment_id, resolveActor(auth));
+    return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Comment ${comment_id} deleted` }) }] };
   }));
 
   server.tool('add_label', { card_id: z.string(), label_id: z.string() }, withPermission('add_label', auth, async ({ card_id, label_id }) => {

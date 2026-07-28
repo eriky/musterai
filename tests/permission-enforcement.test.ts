@@ -131,7 +131,7 @@ describe('MUS-22: Permission enforcement', () => {
       'create_column', 'update_column', 'move_column', 'delete_column',
       'list_cards', 'create_card', 'get_card', 'update_card', 'move_card',
       'claim_card', 'assign_card', 'unassign_card',
-      'add_comment', 'add_label', 'remove_label',
+      'add_comment', 'update_comment', 'delete_comment', 'add_label', 'remove_label',
       'archive_card', 'delete_card',
       'link_document_to_card', 'unlink_document_from_card',
       'link_card', 'unlink_card',
@@ -285,6 +285,83 @@ describe('MUS-22: Permission enforcement', () => {
     }
   });
 
+  // ================================================================
+  // MUS-36: comment ownership scope check (mirrors AC3 card scope)
+  // ================================================================
+  it('MUS-36: validateCommentOwnership — author-only, admin bypass handled by caller', async () => {
+    const project = await projectService.create({ name: 'Comment Scope Test' });
+    const boards = await boardService.list(project.id);
+    const columns = await columnService.list(boards[0].id);
+    const card = await cardService.create({ column_id: columns[0].id, title: 'Card' });
+
+    const now = new Date().toISOString();
+    await db.execute('INSERT INTO principal (id, kind, created_at) VALUES (?, ?, ?)', ['author-01', 'agent', now]);
+    await db.execute('INSERT INTO principal (id, kind, created_at) VALUES (?, ?, ?)', ['other-01', 'agent', now]);
+
+    const comment = await commentService.create({ card_id: card.id, author_id: 'author-01', content: 'Mine' });
+
+    try {
+      (config.auth as any).mode = 'enforced';
+      expect(await commentService.validateCommentOwnership(comment.id, 'author-01')).toBe(true);
+      expect(await commentService.validateCommentOwnership(comment.id, 'other-01')).toBe(false);
+    } finally {
+      (config.auth as any).mode = 'open';
+    }
+
+    // Open mode: scope enforcement is bypassed entirely.
+    expect(await commentService.validateCommentOwnership(comment.id, 'other-01')).toBe(true);
+  });
+
+  it('MUS-36: update_comment/delete_comment tools enforce author-only ownership, workspace.admin bypasses it', async () => {
+    const project = await projectService.create({ name: 'Comment Tool Scope' });
+    const boards = await boardService.list(project.id);
+    const columns = await columnService.list(boards[0].id);
+    const card = await cardService.create({ column_id: columns[0].id, title: 'Card' });
+
+    const now = new Date().toISOString();
+    await db.execute('INSERT INTO principal (id, kind, created_at) VALUES (?, ?, ?)', ['tool-author-01', 'user', now]);
+    await db.execute('INSERT INTO principal (id, kind, created_at) VALUES (?, ?, ?)', ['tool-other-01', 'user', now]);
+    await db.execute('INSERT INTO principal (id, kind, created_at) VALUES (?, ?, ?)', ['tool-admin-01', 'user', now]);
+
+    const comment = await commentService.create({ card_id: card.id, author_id: 'tool-author-01', content: 'Owned comment' });
+
+    const services: Services = {
+      projectService, boardService, columnService, cardService, commentService,
+      documentService, agentService, eventService, kbService, roleService,
+    };
+
+    const originalMode = config.auth.mode;
+    (config.auth as any).mode = 'enforced';
+    try {
+      // A different principal with comment.update/comment.delete may not touch someone else's comment.
+      const otherAuth = makeAuth(['comment.update', 'comment.delete'], 'junior_engineer', 'tool-other-01');
+      const otherServer = createMcpServer(services, { headers: {} } as any, otherAuth) as any;
+      await expect(
+        otherServer._registeredTools['update_comment'].handler({ comment_id: comment.id, content: 'Hijacked' }, {})
+      ).rejects.toThrow(/only edit your own comments/);
+      await expect(
+        otherServer._registeredTools['delete_comment'].handler({ comment_id: comment.id }, {})
+      ).rejects.toThrow(/only delete your own comments/);
+
+      // The author themselves may edit and then delete their own comment.
+      const authorAuth = makeAuth(['comment.update', 'comment.delete'], 'junior_engineer', 'tool-author-01');
+      const authorServer = createMcpServer(services, { headers: {} } as any, authorAuth) as any;
+      const updateResult = await authorServer._registeredTools['update_comment'].handler(
+        { comment_id: comment.id, content: 'Edited by author' }, {}
+      );
+      expect(JSON.parse(updateResult.content[0].text).content).toBe('Edited by author');
+
+      // workspace.admin may edit/delete comments it does not own.
+      const adminAuth = makeAuth(['comment.update', 'comment.delete', 'workspace.admin'], 'owner', 'tool-admin-01');
+      const adminServer = createMcpServer(services, { headers: {} } as any, adminAuth) as any;
+      const adminDelete = await adminServer._registeredTools['delete_comment'].handler({ comment_id: comment.id }, {});
+      expect(JSON.parse(adminDelete.content[0].text).success).toBe(true);
+      expect(await commentService.getById(comment.id)).toBeNull();
+    } finally {
+      (config.auth as any).mode = originalMode;
+    }
+  });
+
   it('AC3: getAgentIdsForPrincipal includes the principal if it is an agent', async () => {
     const now = new Date().toISOString();
     await db.execute('INSERT INTO principal (id, kind, created_at) VALUES (?, ?, ?)', ['direct-agent', 'agent', now]);
@@ -410,6 +487,8 @@ describe('MUS-22: Permission enforcement', () => {
     expect(TOOL_PERMISSIONS['delete_board']).toBe('board.manage');
     expect(TOOL_PERMISSIONS['archive_card']).toBe('card.archive');
     expect(TOOL_PERMISSIONS['add_comment']).toBe('comment.create');
+    expect(TOOL_PERMISSIONS['update_comment']).toBe('comment.update');
+    expect(TOOL_PERMISSIONS['delete_comment']).toBe('comment.delete');
     expect(TOOL_PERMISSIONS['register_agent']).toBe('agent.register');
     expect(TOOL_PERMISSIONS['create_role']).toBe('role.manage');
   });

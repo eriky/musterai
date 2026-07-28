@@ -103,6 +103,8 @@ export const TOOL_PERMISSIONS: Record<string, PermissionSpec> = {
 
   // ── Comment Tools ──
   add_comment: 'comment.create',
+  update_comment: 'comment.update',
+  delete_comment: 'comment.delete',
 
   // ── Document Tools ──
   list_documents: 'project.create',
@@ -200,6 +202,8 @@ export const REST_ROUTE_PERMISSIONS: RoutePattern[] = [
   { method: 'POST', pattern: /\/cards\/[^/]+\/labels$/, permission: 'card.update' },
   { method: 'DELETE', pattern: /\/cards\/[^/]+\/labels\/[^/]+$/, permission: 'card.update' },
   { method: 'POST', pattern: /\/cards\/[^/]+\/comments$/, permission: 'comment.create' },
+  { method: 'PUT', pattern: /\/cards\/[^/]+\/comments\/[^/]+$/, permission: 'comment.update' },
+  { method: 'DELETE', pattern: /\/cards\/[^/]+\/comments\/[^/]+$/, permission: 'comment.delete' },
   { method: 'POST', pattern: /\/cards\/[^/]+\/documents$/, permission: 'card.update' },
   { method: 'DELETE', pattern: /\/cards\/[^/]+\/documents\/[^/]+$/, permission: 'card.update' },
   { method: 'POST', pattern: /\/cards\/[^/]+\/links$/, permission: 'card.update' },

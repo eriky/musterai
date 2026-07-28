@@ -16,14 +16,34 @@ function getActorId(req: Request): string | undefined {
  * absent principal). See resolveActor() in src/mcp/server.ts for the full
  * rationale: open mode has no differential trust to spoof across, enforced
  * mode does, so the fallback must never fire there.
+ *
+ * Accepts either `author_id` or `agent_id` in the body — mirrors resolveActor()
+ * in src/mcp/server.ts, which supports both spellings for the same reason.
  */
 function getActorIdWithOpenModeFallback(req: Request): string | undefined {
   const principalId = getActorId(req);
   if (principalId) return principalId;
-  if (config.auth.mode === 'open' && typeof req.body?.author_id === 'string' && req.body.author_id.length > 0) {
-    return req.body.author_id;
+  if (config.auth.mode === 'open') {
+    const candidate = req.body?.author_id ?? req.body?.agent_id;
+    if (typeof candidate === 'string' && candidate.length > 0) return candidate;
   }
   return undefined;
+}
+
+/**
+ * Row-level scope check for comment PUT/DELETE: a principal may only edit or
+ * delete their own comments unless they hold workspace.admin. Mirrors
+ * requireCommentOwnershipOrAdmin() in src/mcp/server.ts.
+ */
+async function requireCommentOwnershipOrAdmin(
+  commentService: CommentService,
+  req: Request,
+  commentId: string,
+): Promise<boolean> {
+  const auth: AuthContext | undefined = (req as any).authContext;
+  if (!auth?.principal) return true; // open mode — no differential trust to enforce
+  if (auth.permissions.includes('workspace.admin')) return true;
+  return commentService.validateCommentOwnership(commentId, auth.principal.id);
 }
 
 export function createCardRouter(cardService: CardService, commentService: CommentService): Router {
@@ -99,11 +119,39 @@ export function createCardRouter(cardService: CardService, commentService: Comme
       // where there is no principal to derive from.
       const authorId = getActorIdWithOpenModeFallback(req);
       if (!authorId) {
-        res.status(400).json({ error: 'author_id is required' });
+        res.status(400).json({ error: 'author_id (or agent_id) is required' });
         return;
       }
       const comment = await commentService.create({ ...req.body, author_id: authorId, card_id: req.params.id });
       res.status(201).json(comment);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.put('/cards/:id/comments/:commentId', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const allowed = await requireCommentOwnershipOrAdmin(commentService, req, req.params.commentId);
+      if (!allowed) {
+        res.status(403).json({ error: 'forbidden', message: 'You may only edit your own comments' });
+        return;
+      }
+      const comment = await commentService.update(req.params.commentId, req.body.content, getActorId(req));
+      res.json(comment);
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete('/cards/:id/comments/:commentId', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const allowed = await requireCommentOwnershipOrAdmin(commentService, req, req.params.commentId);
+      if (!allowed) {
+        res.status(403).json({ error: 'forbidden', message: 'You may only delete your own comments' });
+        return;
+      }
+      await commentService.delete(req.params.commentId, getActorId(req));
+      res.status(204).end();
     } catch (err) {
       next(err);
     }

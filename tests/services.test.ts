@@ -189,7 +189,25 @@ describe('Domain Services Integration Tests', () => {
     await expect(cardService.getById(card.id)).rejects.toThrow('not found');
   });
 
+  it('MUS-36: commentService.update edits content, .delete removes the comment', async () => {
+    const project = await projectService.create({ name: 'P' });
+    const boards = await boardService.list(project.id);
+    const columns = await columnService.list(boards[0].id);
+    const card = await cardService.create({ column_id: columns[0].id, title: 'Card 1' });
+    const agent = await agentService.register({ name: 'Agent 1', capabilities: 'code', status: 'active' });
 
+    const comment = await commentService.create({ card_id: card.id, author_id: agent.id, content: 'Original' });
+
+    const updated = await commentService.update(comment.id, 'Edited', agent.id);
+    expect(updated.content).toBe('Edited');
+    expect((await commentService.getById(comment.id))!.content).toBe('Edited');
+
+    await commentService.delete(comment.id, agent.id);
+    expect(await commentService.getById(comment.id)).toBeNull();
+
+    await expect(commentService.update('nonexistent', 'x')).rejects.toThrow('not found');
+    await expect(commentService.delete('nonexistent')).rejects.toThrow('not found');
+  });
 
   it('registers and unregisters an agent cleanly', async () => {
     const project = await projectService.create({ name: 'P' });
