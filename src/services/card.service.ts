@@ -225,18 +225,20 @@ export class CardService {
   }
 
   private async getLinkedCards(cardId: string, db: DatabaseAdapter = this.db): Promise<LinkedCardSummary[]> {
-    type LinkRow = { id: string; relation_type: string; other_id: string; other_title: string; other_column_id: string; other_status: string; other_priority: string; other_archived: number };
+    type LinkRow = { id: string; relation_type: string; other_id: string; other_key: string; other_title: string; other_column_id: string; other_column_name: string; other_status: string; other_priority: string; other_archived: number };
 
     const outgoing = await db.query<LinkRow>(
-      `SELECT cl.id, cl.relation_type, c.id as other_id, c.title as other_title, c.column_id as other_column_id, c.status as other_status, c.priority as other_priority, c.archived as other_archived
+      `SELECT cl.id, cl.relation_type, c.id as other_id, c.key as other_key, c.title as other_title, c.column_id as other_column_id, col.name as other_column_name, c.status as other_status, c.priority as other_priority, c.archived as other_archived
        FROM card_link cl JOIN card c ON c.id = cl.target_card_id
+       JOIN "column" col ON col.id = c.column_id
        WHERE cl.source_card_id = ?`,
       [cardId]
     );
 
     const incoming = await db.query<LinkRow>(
-      `SELECT cl.id, cl.relation_type, c.id as other_id, c.title as other_title, c.column_id as other_column_id, c.status as other_status, c.priority as other_priority, c.archived as other_archived
+      `SELECT cl.id, cl.relation_type, c.id as other_id, c.key as other_key, c.title as other_title, c.column_id as other_column_id, col.name as other_column_name, c.status as other_status, c.priority as other_priority, c.archived as other_archived
        FROM card_link cl JOIN card c ON c.id = cl.source_card_id
+       JOIN "column" col ON col.id = c.column_id
        WHERE cl.target_card_id = ?`,
       [cardId]
     );
@@ -246,8 +248,10 @@ export class CardService {
       relation_type,
       card: {
         id: row.other_id,
+        key: row.other_key,
         title: row.other_title,
         column_id: row.other_column_id,
+        column_name: row.other_column_name,
         status: row.other_status as LinkedCardSummary['card']['status'],
         priority: row.other_priority as LinkedCardSummary['card']['priority'],
         archived: row.other_archived,

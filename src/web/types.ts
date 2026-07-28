@@ -145,8 +145,10 @@ export interface LinkedCardSummary {
   relation_type: CardLinkRelationType;
   card: {
     id: string;
+    key: string;
     title: string;
     column_id: string;
+    column_name: string;
     status: 'active' | 'blocked' | 'in_review';
     priority: 'critical' | 'high' | 'medium' | 'low';
     archived: number;

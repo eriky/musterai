@@ -417,8 +417,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     }
   };
 
-  const handleUnlinkCard = async (linkId: string) => {
+  const handleUnlinkCard = async (linkId: string, otherCardTitle: string) => {
     if (!selectedCardId) return;
+    if (!confirm(`Remove the link to "${otherCardTitle}"? This does not delete the card, only the relationship.`)) return;
     try {
       const updated = await api.unlinkCard(selectedCardId, linkId);
       setCardDetails(updated);
@@ -1310,6 +1311,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                           <span className={`muster-badge ${CARD_LINK_BADGE_CLASSES[link.relation_type]} flex-shrink-0`}>
                             {CARD_LINK_RELATION_LABELS[link.relation_type]}
                           </span>
+                          <span className="font-mono text-[10px] text-neutral-500 group-hover:text-info-400 flex-shrink-0">
+                            {link.card.key}
+                          </span>
                           <span className="text-xs font-sans text-neutral-200 group-hover:text-info-300 truncate font-semibold">
                             {link.card.title}
                           </span>
@@ -1317,16 +1321,21 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             <span className="muster-badge muster-badge-neutral flex-shrink-0">archived</span>
                           ) : null}
                         </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleUnlinkCard(link.id);
-                          }}
-                          className="muster-btn muster-btn-icon muster-btn-ghost-danger opacity-0 group-hover:opacity-100 flex-shrink-0"
-                          title="Unlink card"
-                        >
-                          <Unlink className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center space-x-1.5 flex-shrink-0">
+                          <span className="muster-badge muster-badge-neutral flex-shrink-0" title="Current lane">
+                            {link.card.column_name}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUnlinkCard(link.id, link.card.title);
+                            }}
+                            className="muster-btn muster-btn-icon muster-btn-ghost-danger opacity-0 group-hover:opacity-100 flex-shrink-0"
+                            title="Unlink card"
+                          >
+                            <Unlink className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     ))
                   ) : (
