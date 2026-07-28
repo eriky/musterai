@@ -3,10 +3,27 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { CardService } from '../../services/card.service.js';
 import { CommentService } from '../../services/comment.service.js';
 import { AuthContext } from '../../shared/auth-context.js';
+import { config } from '../../config/index.js';
 
 function getActorId(req: Request): string | undefined {
   const auth: AuthContext | undefined = (req as any).authContext;
   return auth?.principal?.id;
+}
+
+/**
+ * Like getActorId, but falls back to a caller-supplied identity hint in the
+ * request body — ONLY in open mode (checked explicitly, not inferred from an
+ * absent principal). See resolveActor() in src/mcp/server.ts for the full
+ * rationale: open mode has no differential trust to spoof across, enforced
+ * mode does, so the fallback must never fire there.
+ */
+function getActorIdWithOpenModeFallback(req: Request): string | undefined {
+  const principalId = getActorId(req);
+  if (principalId) return principalId;
+  if (config.auth.mode === 'open' && typeof req.body?.author_id === 'string' && req.body.author_id.length > 0) {
+    return req.body.author_id;
+  }
+  return undefined;
 }
 
 export function createCardRouter(cardService: CardService, commentService: CommentService): Router {
@@ -80,7 +97,7 @@ export function createCardRouter(cardService: CardService, commentService: Comme
       // Identity is derived from the credential whenever one resolved a
       // principal; the body's author_id is only a fallback for open mode,
       // where there is no principal to derive from.
-      const authorId = getActorId(req) || req.body.author_id;
+      const authorId = getActorIdWithOpenModeFallback(req);
       if (!authorId) {
         res.status(400).json({ error: 'author_id is required' });
         return;

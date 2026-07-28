@@ -20,6 +20,7 @@ import {
 import { createMcpServer, Services } from '../src/mcp/server.js';
 import { AuthContext } from '../src/shared/auth-context.js';
 import { ClaimRefusal, CardDetails } from '../src/shared/types.js';
+import { config } from '../src/config/index.js';
 
 const TEST_DB = path.join(process.cwd(), 'data', 'test-card-claim.db');
 
@@ -280,5 +281,70 @@ describe('Atomic card claiming and lease expiry', () => {
     await expect(
       server._registeredTools['add_comment'].handler({ card_id: card.id, content: 'Whose comment is this?' }, {})
     ).rejects.toThrow();
+  });
+
+  it('open mode: honors a caller-supplied author_id when no principal is authenticated', async () => {
+    expect(config.auth.mode).toBe('open'); // sanity: this suite runs under the open-mode default
+
+    const project = await projectService.create({ name: 'Open Mode Self-Asserted Author' });
+    const boards = await boardService.list(project.id);
+    const columns = await columnService.list(boards[0].id);
+    const card = await cardService.create({ column_id: columns[0].id, title: 'Local install comment' });
+
+    const services: Services = {
+      projectService, boardService, columnService, cardService, commentService,
+      documentService, agentService, eventService, kbService, roleService: {} as RoleService,
+    };
+
+    const now = new Date().toISOString();
+    await db.execute('INSERT OR IGNORE INTO principal (id, kind, created_at) VALUES (?, ?, ?)', ['local-agent-1', 'agent', now]);
+
+    // No auth principal (OPEN_AUTH_CONTEXT default) — identity comes only from args.
+    const server = createMcpServer(services, { headers: {} } as any) as any;
+    const result = await server._registeredTools['add_comment'].handler(
+      { card_id: card.id, author_id: 'local-agent-1', content: 'Posted from a local install' },
+      {}
+    );
+    const comment = JSON.parse(result.content[0].text);
+    expect(comment.author_id).toBe('local-agent-1');
+  });
+
+  it('enforced mode: a caller-supplied author_id is ignored — the authenticated principal always wins', async () => {
+    const originalMode = config.auth.mode;
+    (config.auth as any).mode = 'enforced';
+    try {
+      const project = await projectService.create({ name: 'Enforced Mode Anti-Spoof' });
+      const boards = await boardService.list(project.id);
+      const columns = await columnService.list(boards[0].id);
+      const card = await cardService.create({ column_id: columns[0].id, title: 'Hosted install comment' });
+
+      const services: Services = {
+        projectService, boardService, columnService, cardService, commentService,
+        documentService, agentService, eventService, kbService, roleService: {} as RoleService,
+      };
+
+      const now = new Date().toISOString();
+      await db.execute('INSERT OR IGNORE INTO principal (id, kind, created_at) VALUES (?, ?, ?)', ['real-authenticated-user', 'user', now]);
+
+      const auth: AuthContext = {
+        principal: { kind: 'user', id: 'real-authenticated-user' },
+        workspace_id: null,
+        permissions: ['comment.create'],
+        is_operator_override: false,
+        role_name: null,
+      };
+      const server = createMcpServer(services, { headers: {} } as any, auth) as any;
+
+      // Attempt to impersonate a different principal via args — must be ignored.
+      const result = await server._registeredTools['add_comment'].handler(
+        { card_id: card.id, author_id: 'someone-else-entirely', content: 'Who really posted this?' },
+        {}
+      );
+      const comment = JSON.parse(result.content[0].text);
+      expect(comment.author_id).toBe('real-authenticated-user');
+      expect(comment.author_id).not.toBe('someone-else-entirely');
+    } finally {
+      (config.auth as any).mode = originalMode;
+    }
   });
 });

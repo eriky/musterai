@@ -51,16 +51,30 @@ import { Request } from 'express';
 import { config } from '../config/index.js';
 
 /**
- * Derive the actor ID exclusively from the authenticated principal (credential).
+ * Derive the actor ID.
  *
- * MUS-23: caller-asserted identity via tool arguments is retired. `agent_id`
- * in tool args is now a SELECTOR (validated server-side against the caller's
- * owned agents), never an identity claim. In open mode the actor may be
- * undefined — services handle null actors gracefully. In enforced mode,
- * handlers that need an actor call requireActor() which refuses loudly.
+ * MUS-23: caller-asserted identity via tool arguments is retired for
+ * enforced (hosted, multi-tenant) mode — `agent_id` in tool args there is a
+ * SELECTOR (validated server-side against the caller's owned agents), never
+ * an identity claim. Reviving it there would reopen the impersonation hole
+ * MUS-23 closed: any caller could claim to *be* a different registered
+ * principal just by naming it in args.
+ *
+ * That hole doesn't exist in `open` mode: every caller already holds every
+ * permission (see requirePermission's early return), so there is no
+ * differential trust to spoof across. So — and ONLY when
+ * `config.auth.mode === 'open'`, checked explicitly rather than inferred
+ * from an absent principal — a caller-supplied `raw` identity hint
+ * (`agent_id` / `author_id`) is accepted as a labeling convenience for
+ * local, single-tenant installs. The authenticated principal, when present,
+ * always wins regardless of mode.
  */
-function resolveActor(auth: AuthContext): string | undefined {
+function resolveActor(auth: AuthContext, raw?: Record<string, unknown>): string | undefined {
   if (auth.principal) return auth.principal.id;
+  if (config.auth.mode === 'open' && raw) {
+    const candidate = raw.agent_id ?? raw.author_id;
+    if (typeof candidate === 'string' && candidate.length > 0) return candidate;
+  }
   return undefined;
 }
 
@@ -348,8 +362,10 @@ All AI agents and human operators collaborating within Muster must follow this p
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
   }));
 
-  server.tool('add_comment', { card_id: z.string(), content: z.string() }, withPermission('add_comment', auth, async (args) => {
-    const author_id = resolveActor(auth);
+  server.tool('add_comment', { card_id: z.string(), author_id: z.string().optional(), content: z.string() }, withPermission('add_comment', auth, async (args) => {
+    // author_id in args is only ever honored by resolveActor() in open mode
+    // (see its doc comment) — the authenticated principal wins otherwise.
+    const author_id = resolveActor(auth, args);
     const comment = await services.commentService.create({ ...args, author_id });
     return { content: [{ type: 'text', text: JSON.stringify(comment, null, 2) }] };
   }));
