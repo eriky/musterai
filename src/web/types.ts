@@ -321,6 +321,14 @@ export interface DeviceGrantInfo {
   role_name: string | null;
 }
 
+/** What the MCP-native OAuth consent screen shows before the user picks an agent identity + role. */
+export interface McpAuthorizeDetails {
+  client_name: string;
+  resource: string;
+  agents: { id: string; name: string; role_id: string | null }[];
+  roles: { id: string; name: string }[];
+}
+
 export interface ApiToken {
   id: string;
   principal_id: string;

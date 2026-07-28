@@ -15,4 +15,5 @@ export * from './oidc.service.js';
 export * from './invitation.service.js';
 export * from './user.service.js';
 export * from './device-grant.service.js';
+export * from './mcp-oauth.service.js';
 

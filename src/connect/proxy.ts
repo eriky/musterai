@@ -133,7 +133,9 @@ export function createConnectApp(options: ConnectProxyOptions): express.Express 
 
   const spaShell = serveSpaShell(publicDir, options.localToken);
   app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/mcp')) {
+    // Exact match on /mcp — not startsWith, which would also swallow the
+    // SPA's own /mcp/authorize consent screen (MUS-29).
+    if (req.path.startsWith('/api') || req.path === '/mcp') {
       next();
       return;
     }

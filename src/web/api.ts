@@ -1,5 +1,5 @@
 // File: src/web/api.ts
-import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, User, AuthMe, Role, Invitation, CreatedInvitation, DeviceGrantInfo, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType, CreateCardWorkLink, ApiToken, CreatedApiToken } from './types.js';
+import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, User, AuthMe, Role, Invitation, CreatedInvitation, DeviceGrantInfo, McpAuthorizeDetails, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType, CreateCardWorkLink, ApiToken, CreatedApiToken } from './types.js';
 
 const API_BASE = '/api/v1';
 
@@ -140,6 +140,11 @@ export const api = {
   deviceLookup: (userCode: string) => fetchJSON<DeviceGrantInfo>(`/oauth/device/lookup?user_code=${encodeURIComponent(userCode)}`),
   deviceApprove: (userCode: string) => fetchJSON<{ message: string }>(`/oauth/device/approve`, { method: 'POST', body: JSON.stringify({ user_code: userCode }) }),
   deviceDeny: (userCode: string) => fetchJSON<{ message: string }>(`/oauth/device/deny`, { method: 'POST', body: JSON.stringify({ user_code: userCode }) }),
+
+  // MCP-native OAuth (MUS-29) — the `claude mcp add` consent screen
+  mcpAuthorizeDetails: (queryString: string) => fetchJSON<McpAuthorizeDetails>(`/oauth/authorize/details?${queryString}`),
+  mcpAuthorizeConsent: (payload: Record<string, string>) =>
+    fetchJSON<{ redirect_uri: string }>(`/oauth/authorize/consent`, { method: 'POST', body: JSON.stringify(payload) }),
 
   // Agents & Settings
   getAgents: () => fetchJSON<Agent[]>(`/agents`),

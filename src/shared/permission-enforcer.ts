@@ -265,6 +265,10 @@ export const REST_ROUTE_PERMISSIONS: RoutePattern[] = [
   { method: 'POST', pattern: /^\/api\/v1\/oauth\/device\/approve$/, permission: 'project.create' },
   { method: 'POST', pattern: /^\/api\/v1\/oauth\/device\/deny$/, permission: 'project.create' },
 
+  // ── MCP-native OAuth (MUS-29) — register/authorize are exempted in permissionGuard; these two run as the signed-in approver ──
+  { method: 'GET', pattern: /^\/api\/v1\/oauth\/authorize\/details$/, permission: 'project.create', readOnly: true },
+  { method: 'POST', pattern: /^\/api\/v1\/oauth\/authorize\/consent$/, permission: 'project.create' },
+
   // ── Invitations (MUS-25) — auth/login/callback/logout/me are exempted in permissionGuard ──
   { method: 'GET', pattern: /\/workspaces\/[^/]+\/invitations$/, permission: 'member.invite', readOnly: true },
   { method: 'POST', pattern: /\/workspaces\/[^/]+\/invitations$/, permission: 'member.invite' },

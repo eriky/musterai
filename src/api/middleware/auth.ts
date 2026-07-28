@@ -28,8 +28,36 @@ import { getRetryAfterMs, recordFailedAttempt, recordSuccessfulAttempt } from '.
 export const SESSION_COOKIE_NAME = 'muster_session';
 
 const AUTH_ROUTE_PREFIX = '/api/v1/auth/';
-/** Device Authorization Grant (MUS-28) bootstrap endpoints — reachable with no credential, same reasoning as AUTH_ROUTE_PREFIX. Only these two: lookup/approve/deny require a real session. */
-const PUBLIC_DEVICE_ROUTES = ['/api/v1/oauth/device/code', '/api/v1/oauth/token'];
+/**
+ * Bootstrap endpoints reachable with no credential — the mechanism by which
+ * a principal or client is established in the first place, same reasoning
+ * as AUTH_ROUTE_PREFIX:
+ *   - device/code, token — Device Authorization Grant (MUS-28)
+ *   - register — RFC 7591 dynamic client registration (MUS-29)
+ *   - authorize (GET only) — validates the request and hands off to the SPA
+ *     consent screen, which itself requires a session; authorize/details and
+ *     authorize/consent are NOT in this list for exactly that reason.
+ */
+const PUBLIC_DEVICE_ROUTES = [
+  '/api/v1/oauth/device/code',
+  '/api/v1/oauth/token',
+  '/api/v1/oauth/register',
+  '/api/v1/oauth/authorize',
+];
+
+/**
+ * A 401 to /mcp specifically must look like an OAuth resource-server
+ * challenge (MCP Authorization spec / RFC 9728) — the WWW-Authenticate
+ * header naming the protected-resource metadata URL is what tells a
+ * spec-compliant MCP client to go start the OAuth flow (MUS-29) instead of
+ * just failing. Every other 401 (plain REST API calls) is unaffected.
+ */
+function send401(req: Request, res: Response, body: { error: string; message: string }): void {
+  if (req.path === '/mcp') {
+    res.setHeader('WWW-Authenticate', `Bearer resource_metadata="${config.oidc.publicUrl}/.well-known/oauth-protected-resource"`);
+  }
+  res.status(401).json(body);
+}
 
 /** Resolve a user's effective permissions and role name within a workspace. */
 async function resolveUserPermissions(
@@ -65,6 +93,15 @@ export function createAuthMiddleware(
 ) {
   return async function authMiddleware(req: Request, _res: Response, next: NextFunction): Promise<void> {
     try {
+      // Only /api and /mcp ever read req.authContext — everything else
+      // (static assets, the SPA shell) must load with no credential at
+      // all, or an unauthenticated visitor could never reach the page
+      // that has the "Sign in" button on it in enforced mode.
+      if (!req.path.startsWith('/api/') && req.path !== '/mcp') {
+        next();
+        return;
+      }
+
       const authHeader = req.headers.authorization;
       const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
       const isAuthRoute = req.path.startsWith(AUTH_ROUTE_PREFIX) || PUBLIC_DEVICE_ROUTES.includes(req.path);
@@ -88,10 +125,7 @@ export function createAuthMiddleware(
         if (parts.length !== 2 || parts[0] !== 'Bearer') {
           recordFailedAttempt(clientIp);
           if (config.auth.mode === 'enforced' && !isAuthRoute) {
-            _res.status(401).json({
-              error: 'unauthorized',
-              message: 'Malformed Authorization header. Expected: Bearer <token>',
-            });
+            send401(req, _res, { error: 'unauthorized', message: 'Malformed Authorization header. Expected: Bearer <token>' });
             return;
           }
           (req as any).authContext = OPEN_AUTH_CONTEXT;
@@ -105,10 +139,7 @@ export function createAuthMiddleware(
         if (!verification) {
           recordFailedAttempt(clientIp);
           if (config.auth.mode === 'enforced' && !isAuthRoute) {
-            _res.status(401).json({
-              error: 'unauthorized',
-              message: 'Invalid or expired token.',
-            });
+            send401(req, _res, { error: 'unauthorized', message: 'Invalid or expired token.' });
             return;
           }
           (req as any).authContext = OPEN_AUTH_CONTEXT;
@@ -160,7 +191,7 @@ export function createAuthMiddleware(
         if (!verification) {
           recordFailedAttempt(clientIp);
           if (config.auth.mode === 'enforced' && !isAuthRoute) {
-            _res.status(401).json({ error: 'unauthorized', message: 'Session is invalid or has expired.' });
+            send401(req, _res, { error: 'unauthorized', message: 'Session is invalid or has expired.' });
             return;
           }
           (req as any).authContext = OPEN_AUTH_CONTEXT;
@@ -187,10 +218,7 @@ export function createAuthMiddleware(
 
       // No credential at all — use OPEN_AUTH_CONTEXT in open mode or on the auth routes, 401 in enforced
       if (config.auth.mode === 'enforced' && !isAuthRoute) {
-        _res.status(401).json({
-          error: 'unauthorized',
-          message: 'Authentication required. Provide a Bearer token or sign in.',
-        });
+        send401(req, _res, { error: 'unauthorized', message: 'Authentication required. Provide a Bearer token or sign in.' });
         return;
       }
       (req as any).authContext = OPEN_AUTH_CONTEXT;

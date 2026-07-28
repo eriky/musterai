@@ -17,6 +17,7 @@ import { createTokenRouter } from './routes/token.routes.js';
 import { createAuthRouter } from './routes/auth.routes.js';
 import { createUserRouter } from './routes/user.routes.js';
 import { createDeviceRouter } from './routes/device.routes.js';
+import { createMcpOAuthRouter } from './routes/mcp-oauth.routes.js';
 import { permissionGuard } from './middleware/permission-guard.js';
 
 export function createRouter(services: Services, sseManager: SSEManager, db: DatabaseAdapter): Router {
@@ -46,7 +47,8 @@ export function createRouter(services: Services, sseManager: SSEManager, db: Dat
     services.invitationService,
     services.roleService,
   ));
-  v1.use(createDeviceRouter(db, services.deviceGrantService));
+  v1.use(createDeviceRouter(db, services.deviceGrantService, services.mcpOAuthService));
+  v1.use(createMcpOAuthRouter(db, services.mcpOAuthService, services.agentService, services.roleService));
 
 
   router.use('/v1', v1);

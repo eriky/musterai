@@ -38,7 +38,9 @@ import { OidcService } from './services/oidc.service.js';
 import { InvitationService } from './services/invitation.service.js';
 import { UserService } from './services/user.service.js';
 import { DeviceGrantService } from './services/device-grant.service.js';
+import { McpOAuthService } from './services/mcp-oauth.service.js';
 import { createAuthMiddleware } from './api/middleware/auth.js';
+import { createWellKnownRouter, canonicalMcpResource } from './api/routes/mcp-oauth.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -65,6 +67,7 @@ export async function startServer(): Promise<void> {
   const userService = new UserService(db);
   const deviceGrantService = new DeviceGrantService(db, tokenService);
   const agentService = new AgentService(db, eventService);
+  const mcpOAuthService = new McpOAuthService(db, tokenService, agentService);
   const services: Services = {
     projectService: new ProjectService(db, eventService, boardService, documentService),
     boardService,
@@ -81,6 +84,7 @@ export async function startServer(): Promise<void> {
     oidcService,
     invitationService,
     deviceGrantService,
+    mcpOAuthService,
     userService,
   };
 
@@ -119,7 +123,16 @@ export async function startServer(): Promise<void> {
   const app = express();
   app.use(express.json());
 
-  // AuthContext middleware — resolves real bearer tokens or falls back to OPEN_AUTH_CONTEXT
+  // RFC 8615 well-known URIs must live at the true origin root, not under /api.
+  app.use(createWellKnownRouter());
+
+  // AuthContext resolution — scoped to /api and /mcp inside the middleware
+  // itself (see the early return in auth.ts). Applying it to every request
+  // would 401 the SPA shell in enforced mode, which is exactly the page
+  // that has to load *before* sign-in so there is somewhere for the
+  // "Sign in" button to live. Mounted unscoped (not under '/api') so
+  // req.path inside it stays the full original path — the exemption
+  // checks in auth.ts compare against '/api/v1/auth/' etc.
   app.use((req, res, next) => authMiddleware(req, res, next));
 
   const apiRouter = createRouter(services, sseManager, db);
@@ -155,7 +168,9 @@ export async function startServer(): Promise<void> {
 
   // SPA Fallback Handler
   app.get('*', (req: Request, res: Response, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/mcp')) {
+    // Exact match on /mcp — not startsWith, which would also swallow the
+    // SPA's own /mcp/authorize consent screen (MUS-29).
+    if (req.path.startsWith('/api') || req.path === '/mcp') {
       return next();
     }
     const indexPath = path.join(publicDir, 'index.html');

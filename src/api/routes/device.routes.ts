@@ -17,6 +17,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { DatabaseAdapter } from '../../db/adapter.js';
 import { DeviceGrantService } from '../../services/device-grant.service.js';
+import { McpOAuthService } from '../../services/mcp-oauth.service.js';
 import { AuthContext } from '../../shared/auth-context.js';
 import { config } from '../../config/index.js';
 import { getRetryAfterMs, recordFailedAttempt, recordSuccessfulAttempt } from '../middleware/rate-limiter.js';
@@ -27,7 +28,13 @@ function normalizeCode(raw: unknown): string {
   return typeof raw === 'string' ? raw.trim().toUpperCase() : '';
 }
 
-export function createDeviceRouter(db: DatabaseAdapter, deviceGrantService: DeviceGrantService): Router {
+/**
+ * /oauth/token is one endpoint shared by two grants: the device flow
+ * (MUS-28) and MCP-native OAuth's authorization_code/refresh_token grants
+ * (MUS-29) — both mint the same api_token shape, just via different
+ * services, so they share the wire format and this dispatcher.
+ */
+export function createDeviceRouter(db: DatabaseAdapter, deviceGrantService: DeviceGrantService, oauthService?: McpOAuthService): Router {
   const router = Router();
 
   router.post('/oauth/device/code', async (req: Request, res: Response, next: NextFunction) => {
@@ -60,26 +67,70 @@ export function createDeviceRouter(db: DatabaseAdapter, deviceGrantService: Devi
 
   router.post('/oauth/token', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { grant_type, device_code } = req.body || {};
-      if (grant_type !== DEVICE_GRANT_TYPE) {
-        res.status(400).json({ error: 'unsupported_grant_type' });
-        return;
-      }
-      if (!device_code || typeof device_code !== 'string') {
-        res.status(400).json({ error: 'invalid_request', error_description: 'device_code is required' });
+      const { grant_type } = req.body || {};
+
+      if (grant_type === DEVICE_GRANT_TYPE) {
+        const { device_code } = req.body || {};
+        if (!device_code || typeof device_code !== 'string') {
+          res.status(400).json({ error: 'invalid_request', error_description: 'device_code is required' });
+          return;
+        }
+        const result = await deviceGrantService.poll(device_code);
+        if (!result.ok) {
+          res.status(400).json({ error: result.error });
+          return;
+        }
+        res.status(200).json({ access_token: result.token.token, token_type: 'bearer' });
         return;
       }
 
-      const result = await deviceGrantService.poll(device_code);
-      if (!result.ok) {
-        res.status(400).json({ error: result.error });
+      if (grant_type === 'authorization_code') {
+        if (!oauthService) {
+          res.status(400).json({ error: 'unsupported_grant_type' });
+          return;
+        }
+        const { code, client_id, redirect_uri, code_verifier, resource } = req.body || {};
+        if (!code || !client_id || !redirect_uri || !code_verifier || !resource) {
+          res.status(400).json({ error: 'invalid_request', error_description: 'code, client_id, redirect_uri, code_verifier and resource are all required' });
+          return;
+        }
+        const result = await oauthService.exchangeAuthorizationCode({ code, clientId: client_id, redirectUri: redirect_uri, codeVerifier: code_verifier, resource });
+        if (!result.ok) {
+          res.status(400).json({ error: result.error, error_description: result.error_description });
+          return;
+        }
+        res.status(200).json({
+          access_token: result.token.token,
+          token_type: 'bearer',
+          refresh_token: result.refreshToken,
+        });
         return;
       }
 
-      res.status(200).json({
-        access_token: result.token.token,
-        token_type: 'bearer',
-      });
+      if (grant_type === 'refresh_token') {
+        if (!oauthService) {
+          res.status(400).json({ error: 'unsupported_grant_type' });
+          return;
+        }
+        const { refresh_token, client_id, resource } = req.body || {};
+        if (!refresh_token || !client_id || !resource) {
+          res.status(400).json({ error: 'invalid_request', error_description: 'refresh_token, client_id and resource are all required' });
+          return;
+        }
+        const result = await oauthService.refreshToken({ refreshToken: refresh_token, clientId: client_id, resource });
+        if (!result.ok) {
+          res.status(400).json({ error: result.error, error_description: result.error_description });
+          return;
+        }
+        res.status(200).json({
+          access_token: result.token.token,
+          token_type: 'bearer',
+          refresh_token: result.refreshToken,
+        });
+        return;
+      }
+
+      res.status(400).json({ error: 'unsupported_grant_type' });
     } catch (err) {
       next(err);
     }
