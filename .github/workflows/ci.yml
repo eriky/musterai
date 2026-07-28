@@ -12,7 +12,10 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20.x, 22.x]
+        node-version: [20]
+
+    container:
+      image: node:${{ matrix.node-version }}
 
     # MUS-31: a real Postgres instance alongside SQLite so the suite proves
     # itself against both DatabaseAdapter backends, not just the
@@ -35,17 +38,11 @@ jobs:
           --health-retries 5
 
     env:
-      MUSTER_TEST_PG_URL: postgres://muster:muster@localhost:5432/muster_test
+      MUSTER_TEST_PG_URL: postgres://muster:muster@postgres:5432/muster_test
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
 
       - name: Install Build Dependencies
         run: |
