@@ -532,7 +532,7 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
         )}
 
         <div className="p-3 bg-muster-base border border-muster-border rounded-md text-[11px] muster-text-muted">
-          💡 <span className="font-semibold muster-text-primary">Note:</span> Manual registration is for human operators. AI agents (Claude, Cursor, Antigravity) register themselves programmatically over MCP.
+          💡 <span className="font-semibold muster-text-primary">Note:</span> This registers an AI agent. AI agents (Claude, Cursor, Antigravity) usually register themselves programmatically over MCP — use this form only for a manual/offline registration. Humans join the workspace via invitation and sign-in, never through agent registration.
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">

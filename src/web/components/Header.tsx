@@ -1,7 +1,8 @@
 import React from 'react';
-import { Project, ProjectSummary, Agent } from '../types.js';
+import { Project, ProjectSummary, AuthMe } from '../types.js';
 import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, UserPlus, Trash2, Edit2, KeyRound } from 'lucide-react';
 import { ThemePicker } from './ThemePicker.js';
+import { PrincipalChip } from './PrincipalChip.js';
 
 type TabId = 'agents' | 'board' | 'docs' | 'activity' | 'kb' | 'tokens';
 
@@ -19,9 +20,7 @@ interface HeaderProps {
   onOpenRegisterAgent: () => void;
   onOpenNewCard: () => void;
   onOpenNewDoc: () => void;
-  agents?: Agent[];
-  selectedHumanId?: string | null;
-  onSelectHuman?: (id: string) => void;
+  currentUser?: AuthMe['user'] | null;
 }
 
 /** Vertical rule between header groups. Decorative, so it carries no text. */
@@ -48,13 +47,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenRegisterAgent,
   onOpenNewCard,
   onOpenNewDoc,
-  agents = [],
-  selectedHumanId,
-  onSelectHuman,
+  currentUser,
 }) => {
-  // Show all agents in the header dropdown — no type/role discriminator
-  const humanAgents = agents;
-
   const tabs: { id: TabId; icon: React.ElementType; label: string }[] = [
     { id: 'agents', icon: Bot, label: `Agents ${summary ? `(${summary.active_agent_count}/${summary.agent_count})` : ''}` },
     { id: 'board', icon: Layout, label: `Kanban Board ${summary ? `(${summary.card_count})` : ''}` },
@@ -89,25 +83,13 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Human Operator Picker */}
-            {humanAgents.length > 0 && onSelectHuman && (
-              <div className="flex items-center space-x-1.5 bg-muster-base border border-muster-border rounded-md px-2 py-1">
-                <span className="text-[11px] font-mono muster-text-muted font-semibold uppercase">I am:</span>
-                <select
-                  value={selectedHumanId || ''}
-                  onChange={(e) => onSelectHuman(e.target.value)}
-                  className="bg-transparent muster-accent text-xs font-mono font-bold focus:outline-none cursor-pointer"
-                >
-                  {humanAgents.map((h) => (
-                    <option key={h.id} value={h.id} className="bg-muster-surface muster-text-primary">
-                      {h.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            {/* Signed-in user — read-only, derived from the session, never picked */}
+            {currentUser && (
+              <>
+                <PrincipalChip name={currentUser.display_name} kind="user" />
+                <Divider />
+              </>
             )}
-
-            <Divider />
 
             {/* Project Selector Dropdown, Edit & Delete Buttons */}
             <div className="flex items-center space-x-1.5">
@@ -166,7 +148,7 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
 
               <button onClick={onOpenRegisterAgent} className="muster-btn muster-btn-secondary font-mono">
-                <UserPlus className="w-3.5 h-3.5 muster-accent" /> + User
+                <UserPlus className="w-3.5 h-3.5 muster-accent" /> + Agent
               </button>
 
               <button onClick={onOpenNewCard} className="muster-btn muster-btn-secondary font-mono">

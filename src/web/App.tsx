@@ -1,6 +1,6 @@
 // File: src/web/App.tsx
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Project, Board, Column, Card, Agent, Document, Event, ProjectSummary } from './types.js';
+import { Project, Board, Column, Card, Agent, User, AuthMe, Document, Event, ProjectSummary } from './types.js';
 import { api, ApiError } from './api.js';
 import { Header } from './components/Header.js';
 import { AgentGrid } from './components/AgentGrid.js';
@@ -78,8 +78,10 @@ export const App: React.FC = () => {
   const [columns, setColumns] = useState<Column[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [currentUser, setCurrentUser] = useState<AuthMe['user'] | null>(null);
 
   // Modals visibility
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
@@ -90,8 +92,6 @@ export const App: React.FC = () => {
   const [showNewDocModal, setShowNewDocModal] = useState(false);
   const [newCardRequest, setNewCardRequest] = useState<{ columnId?: string; token: number } | null>(null);
   const newCardTokenRef = useRef(0);
-
-  const [selectedHumanId, setSelectedHumanId] = useState<string | null>(null);
 
   // Load Projects
   const loadProjects = useCallback(async (selectId?: string) => {
@@ -125,16 +125,18 @@ export const App: React.FC = () => {
     if (!selectedProjectId) return;
 
     try {
-      const [sumData, boardsData, agentsData, docsData, eventsData] = await Promise.all([
+      const [sumData, boardsData, agentsData, usersData, docsData, eventsData] = await Promise.all([
         api.getProjectSummary(selectedProjectId),
         api.getBoards(selectedProjectId),
         api.getAgents(),
+        api.getUsers(),
         api.getDocuments(selectedProjectId),
         api.getEvents(selectedProjectId, 40),
       ]);
 
       setSummary(sumData);
       setAgents(agentsData);
+      setUsers(usersData);
       setDocuments(docsData);
       setEvents(eventsData);
 
@@ -158,6 +160,7 @@ export const App: React.FC = () => {
         setColumns([]);
         setCards([]);
         setAgents([]);
+        setUsers([]);
         setDocuments([]);
         setEvents([]);
         loadProjects();
@@ -207,6 +210,14 @@ export const App: React.FC = () => {
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
+
+  // Who's signed in — drives the header display, comment authorship default,
+  // and per-user theme storage. Null in open/local mode (no OIDC session).
+  useEffect(() => {
+    api.getMe()
+      .then((me) => setCurrentUser(me.user))
+      .catch((err) => console.error('Error loading current user:', err));
+  }, []);
 
   useEffect(() => {
     loadProjectData();
@@ -290,10 +301,6 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleSelectHuman = (id: string) => {
-    setSelectedHumanId(id);
-  };
-
   const handleDeleteProject = async (projectId: string) => {
     try {
       await api.deleteProject(projectId);
@@ -316,9 +323,9 @@ export const App: React.FC = () => {
   };
 
   return (
-    <ThemeProvider userId={selectedHumanId}>
+    <ThemeProvider userId={currentUser?.id ?? null}>
     <div className="h-screen flex flex-col bg-muster-base muster-text-primary font-sans w-full overflow-hidden">
-      
+
       {/* Platform Header */}
       <Header
         projects={projects}
@@ -334,9 +341,7 @@ export const App: React.FC = () => {
         onOpenRegisterAgent={() => setShowRegisterAgentModal(true)}
         onOpenNewCard={() => handleOpenNewCardModal()}
         onOpenNewDoc={() => setShowNewDocModal(true)}
-        agents={agents}
-        selectedHumanId={selectedHumanId}
-        onSelectHuman={handleSelectHuman}
+        currentUser={currentUser}
       />
 
 
@@ -346,6 +351,7 @@ export const App: React.FC = () => {
         {activeTab === 'agents' && (
           <AgentGrid
             agents={agents}
+            users={users}
             cards={cards}
             onHeartbeat={handleAgentHeartbeat}
             onUnregisterAgent={handleUnregisterAgent}
@@ -361,6 +367,8 @@ export const App: React.FC = () => {
             columns={columns}
             cards={cards}
             agents={agents}
+            users={users}
+            currentUser={currentUser}
             documents={documents}
             projectId={selectedProjectId}
             newCardRequest={newCardRequest}

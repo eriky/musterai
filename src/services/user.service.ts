@@ -16,6 +16,16 @@ export interface AppUser {
   created_at: string;
 }
 
+export interface WorkspaceMember {
+  id: string;
+  email: string | null;
+  display_name: string;
+  avatar_url: string | null;
+  role_id: string;
+  role_name: string;
+  joined_at: string;
+}
+
 export class UserService {
   constructor(private db: DatabaseAdapter) {}
 
@@ -84,6 +94,23 @@ export class UserService {
     await this.db.execute(
       'INSERT INTO workspace_member (workspace_id, user_id, role_id, joined_at, invited_by) VALUES (?, ?, ?, ?, ?)',
       [workspaceId, userId, roleId, now, invitedBy || null],
+    );
+  }
+
+  /**
+   * List the human members of a workspace — the "Members" surface (MUS-26)
+   * and the agent roster's operator lookup (MUS-32) both read this. No
+   * liveness/status column: that telemetry is agent-only, see design §4.1.
+   */
+  async listMembers(workspaceId: string): Promise<WorkspaceMember[]> {
+    return this.db.query<WorkspaceMember>(
+      `SELECT u.id, u.email, u.display_name, u.avatar_url, wm.role_id, r.name as role_name, wm.joined_at
+       FROM workspace_member wm
+       JOIN app_user u ON u.id = wm.user_id
+       JOIN role r ON r.id = wm.role_id
+       WHERE wm.workspace_id = ?
+       ORDER BY u.display_name ASC`,
+      [workspaceId],
     );
   }
 }

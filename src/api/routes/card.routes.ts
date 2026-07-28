@@ -77,7 +77,15 @@ export function createCardRouter(cardService: CardService, commentService: Comme
 
   router.post('/cards/:id/comments', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const comment = await commentService.create({ ...req.body, card_id: req.params.id });
+      // Identity is derived from the credential whenever one resolved a
+      // principal; the body's author_id is only a fallback for open mode,
+      // where there is no principal to derive from.
+      const authorId = getActorId(req) || req.body.author_id;
+      if (!authorId) {
+        res.status(400).json({ error: 'author_id is required' });
+        return;
+      }
+      const comment = await commentService.create({ ...req.body, author_id: authorId, card_id: req.params.id });
       res.status(201).json(comment);
     } catch (err) {
       next(err);

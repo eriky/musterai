@@ -217,6 +217,9 @@ export const REST_ROUTE_PERMISSIONS: RoutePattern[] = [
 
   // ── Agents ──
   { method: 'GET', pattern: /^\/api\/v1\/agents$/, permission: 'project.create', readOnly: true },
+
+  // ── Users (MUS-32) — read-only workspace member list ──
+  { method: 'GET', pattern: /^\/api\/v1\/users$/, permission: 'project.create', readOnly: true },
   { method: 'POST', pattern: /^\/api\/v1\/agents$/, permission: 'agent.register' },
   { method: 'POST', pattern: /\/agents\/[^/]+\/heartbeat$/, permission: 'project.create' },
   { method: 'PUT', pattern: /\/agents\/[^/]+$/, permission: 'agent.register' },

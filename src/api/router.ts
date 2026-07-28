@@ -15,6 +15,7 @@ import { createKBRouter } from './routes/kb.routes.js';
 import { createRoleRouter } from './routes/role.routes.js';
 import { createTokenRouter } from './routes/token.routes.js';
 import { createAuthRouter } from './routes/auth.routes.js';
+import { createUserRouter } from './routes/user.routes.js';
 import { permissionGuard } from './middleware/permission-guard.js';
 
 export function createRouter(services: Services, sseManager: SSEManager, db: DatabaseAdapter): Router {
@@ -31,6 +32,7 @@ export function createRouter(services: Services, sseManager: SSEManager, db: Dat
   v1.use(createCardRouter(services.cardService, services.commentService));
   v1.use(createDocumentRouter(services.documentService));
   v1.use(createAgentRouter(services.agentService, services.cardService));
+  v1.use(createUserRouter(db, services.userService));
   v1.use(createEventRouter(services.eventService, sseManager));
   v1.use(createKBRouter(services.kbService));
   v1.use(createRoleRouter(services.roleService));

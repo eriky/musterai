@@ -183,8 +183,9 @@ export class DocumentService {
 
   async getHistory(id: string): Promise<DocumentVersion[]> {
     return this.db.query<DocumentVersion>(
-      `SELECT v.*, a.name as author_name FROM document_version v
+      `SELECT v.*, COALESCE(a.name, u.display_name) as author_name FROM document_version v
        LEFT JOIN agent a ON v.author_id = a.id
+       LEFT JOIN app_user u ON v.author_id = u.id
        WHERE v.document_id = ? ORDER BY v.version DESC`,
       [id]
     );

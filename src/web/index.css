@@ -402,6 +402,7 @@ html.light[data-profile='violet'] {
 :root {
   --entity-card-fg:     34 211 238;   --entity-card-bg:      8 51 68;
   --entity-agent-fg:    52 211 153;   --entity-agent-bg:     2 44 34;
+  --entity-user-fg:     244 114 182;  --entity-user-bg:      59 7 39;
   --entity-document-fg: 251 191 36;   --entity-document-bg:  69 26 3;
   --entity-board-fg:    129 140 248;  --entity-board-bg:     30 27 75;
   --entity-project-fg:  167 139 250;  --entity-project-bg:   46 16 101;
@@ -411,6 +412,7 @@ html.light[data-profile='violet'] {
 html.light {
   --entity-card-fg:     21 94 117;    --entity-card-bg:      236 254 255;
   --entity-agent-fg:    6 95 70;      --entity-agent-bg:     236 253 245;
+  --entity-user-fg:     157 23 77;    --entity-user-bg:      253 242 248;
   --entity-document-fg: 146 64 14;    --entity-document-bg:  255 251 235;
   --entity-board-fg:    55 48 163;    --entity-board-bg:     238 242 255;
   --entity-project-fg:  91 33 182;    --entity-project-bg:   245 243 255;
@@ -746,6 +748,7 @@ html.light {
      in one place instead of a hue class per call site. */
   .muster-entity-card     { --entity-fg: var(--entity-card-fg);     --entity-bg: var(--entity-card-bg); }
   .muster-entity-agent    { --entity-fg: var(--entity-agent-fg);    --entity-bg: var(--entity-agent-bg); }
+  .muster-entity-user     { --entity-fg: var(--entity-user-fg);     --entity-bg: var(--entity-user-bg); }
   .muster-entity-document { --entity-fg: var(--entity-document-fg); --entity-bg: var(--entity-document-bg); }
   .muster-entity-board    { --entity-fg: var(--entity-board-fg);    --entity-bg: var(--entity-board-bg); }
   .muster-entity-project  { --entity-fg: var(--entity-project-fg);  --entity-bg: var(--entity-project-bg); }

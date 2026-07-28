@@ -1,16 +1,48 @@
 import React, { useEffect, useState } from 'react';
-import { Agent, Card } from '../types.js';
+import { Agent, Card, User } from '../types.js';
 import { Bot, Clock, RefreshCw, UserPlus, Trash2, ShieldCheck, Edit3, Pencil, X, Save } from 'lucide-react';
 import { api } from '../api.js';
+import { PrincipalChip } from './PrincipalChip.js';
 
-function getOperatorName(agents: Agent[], operatorUserId?: string | null): string | null {
+function getOperatorName(users: User[], operatorUserId?: string | null): string | null {
   if (!operatorUserId) return null;
-  const op = agents.find(a => a.id === operatorUserId);
-  return op ? op.name : null;
+  const op = users.find(u => u.id === operatorUserId);
+  return op ? op.display_name : null;
+}
+
+/** Agents grouped under their operator — the relationship the permission
+ * intersection (design doc §4) is computed from, so a flat roster would hide it. */
+function groupByOperator(agents: Agent[], users: User[]): { operator: User | null; agents: Agent[] }[] {
+  const byOperator = new Map<string, Agent[]>();
+  const unassigned: Agent[] = [];
+
+  for (const agent of agents) {
+    if (!agent.operator_user_id) {
+      unassigned.push(agent);
+      continue;
+    }
+    const bucket = byOperator.get(agent.operator_user_id) || [];
+    bucket.push(agent);
+    byOperator.set(agent.operator_user_id, bucket);
+  }
+
+  const groups = Array.from(byOperator.entries())
+    .map(([operatorId, groupAgents]) => ({
+      operator: users.find(u => u.id === operatorId) || null,
+      agents: groupAgents,
+    }))
+    .sort((a, b) => (a.operator?.display_name || '').localeCompare(b.operator?.display_name || ''));
+
+  if (unassigned.length > 0) {
+    groups.push({ operator: null, agents: unassigned });
+  }
+
+  return groups;
 }
 
 interface AgentGridProps {
   agents: Agent[];
+  users: User[];
   cards: Card[];
   onHeartbeat: (agentId: string) => void;
   onUnregisterAgent: (agentId: string) => void;
@@ -20,6 +52,7 @@ interface AgentGridProps {
 
 export const AgentGrid: React.FC<AgentGridProps> = ({
   agents,
+  users,
   cards,
   onHeartbeat,
   onUnregisterAgent,
@@ -137,95 +170,111 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
           </button>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto min-h-0 pr-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
-
-          {agents.map((agent) => (
-            <div
-              key={agent.id}
-              className="bg-muster-surface rounded-lg p-5 tactical-border hover:border-brand-500/40 transition-all group relative overflow-hidden flex flex-col justify-between"
-            >
-              <div>
-                {/* Top Row */}
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-lg bg-neutral-900 border border-neutral-700 flex items-center justify-center muster-accent group-hover:border-brand-500/50 transition-colors">
-                      <Bot className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-sans font-bold muster-text-primary group-hover:text-brand-300 transition-colors">
-                        {agent.name}
-                      </h3>
-                      <div className="flex items-center space-x-2 mt-0.5 flex-wrap">
-                        <span className="text-[11px] font-sans muster-text-muted capitalize">Agent</span>
-                        {agent.operator_user_id && (
-                          <>
-                            <span className="muster-divider w-1 h-1 rounded-full shrink-0" aria-hidden="true" />
-                            <span className="inline-flex items-center text-[10px] font-mono font-medium muster-text-warning">
-                              <ShieldCheck className="w-3 h-3 mr-0.5" /> Op by {getOperatorName(agents, agent.operator_user_id) || 'Unknown'}
-                            </span>
-                          </>
-                        )}
-                    </div>
-                  </div>
-                </div>
-
-                {getStatusBadge(agent.status)}
-
-                </div>
-
-                {/* Capabilities */}
-                <div className="mt-4 pt-3 border-t border-muster-border/60">
-                  <div className="text-[11px] font-sans muster-text-muted mb-1.5 font-medium">Capabilities:</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {agent.capabilities && agent.capabilities.length > 0 ? (
-                      agent.capabilities.map((muster, idx) => (
-                        <span key={idx} className="px-2 py-0.5 bg-neutral-900 muster-text-secondary text-xs font-sans rounded border border-neutral-800">
-                          {muster}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-xs font-sans text-neutral-500 italic">General</span>
-                    )}
-                  </div>
-                </div>
+        <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6">
+          {groupByOperator(agents, users).map((group) => (
+            <div key={group.operator?.id || 'unassigned'}>
+              <div className="flex items-center space-x-2 mb-3">
+                {group.operator ? (
+                  <PrincipalChip name={group.operator.display_name} kind="user" />
+                ) : (
+                  <span className="muster-chip max-w-full text-neutral-500 italic">Unassigned</span>
+                )}
+                <span className="text-[11px] font-sans muster-text-muted">
+                  {group.agents.length} agent{group.agents.length === 1 ? '' : 's'}
+                </span>
               </div>
 
-              {/* Bottom Row */}
-              <div className="mt-4 pt-3 border-t border-muster-border/60 flex items-center justify-between text-xs font-sans muster-text-muted">
-                <div className="flex items-center muster-text-muted">
-                  <Clock className="w-3.5 h-3.5 mr-1 text-neutral-500" />
-                  <span>Last seen: {formatLastSeen(agent.last_seen_at)}</span>
-                </div>
-
-                <div className="flex items-center space-x-1.5">
-                  <button
-                    onClick={() => handleOpenEdit(agent)}
-                    title="Edit Agent Attributes"
-                    className="muster-btn muster-btn-secondary font-mono"
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
+                {group.agents.map((agent) => (
+                  <div
+                    key={agent.id}
+                    className="bg-muster-surface rounded-lg p-5 tactical-border hover:border-brand-500/40 transition-all group relative overflow-hidden flex flex-col justify-between"
                   >
-                    <Pencil className="w-3 h-3 mr-1" /> Edit
-                  </button>
+                    <div>
+                      {/* Top Row */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-lg bg-neutral-900 border border-neutral-700 flex items-center justify-center muster-accent group-hover:border-brand-500/50 transition-colors">
+                            <Bot className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-sans font-bold muster-text-primary group-hover:text-brand-300 transition-colors">
+                              {agent.name}
+                            </h3>
+                            <div className="flex items-center space-x-2 mt-0.5 flex-wrap">
+                              <span className="text-[11px] font-sans muster-text-muted capitalize">Agent</span>
+                              {agent.operator_user_id && (
+                                <>
+                                  <span className="muster-divider w-1 h-1 rounded-full shrink-0" aria-hidden="true" />
+                                  <span className="inline-flex items-center text-[10px] font-mono font-medium muster-text-warning">
+                                    <ShieldCheck className="w-3 h-3 mr-0.5" /> Op by {getOperatorName(users, agent.operator_user_id) || 'Unknown'}
+                                  </span>
+                                </>
+                              )}
+                          </div>
+                        </div>
+                      </div>
 
-                  <button
-                    onClick={() => onHeartbeat(agent.id)}
-                    title="Send Heartbeat"
-                    className="muster-btn muster-btn-secondary font-mono"
-                  >
-                    <RefreshCw className="w-3 h-3 mr-1" /> Ping
-                  </button>
+                      {getStatusBadge(agent.status)}
 
-                  <button
-                    onClick={() => {
-                      if (confirm(`Are you sure you want to remove agent "${agent.name}"?`)) {
-                        onUnregisterAgent(agent.id);
-                      }
-                    }}
-                    title="Remove / Unregister Agent"
-                    className="muster-btn muster-btn-icon muster-btn-ghost-danger"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                      </div>
+
+                      {/* Capabilities */}
+                      <div className="mt-4 pt-3 border-t border-muster-border/60">
+                        <div className="text-[11px] font-sans muster-text-muted mb-1.5 font-medium">Capabilities:</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {agent.capabilities && agent.capabilities.length > 0 ? (
+                            agent.capabilities.map((muster, idx) => (
+                              <span key={idx} className="px-2 py-0.5 bg-neutral-900 muster-text-secondary text-xs font-sans rounded border border-neutral-800">
+                                {muster}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs font-sans text-neutral-500 italic">General</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Row */}
+                    <div className="mt-4 pt-3 border-t border-muster-border/60 flex items-center justify-between text-xs font-sans muster-text-muted">
+                      <div className="flex items-center muster-text-muted">
+                        <Clock className="w-3.5 h-3.5 mr-1 text-neutral-500" />
+                        <span>Last seen: {formatLastSeen(agent.last_seen_at)}</span>
+                      </div>
+
+                      <div className="flex items-center space-x-1.5">
+                        <button
+                          onClick={() => handleOpenEdit(agent)}
+                          title="Edit Agent Attributes"
+                          className="muster-btn muster-btn-secondary font-mono"
+                        >
+                          <Pencil className="w-3 h-3 mr-1" /> Edit
+                        </button>
+
+                        <button
+                          onClick={() => onHeartbeat(agent.id)}
+                          title="Send Heartbeat"
+                          className="muster-btn muster-btn-secondary font-mono"
+                        >
+                          <RefreshCw className="w-3 h-3 mr-1" /> Ping
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to remove agent "${agent.name}"?`)) {
+                              onUnregisterAgent(agent.id);
+                            }
+                          }}
+                          title="Remove / Unregister Agent"
+                          className="muster-btn muster-btn-icon muster-btn-ghost-danger"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
@@ -263,15 +312,18 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
               </div>
 
               <div>
-                <label className="muster-label uppercase">Operator User ID</label>
-                <input
-                  type="text"
+                <label className="muster-label uppercase">Operator</label>
+                <select
                   value={editOperatorId}
                   onChange={(e) => setEditOperatorId(e.target.value)}
-                  className="muster-input font-mono"
-                  placeholder="Principal ID of the human operator"
-                />
-                <p className="text-[11px] text-neutral-500 mt-1">Principal ID of the human operator who owns this agent.</p>
+                  className="muster-input font-mono cursor-pointer"
+                >
+                  <option value="">Unassigned</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>{u.display_name}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-neutral-500 mt-1">The human operator who owns this agent.</p>
               </div>
 
               <div>

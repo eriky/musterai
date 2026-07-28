@@ -187,7 +187,8 @@ export interface CardAssignee {
   id: string;
   name: string;
   kind: 'user' | 'agent';
-  status: 'active' | 'idle' | 'offline';
+  /** Liveness is agent-only telemetry — always null for a human assignee. */
+  status: 'active' | 'idle' | 'offline' | null;
 }
 
 export interface Card {
@@ -343,6 +344,8 @@ export interface Event {
   actor_id: string | null;
   payload: Record<string, unknown> | null;
   created_at: string;
+  actor_name?: string | null;
+  actor_kind?: 'user' | 'agent' | null;
 }
 
 export interface CreateEvent {

@@ -120,10 +120,14 @@ export class CardService {
     const card = cardRows[0];
     if (!card) throw new Error(`Card with ID ${id} not found`);
 
+    // LEFT JOINs both concrete principal tables — an assignee may be an agent
+    // or a human app_user, and only one of the two joins will match per row.
+    // A human's status is never surfaced (liveness is agent-only telemetry).
     const assignees = await this.db.query<CardAssignee>(
-      `SELECT p.id, a.name, p.kind, a.status FROM agent a
-       JOIN principal p ON a.id = p.id
-       JOIN card_assignee ca ON a.id = ca.principal_id
+      `SELECT p.id, COALESCE(a.name, u.display_name) as name, p.kind, a.status FROM card_assignee ca
+       JOIN principal p ON p.id = ca.principal_id
+       LEFT JOIN agent a ON a.id = p.id
+       LEFT JOIN app_user u ON u.id = p.id
        WHERE ca.card_id = ?`,
       [id]
     );
@@ -136,9 +140,10 @@ export class CardService {
     );
 
     const comments = await this.db.query<any>(
-      `SELECT c.*, a.name as author_name, p.kind as author_kind FROM comment c
+      `SELECT c.*, COALESCE(a.name, u.display_name) as author_name, p.kind as author_kind FROM comment c
        LEFT JOIN principal p ON c.author_id = p.id
        LEFT JOIN agent a ON c.author_id = a.id
+       LEFT JOIN app_user u ON c.author_id = u.id
        WHERE c.card_id = ? ORDER BY c.created_at ASC`,
       [id]
     );
@@ -164,7 +169,7 @@ export class CardService {
         id: a.id,
         name: a.name,
         kind: (a.kind || 'agent') as 'user' | 'agent',
-        status: a.status || 'offline',
+        status: a.kind === 'agent' ? (a.status || 'offline') : null,
       })),
       labels,
       comments,
@@ -240,7 +245,7 @@ export class CardService {
 
     if (filters.assignee_id) {
       joins.push('JOIN card_assignee ca ON c.id = ca.card_id');
-      conditions.push('ca.agent_id = ?');
+      conditions.push('ca.principal_id = ?');
       params.push(filters.assignee_id);
     }
 
@@ -272,12 +277,13 @@ export class CardService {
 
     const placeholders = cards.map(() => '?').join(', ');
     const assigneeRows = await this.db.query<CardAssignee & { card_id: string }>(
-      `SELECT ca.card_id, p.id, a.name, p.kind, a.status
+      `SELECT ca.card_id, p.id, COALESCE(a.name, u.display_name) as name, p.kind, a.status
        FROM card_assignee ca
        JOIN principal p ON ca.principal_id = p.id
-       JOIN agent a ON a.id = p.id
+       LEFT JOIN agent a ON a.id = p.id
+       LEFT JOIN app_user u ON u.id = p.id
        WHERE ca.card_id IN (${placeholders})
-       ORDER BY a.name ASC`,
+       ORDER BY name ASC`,
       cards.map(card => card.id)
     );
 
@@ -288,7 +294,7 @@ export class CardService {
         id: assignee.id,
         name: assignee.name,
         kind: (assignee.kind || 'agent') as 'user' | 'agent',
-        status: assignee.status,
+        status: assignee.kind === 'agent' ? assignee.status : null,
       });
       assigneesByCard.set(assignee.card_id, cardAssignees);
     }

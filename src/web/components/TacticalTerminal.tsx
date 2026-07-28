@@ -57,7 +57,9 @@ function describeEvent(
   documents: Document[],
 ): { icon: React.ReactNode; text: string } {
   const p: Record<string, any> = evt.payload || {};
-  const actor = agentName(agents, evt.actor_id);
+  // The server resolves actor_name against both principal kinds (MUS-32);
+  // the client-side agents-only lookup is a fallback for older cached events.
+  const actor = evt.actor_name || agentName(agents, evt.actor_id);
 
   switch (evt.entity_type) {
     case 'card': {

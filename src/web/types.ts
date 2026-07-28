@@ -30,7 +30,8 @@ export interface CardAssignee {
   id: string;
   name: string;
   kind: 'user' | 'agent';
-  status: 'active' | 'idle' | 'offline';
+  /** Liveness is agent-only telemetry — always null for a human assignee. */
+  status: 'active' | 'idle' | 'offline' | null;
 }
 
 export interface Card {
@@ -71,6 +72,20 @@ export interface Agent {
   workspace_id?: string | null;
 }
 
+/** A human workspace member — see the Agent/User split in DESIGN_LANGUAGE.md and design doc §4.1. */
+export interface User {
+  id: string;
+  email: string | null;
+  display_name: string;
+  avatar_url: string | null;
+  role_id: string;
+  role_name: string;
+  joined_at: string;
+}
+
+/** Places that genuinely accept either kind — assignees, comment authors, event actors. */
+export type Principal = (User & { kind: 'user' }) | (Agent & { kind: 'agent' });
+
 
 /** Document without its markdown body — cards embed this, never the full content. */
 export type DocumentSummary = Omit<Document, 'content'>;
@@ -86,6 +101,7 @@ export interface CardDetails extends Card {
     card_id: string;
     author_id: string;
     author_name?: string;
+    author_kind?: 'user' | 'agent';
     content: string;
     created_at: string;
   }[];
@@ -168,6 +184,8 @@ export interface Event {
 
   action: string;
   actor_id: string | null;
+  actor_name?: string | null;
+  actor_kind?: 'user' | 'agent' | null;
   payload: any;
   created_at: string;
 }
@@ -258,6 +276,14 @@ export interface KBGraphLink {
 export interface KBGraphTree {
   nodes: KBGraphNode[];
   links: KBGraphLink[];
+}
+
+/** Response shape of GET /auth/me — the signed-in state of the current browser session. */
+export interface AuthMe {
+  authenticated: boolean;
+  admitted: boolean;
+  user: { id: string; email: string | null; display_name: string; avatar_url: string | null; status: string } | null;
+  role: string | null;
 }
 
 export interface ApiToken {
