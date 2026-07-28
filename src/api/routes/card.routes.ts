@@ -76,7 +76,8 @@ export function createCardRouter(cardService: CardService, commentService: Comme
 
   router.put('/cards/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const card = await cardService.update(req.params.id, req.body);
+      const actorId = getActorId(req);
+      const card = await cardService.update(req.params.id, req.body, actorId);
       res.json(card);
     } catch (err) {
       next(err);
@@ -85,7 +86,8 @@ export function createCardRouter(cardService: CardService, commentService: Comme
 
   router.patch('/cards/:id/move', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const card = await cardService.move(req.params.id, req.body);
+      const actorId = getActorId(req);
+      const card = await cardService.move(req.params.id, req.body, actorId);
       res.json(card);
     } catch (err) {
       next(err);

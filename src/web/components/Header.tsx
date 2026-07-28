@@ -3,6 +3,8 @@ import { Project, ProjectSummary, AuthMe } from '../types.js';
 import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, UserPlus, Trash2, Edit2, KeyRound, ShieldCheck } from 'lucide-react';
 import { ThemePicker } from './ThemePicker.js';
 import { PrincipalChip } from './PrincipalChip.js';
+import { NotificationCenter } from './NotificationCenter.js';
+import { NotificationPrefs } from '../notifications.js';
 
 type TabId = 'agents' | 'board' | 'docs' | 'activity' | 'kb' | 'tokens' | 'admin';
 
@@ -21,6 +23,11 @@ interface HeaderProps {
   onOpenNewCard: () => void;
   onOpenNewDoc: () => void;
   currentUser?: AuthMe['user'] | null;
+  attentionCount: number;
+  notificationPermission: NotificationPermission | 'unsupported';
+  notificationPrefs: NotificationPrefs;
+  onUpdateNotificationPrefs: (prefs: NotificationPrefs) => void;
+  onRequestNotificationPermission: () => void;
 }
 
 /** Vertical rule between header groups. Decorative, so it carries no text. */
@@ -48,6 +55,11 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewCard,
   onOpenNewDoc,
   currentUser,
+  attentionCount,
+  notificationPermission,
+  notificationPrefs,
+  onUpdateNotificationPrefs,
+  onRequestNotificationPermission,
 }) => {
   const tabs: { id: TabId; icon: React.ElementType; label: string }[] = [
     { id: 'agents', icon: Bot, label: `Agents ${summary ? `(${summary.active_agent_count}/${summary.agent_count})` : ''}` },
@@ -163,8 +175,15 @@ export const Header: React.FC<HeaderProps> = ({
 
           </div>
 
-          {/* Right Side: Theme Picker */}
-          <div className="flex items-center">
+          {/* Right Side: Notifications & Theme Picker */}
+          <div className="flex items-center space-x-1.5">
+            <NotificationCenter
+              attentionCount={attentionCount}
+              permission={notificationPermission}
+              prefs={notificationPrefs}
+              onUpdatePrefs={onUpdateNotificationPrefs}
+              onRequestPermission={onRequestNotificationPermission}
+            />
             <ThemePicker />
           </div>
 
