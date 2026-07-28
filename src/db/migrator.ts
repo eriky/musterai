@@ -4,6 +4,21 @@ import path from 'node:path';
 import { DatabaseAdapter } from './adapter.js';
 import { deriveKeyPrefix, formatCardKey } from '../shared/card-key.js';
 
+/**
+ * The migrations directory is one canonical set of files, not a fork per
+ * dialect — everything in it is already portable SQL (see MUS-31's audit)
+ * except this one DEFAULT expression, which this function swaps for
+ * Postgres's equivalent. `to_char` with these format tokens produces the
+ * exact same "2026-01-01T00:00:00.000Z" shape strftime does, which matters
+ * because created_at is compared and sorted as TEXT throughout the app.
+ */
+export function translateForPostgres(sql: string): string {
+  return sql.replace(
+    /strftime\('%Y-%m-%dT%H:%M:%fZ',\s*'now'\)/gi,
+    `to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`,
+  );
+}
+
 export class Migrator {
   private db: DatabaseAdapter;
   private migrationsDir: string;
@@ -42,14 +57,19 @@ export class Migrator {
     const statements = sqlToRun
       .split(';')
       .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .filter(s => s.length > 0)
+      .map(stmt => this.db.dialect === 'postgres' ? translateForPostgres(stmt) : stmt);
 
     for (const stmt of statements) {
       try {
         await this.db.migrate(stmt);
       } catch (err: any) {
-        if (err.message && err.message.includes('duplicate column name')) {
-          // Column already exists, ignore
+        // Column-already-exists is the one error every migration here is
+        // meant to tolerate (idempotent ADD COLUMN, e.g. 002/005) — the
+        // exact wording differs by dialect: SQLite says "duplicate column
+        // name", Postgres says `column "x" of relation "y" already exists`.
+        const message: string = err.message || '';
+        if (message.includes('duplicate column name') || (message.includes('column') && message.includes('already exists'))) {
           continue;
         }
         throw err;

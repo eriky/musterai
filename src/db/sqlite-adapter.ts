@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import { DatabaseAdapter, ExecutionResult } from './adapter.js';
 
 export class SQLiteAdapter implements DatabaseAdapter {
+  readonly dialect = 'sqlite' as const;
   private db: Database.Database;
   // better-sqlite3 is one synchronous connection: a second BEGIN IMMEDIATE while
   // a transaction is still open throws immediately instead of waiting. Chain

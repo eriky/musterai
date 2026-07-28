@@ -117,15 +117,26 @@ export class CardService {
     });
   }
 
-  async getById(id: string): Promise<CardDetails> {
-    const cardRows = await this.db.query<Card>('SELECT * FROM card WHERE id = ?', [id]);
+  /**
+   * `db` defaults to the pool-backed `this.db` for ordinary callers, but
+   * every caller inside an open `this.db.transaction(tx => ...)` callback
+   * (e.g. claim()) must pass `tx` explicitly. On SQLite there's only ever
+   * one physical connection, so reaching back into `this.db` from inside a
+   * transaction works by accident; on Postgres it asks the pool for another
+   * connection while the transaction's own connection is still checked out,
+   * and if every pool connection is meanwhile blocked on this same row's
+   * lock (as under concurrent claim() calls), that request queues forever —
+   * a self-inflicted deadlock. Found via MUS-31's concurrent-claim test.
+   */
+  async getById(id: string, db: DatabaseAdapter = this.db): Promise<CardDetails> {
+    const cardRows = await db.query<Card>('SELECT * FROM card WHERE id = ?', [id]);
     const card = cardRows[0];
     if (!card) throw new Error(`Card with ID ${id} not found`);
 
     // LEFT JOINs both concrete principal tables — an assignee may be an agent
     // or a human app_user, and only one of the two joins will match per row.
     // A human's status is never surfaced (liveness is agent-only telemetry).
-    const assignees = await this.db.query<CardAssignee>(
+    const assignees = await db.query<CardAssignee>(
       `SELECT p.id, COALESCE(a.name, u.display_name) as name, p.kind, a.status FROM card_assignee ca
        JOIN principal p ON p.id = ca.principal_id
        LEFT JOIN agent a ON a.id = p.id
@@ -134,14 +145,14 @@ export class CardService {
       [id]
     );
 
-    const labels = await this.db.query<Label>(
+    const labels = await db.query<Label>(
       `SELECT l.* FROM label l
        JOIN card_label cl ON l.id = cl.label_id
        WHERE cl.card_id = ?`,
       [id]
     );
 
-    const comments = await this.db.query<any>(
+    const comments = await db.query<any>(
       `SELECT c.*, COALESCE(a.name, u.display_name) as author_name, p.kind as author_kind FROM comment c
        LEFT JOIN principal p ON c.author_id = p.id
        LEFT JOIN agent a ON c.author_id = a.id
@@ -153,7 +164,7 @@ export class CardService {
     // Deliberately excludes d.content — a design doc body can run tens of KB,
     // and every card mutation (create/move/link/assign/...) round-trips this
     // list via getById(). Full content is one getDocument call away.
-    const linked_documents = await this.db.query<Omit<Document, 'content'>>(
+    const linked_documents = await db.query<Omit<Document, 'content'>>(
       `SELECT d.id, d.project_id, d.parent_id, d.title, d.status, d.author_id, d.version, d.created_at, d.updated_at
        FROM document d
        JOIN card_document cd ON d.id = cd.document_id
@@ -162,8 +173,8 @@ export class CardService {
       [id]
     );
 
-    const linked_cards = await this.getLinkedCards(id);
-    const work_links = await this.listWorkLinks(id);
+    const linked_cards = await this.getLinkedCards(id, db);
+    const work_links = await this.listWorkLinks(id, db);
 
     return {
       ...card,
@@ -181,17 +192,17 @@ export class CardService {
     };
   }
 
-  private async getLinkedCards(cardId: string): Promise<LinkedCardSummary[]> {
+  private async getLinkedCards(cardId: string, db: DatabaseAdapter = this.db): Promise<LinkedCardSummary[]> {
     type LinkRow = { id: string; relation_type: string; other_id: string; other_title: string; other_column_id: string; other_status: string; other_priority: string; other_archived: number };
 
-    const outgoing = await this.db.query<LinkRow>(
+    const outgoing = await db.query<LinkRow>(
       `SELECT cl.id, cl.relation_type, c.id as other_id, c.title as other_title, c.column_id as other_column_id, c.status as other_status, c.priority as other_priority, c.archived as other_archived
        FROM card_link cl JOIN card c ON c.id = cl.target_card_id
        WHERE cl.source_card_id = ?`,
       [cardId]
     );
 
-    const incoming = await this.db.query<LinkRow>(
+    const incoming = await db.query<LinkRow>(
       `SELECT cl.id, cl.relation_type, c.id as other_id, c.title as other_title, c.column_id as other_column_id, c.status as other_status, c.priority as other_priority, c.archived as other_archived
        FROM card_link cl JOIN card c ON c.id = cl.source_card_id
        WHERE cl.target_card_id = ?`,
@@ -417,7 +428,19 @@ export class CardService {
    */
   async claim(cardId: string, agentId: string, ttlSeconds: number = DEFAULT_CLAIM_TTL_SECONDS): Promise<CardDetails | ClaimRefusal> {
     return this.db.transaction(async (tx) => {
-      const rows = await tx.query<Card>('SELECT * FROM card WHERE id = ?', [cardId]);
+      // Read-check-write is only atomic if nothing else can write the row
+      // between the read and the write. On SQLite that's true by accident —
+      // better-sqlite3 is one connection and BEGIN IMMEDIATE serializes every
+      // transaction globally. Postgres's connection pool has no such
+      // accident: two concurrent claim() calls can both SELECT the same
+      // unclaimed card before either UPDATEs it. FOR UPDATE closes that
+      // window by blocking a second transaction's SELECT until the first
+      // commits or rolls back. SQLite doesn't recognize FOR UPDATE as syntax
+      // at all, so this must stay conditional rather than portable SQL —
+      // see DatabaseAdapter.dialect's doc comment for why that's the
+      // deliberate exception rather than the norm.
+      const lockClause = tx.dialect === 'postgres' ? ' FOR UPDATE' : '';
+      const rows = await tx.query<Card>(`SELECT * FROM card WHERE id = ?${lockClause}`, [cardId]);
       const card = rows[0];
       if (!card) throw new Error(`Card with ID ${cardId} not found`);
 
@@ -465,7 +488,7 @@ export class CardService {
         }
       }
 
-      return this.getById(cardId);
+      return this.getById(cardId, tx);
     });
   }
 
@@ -662,8 +685,8 @@ export class CardService {
     }
   }
 
-  async listWorkLinks(cardId: string): Promise<CardWorkLink[]> {
-    return this.db.query<CardWorkLink>(
+  async listWorkLinks(cardId: string, db: DatabaseAdapter = this.db): Promise<CardWorkLink[]> {
+    return db.query<CardWorkLink>(
       `SELECT * FROM card_work_link WHERE card_id = ? ORDER BY created_at ASC`,
       [cardId]
     );

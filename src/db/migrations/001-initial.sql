@@ -211,12 +211,6 @@ CREATE TABLE IF NOT EXISTS card_assignee (
   PRIMARY KEY (card_id, principal_id)
 );
 
-CREATE TABLE IF NOT EXISTS card_label (
-  card_id  TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
-  label_id TEXT NOT NULL REFERENCES label(id) ON DELETE CASCADE,
-  PRIMARY KEY (card_id, label_id)
-);
-
 CREATE TABLE IF NOT EXISTS card_link (
   id              TEXT PRIMARY KEY,
   source_card_id  TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
@@ -240,13 +234,6 @@ CREATE TABLE IF NOT EXISTS card_work_link (
 
 CREATE INDEX IF NOT EXISTS idx_card_work_link_card_id ON card_work_link(card_id);
 
-CREATE TABLE IF NOT EXISTS card_document (
-  card_id     TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
-  document_id TEXT NOT NULL REFERENCES document(id) ON DELETE CASCADE,
-  linked_at   TEXT NOT NULL,
-  PRIMARY KEY (card_id, document_id)
-);
-
 -- ============================================================
 -- Comments
 -- ============================================================
@@ -268,6 +255,16 @@ CREATE TABLE IF NOT EXISTS label (
   board_id TEXT NOT NULL REFERENCES board(id) ON DELETE CASCADE,
   name     TEXT NOT NULL,
   color    TEXT NOT NULL
+);
+
+-- card_label lives here, after label, rather than back with the other
+-- card_* junction tables — its FK target must already exist by the time
+-- this statement runs. SQLite tolerates forward references to a
+-- not-yet-created table; Postgres rejects them at CREATE TABLE time.
+CREATE TABLE IF NOT EXISTS card_label (
+  card_id  TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
+  label_id TEXT NOT NULL REFERENCES label(id) ON DELETE CASCADE,
+  PRIMARY KEY (card_id, label_id)
 );
 
 -- ============================================================
@@ -296,6 +293,15 @@ CREATE TABLE IF NOT EXISTS document_version (
   author_id      TEXT REFERENCES principal(id) ON DELETE SET NULL,
   change_summary TEXT,
   created_at     TEXT NOT NULL
+);
+
+-- card_document lives here, after document, for the same forward-reference
+-- reason as card_label above.
+CREATE TABLE IF NOT EXISTS card_document (
+  card_id     TEXT NOT NULL REFERENCES card(id) ON DELETE CASCADE,
+  document_id TEXT NOT NULL REFERENCES document(id) ON DELETE CASCADE,
+  linked_at   TEXT NOT NULL,
+  PRIMARY KEY (card_id, document_id)
 );
 
 -- ============================================================

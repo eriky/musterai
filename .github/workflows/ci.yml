@@ -14,6 +14,29 @@ jobs:
       matrix:
         node-version: [20.x, 22.x]
 
+    # MUS-31: a real Postgres instance alongside SQLite so the suite proves
+    # itself against both DatabaseAdapter backends, not just the
+    # zero-config default. tests/postgres-adapter.test.ts skips itself
+    # (describe.skipIf) unless MUSTER_TEST_PG_URL is set, so this is the
+    # only place that env var should be defined.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: muster
+          POSTGRES_PASSWORD: muster
+          POSTGRES_DB: muster_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      MUSTER_TEST_PG_URL: postgres://muster:muster@localhost:5432/muster_test
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -33,7 +56,7 @@ jobs:
       - name: Run Build (Vite SPA + TypeScript)
         run: npm run build
 
-      - name: Run Vitest Suite
+      - name: Run Vitest Suite (SQLite + PostgreSQL)
         run: npm test
 
       - name: Verify Health Route Unit Test

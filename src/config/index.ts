@@ -26,8 +26,11 @@ export const config = {
     mode: detectAuthMode() as 'open' | 'enforced',
   },
   db: {
-    type: process.env.MUSTER_DB_TYPE || 'sqlite',
+    /** 'sqlite' (default, zero-config) or 'postgres' — see docs/deployment.md. */
+    type: (process.env.MUSTER_DB_TYPE || 'sqlite') as 'sqlite' | 'postgres',
     path: process.env.MUSTER_DB_PATH || path.join(projectRoot, 'data/muster.db'),
+    /** e.g. postgres://user:pass@host:5432/muster — required when type is 'postgres'. */
+    url: process.env.MUSTER_DATABASE_URL || null,
   },
   attachmentsDir: process.env.MUSTER_ATTACHMENTS_DIR || path.join(projectRoot, 'data/attachments'),
   publicDir: path.join(projectRoot, 'public'),

@@ -94,7 +94,8 @@ existing ACME tooling) before starting nginx with this config.
 | `MUSTER_HOST` | `localhost` | Advisory only — used to pick the `open`/`enforced` default and for the startup banner. The server always binds `0.0.0.0`; use your firewall or Docker's port mapping to actually restrict reachability. |
 | `MUSTER_AUTH_MODE` | derived from `MUSTER_HOST` | `open` or `enforced`. Set explicitly to remove any ambiguity in a deployment script. |
 | `MUSTER_DB_PATH` | `data/muster.db` | SQLite database file path. |
-| `MUSTER_DB_TYPE` | `sqlite` | Database backend — `sqlite` or `postgres` (see the PostgreSQL adapter). |
+| `MUSTER_DB_TYPE` | `sqlite` | Database backend — `sqlite` or `postgres` (see [PostgreSQL, and migrating an existing SQLite install to it](#postgresql-and-migrating-an-existing-sqlite-install-to-it)). |
+| `MUSTER_DATABASE_URL` | — | PostgreSQL connection string, e.g. `postgres://user:pass@host:5432/muster`. Required when `MUSTER_DB_TYPE=postgres`; ignored otherwise. |
 | `MUSTER_ATTACHMENTS_DIR` | `data/attachments` | Local storage for uploaded attachments. |
 | `MUSTER_PUBLIC_URL` | `http://localhost:<port>` | **Required for a public deployment.** The externally-reachable HTTPS origin — OIDC redirect URIs, CORS's allowed origin, the MCP protected-resource metadata's `resource`, and the Device Authorization Grant's `verification_uri` are all derived from this. It must exactly match what's in the browser's address bar, including scheme. |
 | `MUSTER_OIDC_ISSUER` | — | The OIDC provider's issuer URL (Authentik, Keycloak, Okta, Auth0, Google, GitHub via an OIDC-compatible proxy, etc). Discovery is fetched from `${issuer}/.well-known/openid-configuration`. |
@@ -138,6 +139,105 @@ directory. Back it up with:
 docker run --rm -v muster_muster-data:/data -v "$(pwd)":/backup \
   alpine tar czf /backup/muster-data-backup.tar.gz -C /data .
 ```
+
+## PostgreSQL, and migrating an existing SQLite install to it
+
+SQLite (the default) is a single synchronous connection — fine for one
+operator, but it becomes the throughput ceiling once several agents are
+polling boards, claiming cards, and streaming events concurrently. Switch to
+PostgreSQL for that case:
+
+```bash
+export MUSTER_DB_TYPE=postgres
+export MUSTER_DATABASE_URL=postgres://muster:<password>@<host>:5432/muster
+```
+
+Nothing else changes — every service is written against the same
+`DatabaseAdapter` interface, and the migrations in `src/db/migrations/` run
+against either backend (the migrator translates the handful of
+SQLite-specific expressions itself). Point `MUSTER_DATABASE_URL` at an empty
+database and start Muster; migrations create the schema on first boot,
+exactly like the SQLite path does.
+
+### Moving existing data from SQLite to PostgreSQL
+
+There's no bespoke export tool for this — [pgloader](https://pgloader.io/)
+already does SQLite→PostgreSQL migration well, handling type coercion and
+batching for you. General procedure:
+
+1. Stand up the target PostgreSQL database and run Muster against it once
+   with an empty `data/` so migrations create the schema:
+
+   ```bash
+   MUSTER_DB_TYPE=postgres MUSTER_DATABASE_URL=postgres://muster:<password>@<host>:5432/muster \
+     node dist/index.js &
+   # wait for "Migrations applied" in the log, then stop it (Ctrl-C) —
+   # you want the empty schema in place, not the server running yet.
+   ```
+
+2. Stop Muster against the *old* SQLite database and take a clean backup
+   (see above) so pgloader reads a consistent file, not one mid-write.
+
+3. Run pgloader with a load script that truncates the target tables first
+   (the schema already exists from step 1, so pgloader should load data
+   into it rather than trying to create its own):
+
+   ```lisp
+   LOAD DATABASE
+        FROM sqlite:///path/to/muster-backup.db
+        INTO postgresql://muster:<password>@<host>:5432/muster
+
+   WITH include no drop, create no tables, create no indexes, reset sequences,
+        data only
+
+   SET work_mem to '256MB', maintenance_work_mem to '512MB';
+   ```
+
+   Save that as `migrate.load` and run `pgloader migrate.load`.
+
+4. Things worth checking afterward, since Muster's schema has a few
+   properties pgloader's defaults don't always handle cleanly:
+   - **Timestamps are `TEXT`, not native**: every `created_at`/`updated_at`
+     column is an ISO-8601 string (`2026-01-01T00:00:00.000Z`), not a
+     Postgres `timestamp`. This is deliberate — the app compares and sorts
+     them as text throughout — so make sure pgloader isn't casting them to
+     a native timestamp type; `data only` mode against an already-created
+     schema (step 1) avoids this, since the column types are fixed before
+     pgloader ever runs.
+   - **Booleans are `INTEGER` (0/1)**: same reasoning — `archived`,
+     `is_epic`, etc. are integers, not Postgres `boolean`. Same fix: create
+     the schema first, load data only.
+   - **The `"column"` table**: a reserved word in both dialects, always
+     double-quoted in Muster's own SQL. Verify pgloader preserved the exact
+     table name rather than renaming it.
+   - **Foreign keys**: run `\d+ card` (or any FK-heavy table) in `psql`
+     afterward and spot-check a few rows resolve — a partial or reordered
+     load can leave orphaned references that constraints (correctly) would
+     have rejected during a live INSERT but that a bulk loader may not
+     enforce mid-transfer.
+   - **Sequences**: `reset sequences` above only matters if a future
+     migration ever adds a Postgres `SERIAL`/`IDENTITY` column — today every
+     ID in this schema is an application-generated ULID, so there's nothing
+     to reset. Left in the script defensively.
+
+5. Point `MUSTER_DATABASE_URL` at the migrated database and start Muster for
+   real. Verify a board loads and a card claim succeeds before decommissioning
+   the old SQLite file.
+
+### Concurrency behavior differs between backends
+
+`CardService.claim()`'s exclusivity guarantee (MUS-14 — two agents can never
+both claim the same card) is enforced differently depending on backend:
+SQLite gets it for free from `better-sqlite3`'s single physical connection,
+which serializes every transaction globally regardless of table or row.
+PostgreSQL has a real connection pool with genuine concurrent transactions,
+so the same guarantee is enforced explicitly with `SELECT ... FOR UPDATE`
+row locking inside the claim transaction
+([src/services/card.service.ts](../src/services/card.service.ts)). This is
+covered by a dedicated test that fires concurrent claims through a real
+connection pool against a live Postgres instance
+([tests/postgres-adapter.test.ts](../tests/postgres-adapter.test.ts)) rather
+than relying on a mock, since a mock cannot exercise real lock contention.
 
 ## What's already handled for you
 
