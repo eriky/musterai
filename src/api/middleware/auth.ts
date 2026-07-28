@@ -28,6 +28,8 @@ import { getRetryAfterMs, recordFailedAttempt, recordSuccessfulAttempt } from '.
 export const SESSION_COOKIE_NAME = 'muster_session';
 
 const AUTH_ROUTE_PREFIX = '/api/v1/auth/';
+/** Device Authorization Grant (MUS-28) bootstrap endpoints — reachable with no credential, same reasoning as AUTH_ROUTE_PREFIX. Only these two: lookup/approve/deny require a real session. */
+const PUBLIC_DEVICE_ROUTES = ['/api/v1/oauth/device/code', '/api/v1/oauth/token'];
 
 /** Resolve a user's effective permissions and role name within a workspace. */
 async function resolveUserPermissions(
@@ -65,7 +67,7 @@ export function createAuthMiddleware(
     try {
       const authHeader = req.headers.authorization;
       const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
-      const isAuthRoute = req.path.startsWith(AUTH_ROUTE_PREFIX);
+      const isAuthRoute = req.path.startsWith(AUTH_ROUTE_PREFIX) || PUBLIC_DEVICE_ROUTES.includes(req.path);
 
       // Locked out from prior failed bearer attempts — refuse before touching the token
       if (authHeader) {

@@ -26,8 +26,11 @@ export function permissionGuard(req: Request, res: Response, next: NextFunction)
 
   // The auth routes (login/callback/logout/me) are the mechanism by which a
   // principal is established in the first place — they cannot themselves
-  // require a permission the caller has no way to hold yet.
-  if (fullPath.includes('/auth/')) {
+  // require a permission the caller has no way to hold yet. The device-code
+  // and token endpoints of the Device Authorization Grant (MUS-28) are the
+  // same story for a not-yet-authenticated CLI; device/lookup|approve|deny
+  // are NOT exempted — those run as the already-signed-in approving user.
+  if (fullPath.includes('/auth/') || fullPath === '/api/v1/oauth/device/code' || fullPath === '/api/v1/oauth/token') {
     next();
     return;
   }

@@ -16,6 +16,7 @@ import { createRoleRouter } from './routes/role.routes.js';
 import { createTokenRouter } from './routes/token.routes.js';
 import { createAuthRouter } from './routes/auth.routes.js';
 import { createUserRouter } from './routes/user.routes.js';
+import { createDeviceRouter } from './routes/device.routes.js';
 import { permissionGuard } from './middleware/permission-guard.js';
 
 export function createRouter(services: Services, sseManager: SSEManager, db: DatabaseAdapter): Router {
@@ -45,6 +46,7 @@ export function createRouter(services: Services, sseManager: SSEManager, db: Dat
     services.invitationService,
     services.roleService,
   ));
+  v1.use(createDeviceRouter(db, services.deviceGrantService));
 
 
   router.use('/v1', v1);

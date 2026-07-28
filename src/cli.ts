@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import { startServer } from './server.js';
 import { createConnectApp } from './connect/proxy.js';
 import { getCredential, setCredential, removeCredential, normalizeServerUrl } from './connect/credentials.js';
-import { whoAmI, listMyTokens, tokenPrefix, revokeToken, RemoteError } from './connect/remote-client.js';
+import { whoAmI, listMyTokens, tokenPrefix, revokeToken, RemoteError, requestDeviceCode, pollForDeviceToken } from './connect/remote-client.js';
 import { promptHidden } from './connect/prompt.js';
 
 type Flags = Record<string, string | boolean>;
@@ -106,9 +106,31 @@ async function runLogin(flags: Flags): Promise<void> {
   if (!server) fail('muster login requires --server <url>');
 
   let token = typeof flags.token === 'string' ? flags.token : null;
-  if (!token) {
+  if (!token && flags.paste) {
     console.log(`Paste a personal access token minted from ${server}'s Tokens page.`);
     token = await promptHidden('Token: ');
+  }
+  if (!token) {
+    // Default path: Device Authorization Grant (RFC 8628, MUS-28) — nothing
+    // secret is ever typed into this terminal.
+    let deviceCode;
+    try {
+      deviceCode = await requestDeviceCode(server!);
+    } catch (err) {
+      if (err instanceof RemoteError) fail(err.message);
+      throw err;
+    }
+
+    console.log(`\nTo log in, visit:\n\n  ${deviceCode.verification_uri_complete}\n`);
+    console.log(`Or go to ${deviceCode.verification_uri} and enter code: ${deviceCode.user_code}\n`);
+    console.log('Waiting for approval...');
+
+    try {
+      token = await pollForDeviceToken(server!, deviceCode.device_code, deviceCode.interval, deviceCode.expires_in);
+    } catch (err) {
+      if (err instanceof RemoteError) fail(err.message);
+      throw err;
+    }
   }
   if (!token) fail('No token provided');
 

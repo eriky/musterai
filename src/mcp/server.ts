@@ -17,6 +17,7 @@ import {
   OidcService,
   InvitationService,
   UserService,
+  DeviceGrantService,
 } from '../services/index.js';
 import { AuthContext, OPEN_AUTH_CONTEXT } from '../shared/auth-context.js';
 import { withPermission } from '../shared/permission-enforcer.js';
@@ -39,6 +40,7 @@ export interface Services {
   oidcService: OidcService;
   invitationService: InvitationService;
   userService: UserService;
+  deviceGrantService: DeviceGrantService;
 }
 
 import { Request } from 'express';

@@ -313,6 +313,14 @@ export interface CreatedInvitation extends Invitation {
   token: string;
 }
 
+/** What the `muster login` device-approval screen shows before the user approves. */
+export interface DeviceGrantInfo {
+  user_code: string;
+  workspace_name: string | null;
+  principal_display_name: string | null;
+  role_name: string | null;
+}
+
 export interface ApiToken {
   id: string;
   principal_id: string;

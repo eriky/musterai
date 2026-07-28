@@ -37,6 +37,7 @@ import { SessionService } from './services/session.service.js';
 import { OidcService } from './services/oidc.service.js';
 import { InvitationService } from './services/invitation.service.js';
 import { UserService } from './services/user.service.js';
+import { DeviceGrantService } from './services/device-grant.service.js';
 import { createAuthMiddleware } from './api/middleware/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -62,6 +63,7 @@ export async function startServer(): Promise<void> {
   const oidcService = new OidcService(db);
   const invitationService = new InvitationService(db);
   const userService = new UserService(db);
+  const deviceGrantService = new DeviceGrantService(db, tokenService);
   const agentService = new AgentService(db, eventService);
   const services: Services = {
     projectService: new ProjectService(db, eventService, boardService, documentService),
@@ -78,6 +80,7 @@ export async function startServer(): Promise<void> {
     sessionService,
     oidcService,
     invitationService,
+    deviceGrantService,
     userService,
   };
 

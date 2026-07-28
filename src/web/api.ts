@@ -1,5 +1,5 @@
 // File: src/web/api.ts
-import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, User, AuthMe, Role, Invitation, CreatedInvitation, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType, CreateCardWorkLink, ApiToken, CreatedApiToken } from './types.js';
+import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, Agent, User, AuthMe, Role, Invitation, CreatedInvitation, DeviceGrantInfo, Event, ProjectSummary, Label, KnowledgeBase, KBEntity, KBFact, KBRelation, EntityKnowledgeResult, KBGraphTree, CardLinkRelationType, CreateCardWorkLink, ApiToken, CreatedApiToken } from './types.js';
 
 const API_BASE = '/api/v1';
 
@@ -135,6 +135,11 @@ export const api = {
   createInvitation: (workspaceId: string, email: string, roleId: string) =>
     fetchJSON<CreatedInvitation>(`/workspaces/${workspaceId}/invitations`, { method: 'POST', body: JSON.stringify({ email, role_id: roleId }) }),
   revokeInvitation: (id: string) => fetchJSON<void>(`/invitations/${id}`, { method: 'DELETE' }),
+
+  // Device Authorization Grant (MUS-28) — the `muster login` approval screen
+  deviceLookup: (userCode: string) => fetchJSON<DeviceGrantInfo>(`/oauth/device/lookup?user_code=${encodeURIComponent(userCode)}`),
+  deviceApprove: (userCode: string) => fetchJSON<{ message: string }>(`/oauth/device/approve`, { method: 'POST', body: JSON.stringify({ user_code: userCode }) }),
+  deviceDeny: (userCode: string) => fetchJSON<{ message: string }>(`/oauth/device/deny`, { method: 'POST', body: JSON.stringify({ user_code: userCode }) }),
 
   // Agents & Settings
   getAgents: () => fetchJSON<Agent[]>(`/agents`),

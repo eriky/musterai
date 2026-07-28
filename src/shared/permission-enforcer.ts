@@ -260,6 +260,11 @@ export const REST_ROUTE_PERMISSIONS: RoutePattern[] = [
   { method: 'POST', pattern: /\/tokens$/, permission: 'project.create' },
   { method: 'DELETE', pattern: /\/tokens\/[^/]+$/, permission: 'project.create' },
 
+  // ── Device Authorization Grant (MUS-28) — device/code and token are exempted in permissionGuard; these three run as the signed-in approver ──
+  { method: 'GET', pattern: /^\/api\/v1\/oauth\/device\/lookup$/, permission: 'project.create', readOnly: true },
+  { method: 'POST', pattern: /^\/api\/v1\/oauth\/device\/approve$/, permission: 'project.create' },
+  { method: 'POST', pattern: /^\/api\/v1\/oauth\/device\/deny$/, permission: 'project.create' },
+
   // ── Invitations (MUS-25) — auth/login/callback/logout/me are exempted in permissionGuard ──
   { method: 'GET', pattern: /\/workspaces\/[^/]+\/invitations$/, permission: 'member.invite', readOnly: true },
   { method: 'POST', pattern: /\/workspaces\/[^/]+\/invitations$/, permission: 'member.invite' },

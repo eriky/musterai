@@ -56,3 +56,78 @@ export async function revokeToken(server: string, token: string, tokenId: string
     // Best-effort — the local credential is removed regardless; see cli.ts.
   }
 }
+
+// ─── Device Authorization Grant (RFC 8628, MUS-28) ─────────────────────────
+
+export interface DeviceCodeResponse {
+  device_code: string;
+  user_code: string;
+  verification_uri: string;
+  verification_uri_complete: string;
+  expires_in: number;
+  interval: number;
+}
+
+export async function requestDeviceCode(server: string): Promise<DeviceCodeResponse> {
+  let res: Response;
+  try {
+    res = await fetch(`${server}/api/v1/oauth/device/code`, { method: 'POST' });
+  } catch (err: any) {
+    throw new RemoteError(`Cannot reach ${server}: ${err.message}`);
+  }
+  if (!res.ok) throw new RemoteError(`${server} refused to start a device login (${res.status})`);
+  return res.json();
+}
+
+const DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code';
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Polls until the user approves, denies, or the code expires — honouring
+ * the server's interval and slow_down exactly as RFC 8628 requires, never
+ * looping on a terminal error.
+ */
+export async function pollForDeviceToken(server: string, deviceCode: string, intervalSeconds: number, expiresInSeconds: number): Promise<string> {
+  const deadline = Date.now() + expiresInSeconds * 1000;
+  let interval = intervalSeconds;
+
+  while (Date.now() < deadline) {
+    await sleep(interval * 1000);
+
+    let res: Response;
+    try {
+      res = await fetch(`${server}/api/v1/oauth/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grant_type: DEVICE_GRANT_TYPE, device_code: deviceCode }),
+      });
+    } catch (err: any) {
+      throw new RemoteError(`Cannot reach ${server}: ${err.message}`);
+    }
+
+    const body = await res.json().catch(() => ({}));
+
+    if (res.ok) {
+      return body.access_token;
+    }
+
+    switch (body.error) {
+      case 'authorization_pending':
+        continue;
+      case 'slow_down':
+        interval += 5;
+        continue;
+      case 'access_denied':
+        throw new RemoteError('Login was denied.');
+      case 'expired_token':
+        throw new RemoteError('The login code expired before it was approved. Run "muster login" again.');
+      default:
+        throw new RemoteError(`Unexpected response from ${server}: ${body.error || res.status}`);
+    }
+  }
+
+  throw new RemoteError('The login code expired before it was approved. Run "muster login" again.');
+}
