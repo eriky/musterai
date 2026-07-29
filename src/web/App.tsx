@@ -84,6 +84,7 @@ export const App: React.FC = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [currentUser, setCurrentUser] = useState<AuthMe['user'] | null>(null);
+  const [authMode, setAuthMode] = useState<AuthMe['auth_mode'] | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
@@ -244,9 +245,18 @@ export const App: React.FC = () => {
     api.getMe()
       .then((me) => {
         setCurrentUser(me.user);
+        setAuthMode(me.auth_mode);
         setWorkspaceId(me.workspace?.id || null);
       })
       .catch((err) => console.error('Error loading current user:', err));
+  }, []);
+
+  // Open-mode-only: let the browser claim a human identity with no OIDC
+  // involved. Every request already carries full trust in open mode, so this
+  // just gives that trust a name (see POST /auth/local).
+  const handleSetLocalIdentity = useCallback(async (displayName: string) => {
+    const { user } = await api.setLocalIdentity(displayName);
+    setCurrentUser(user);
   }, []);
 
   useEffect(() => {
@@ -382,6 +392,8 @@ export const App: React.FC = () => {
         notificationPrefs={notifications.prefs}
         onUpdateNotificationPrefs={notifications.updatePrefs}
         onRequestNotificationPermission={notifications.requestPermission}
+        authMode={authMode}
+        onSetLocalIdentity={handleSetLocalIdentity}
       />
 
       {connectionError && (
@@ -472,7 +484,7 @@ export const App: React.FC = () => {
 
         {activeTab === 'admin' && (
           workspaceId
-            ? <WorkspaceAdmin workspaceId={workspaceId} currentUser={currentUser} />
+            ? <WorkspaceAdmin workspaceId={workspaceId} currentUser={currentUser} authMode={authMode} />
             : <div className="text-center py-16 muster-text-muted text-sm">No workspace found yet.</div>
         )}
       </main>

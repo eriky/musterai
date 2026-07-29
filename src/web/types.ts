@@ -289,6 +289,7 @@ export interface AuthMe {
   user: { id: string; email: string | null; display_name: string; avatar_url: string | null; status: string } | null;
   role: string | null;
   workspace: { id: string; name: string } | null;
+  auth_mode: 'open' | 'enforced';
 }
 
 export interface Role {

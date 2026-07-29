@@ -21,6 +21,7 @@ type AdminTab = 'members' | 'roles' | 'invitations' | 'audit';
 interface WorkspaceAdminProps {
   workspaceId: string;
   currentUser: AuthMe['user'] | null;
+  authMode?: AuthMe['auth_mode'] | null;
 }
 
 function formatDate(iso: string | null): string {
@@ -28,7 +29,7 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString();
 }
 
-export const WorkspaceAdmin: React.FC<WorkspaceAdminProps> = ({ workspaceId, currentUser }) => {
+export const WorkspaceAdmin: React.FC<WorkspaceAdminProps> = ({ workspaceId, currentUser, authMode }) => {
   const [tab, setTab] = useState<AdminTab>('members');
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -115,6 +116,7 @@ export const WorkspaceAdmin: React.FC<WorkspaceAdminProps> = ({ workspaceId, cur
               roles={roles}
               agents={agents}
               currentUser={currentUser}
+              authMode={authMode}
               onChange={loadAll}
               onError={setError}
             />
@@ -160,9 +162,10 @@ const MembersPanel: React.FC<{
   roles: Role[];
   agents: Agent[];
   currentUser: AuthMe['user'] | null;
+  authMode?: AuthMe['auth_mode'] | null;
   onChange: () => void;
   onError: (msg: string) => void;
-}> = ({ workspaceId, users, roles, agents, currentUser, onChange, onError }) => {
+}> = ({ workspaceId, users, roles, agents, currentUser, authMode, onChange, onError }) => {
   const [savingId, setSavingId] = useState<string | null>(null);
 
   const agentCountFor = (userId: string) => agents.filter(a => a.operator_user_id === userId).length;
@@ -195,7 +198,9 @@ const MembersPanel: React.FC<{
         <Users className="w-12 h-12 muster-text-faint mx-auto mb-3" />
         <h3 className="text-sm font-sans muster-text-secondary font-semibold">No Members Yet</h3>
         <p className="text-xs font-sans text-neutral-500 max-w-sm mx-auto mt-1">
-          Invite a teammate from the Invitations tab, or sign in via OIDC to become the first member.
+          {authMode === 'open'
+            ? 'Click "Who are you?" in the top bar to claim your name — everyone reaching this instance can do the same for themselves.'
+            : 'Invite a teammate from the Invitations tab, or sign in via OIDC to become the first member.'}
         </p>
       </div>
     );
