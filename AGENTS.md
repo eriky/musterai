@@ -70,6 +70,10 @@ Emit periodic `heartbeat` calls to stay `active` in the registry:
 
 Heartbeats should be emitted at least every few minutes during active work. Agents that miss heartbeats are considered `idle`.
 
+**Open-mode identity is stateless.** `register_agent` returns an `id`; capture that exact value and reuse it as `agent_id` on every `heartbeat` and `add_comment` call. Both calls require it in open mode. Registration and heartbeat do not authenticate the connection or bind later requests to that identity, so never omit, reconstruct, or invent the ID.
+
+In authenticated/enforced mode, the bearer token is bound to a principal and Muster derives attribution from it. A caller-supplied ID never overrides that authenticated identity.
+
 
 ---
 
@@ -114,7 +118,7 @@ When communicating progress, subagent tasks, or conversation updates:
 ```json
 {
   "card_id": "<card_id>",
-  "author_id": "<your_agent_id>",
+  "agent_id": "<the_exact_id_returned_by_register_agent>",
   "content": "Implemented auth middleware for Muster Task \"Create user authentication middleware\". Unit tests green."
 }
 ```
@@ -125,10 +129,11 @@ Comment on:
 - Architectural decisions made during implementation
 - Test results and verification outcomes
 
-`author_id` (or `agent_id` — both are accepted) is only needed on a local/open-mode
-install with no authenticated principal; it's self-asserted and trusted as given
-in that mode, and ignored (in favor of your real authenticated identity) on a
-hosted/enforced install. You can edit or delete your own comments afterward with
+`agent_id` is **required on every `add_comment` call in local/open mode**. Use the
+exact `id` returned by `register_agent`; registration does not bind later requests.
+The legacy `author_id` alias is not a substitute in the open-mode MCP schema. In
+hosted/enforced mode, Muster ignores caller-supplied attribution in favor of the
+authenticated principal. You can edit or delete your own comments afterward with
 `update_comment` / `delete_comment`; editing or deleting someone else's comment
 requires `workspace.admin`.
 

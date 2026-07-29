@@ -138,6 +138,17 @@ export function createMcpServer(services: Services, req?: Request, auth: AuthCon
     version: '2.0.0',
   });
 
+  // Open mode has no authenticated request principal, so attributed calls
+  // must carry the registered agent ID on every request. In enforced mode the
+  // bearer/session principal is authoritative and this field is optional.
+  const attributedAgentIdSchema = config.auth.mode === 'open'
+    ? z.string().min(1).describe(
+      'REQUIRED in open mode. Use the exact id returned by register_agent; registration does not bind later MCP requests to that identity. Never invent an ID.'
+    )
+    : z.string().optional().describe(
+      'Optional in authenticated mode. The bearer/session principal is authoritative; any supplied value is ignored for attribution.'
+    );
+
   // --- MCP Collaboration Prompts ---
   server.prompt('collaboration_protocol', {}, () => ({
     messages: [
@@ -151,6 +162,8 @@ All AI agents and human operators collaborating within Muster must follow this p
 
 1. **Self-Registration & Status**:
    - Upon connecting, call \`register_agent\` to register your agent ID, name, and capabilities.
+   - **Open mode is stateless:** capture the exact \`id\` returned by \`register_agent\` and reuse it as \`agent_id\` on every \`heartbeat\` and \`add_comment\` call. Registration and heartbeat do not authenticate or bind later MCP requests. Never omit or invent this ID.
+   - **Authenticated mode:** the bearer token identifies the caller. Muster derives attribution from that principal instead of trusting a caller-supplied ID.
    - Emit periodic \`heartbeat\` pings to maintain 'active' status.
 
 2. **Design Specifications & Knowledge Bases First**:
@@ -166,7 +179,7 @@ All AI agents and human operators collaborating within Muster must follow this p
 
 4. **Transparent Progress & Human-Readable Task Descriptions**:
    - Always state current work using full human-readable task titles and work summaries out loud (e.g. \`Muster Task: "Create user authentication middleware"\`), never raw ID strings like \`Work on card #01J3K...\`.
-   - Log key progress updates, code diffs, or blockers on cards using \`add_comment\`. On a local/open-mode install with no authenticated principal, pass your own \`agent_id\` (or \`author_id\`) with the call to attribute the comment to yourself — it is self-asserted and trusted as given in that mode. You can edit or delete your own comments afterward with \`update_comment\` / \`delete_comment\`.
+   - Log key progress updates, code diffs, or blockers on cards using \`add_comment\`. On a local/open-mode install, \`agent_id\` is REQUIRED on every call: pass the exact \`id\` returned by \`register_agent\`. You can edit or delete your own comments afterward with \`update_comment\` / \`delete_comment\`.
 
 5. **Peer Review & Task Completion**:
    - Before moving a card to 'In Review', attach the branch, pull request, or commit you worked on via \`add_work_link\` — the human operator should never have to go find the work themselves.
@@ -386,9 +399,9 @@ All AI agents and human operators collaborating within Muster must follow this p
     card_id: z.string(),
     content: z.string(),
     author_id: z.string().optional().describe(
-      'Local/open-mode installs only: self-assert who is posting (e.g. your agent_id) when there is no authenticated principal to derive it from — trusted as given, since open mode has no per-caller auth to spoof. Ignored under enforced/hosted auth, where the authenticated principal always wins.'
+      'Deprecated alias retained for compatibility. Open-mode MCP clients must pass agent_id; authenticated-mode attribution comes from the bearer/session principal.'
     ),
-    agent_id: z.string().optional().describe('Alias for author_id — accepted for consistency with claim_card/assign_card.'),
+    agent_id: attributedAgentIdSchema,
   }, withPermission('add_comment', auth, async (args) => {
     // author_id/agent_id in args are only ever honored by resolveActor() in
     // open mode (see its doc comment) — the authenticated principal wins otherwise.
@@ -577,7 +590,11 @@ All AI agents and human operators collaborating within Muster must follow this p
     return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Agent ${agent_id} unregistered.` }) }] };
   }));
 
-  server.tool('heartbeat', { agent_id: z.string() }, withPermission('heartbeat', auth, async ({ agent_id }) => {
+  server.tool('heartbeat', {
+    agent_id: z.string().min(1).describe(
+      'REQUIRED. Use the exact id returned by register_agent. In open mode, registration does not bind later MCP requests, so this ID must be sent with every heartbeat.'
+    ),
+  }, withPermission('heartbeat', auth, async ({ agent_id }) => {
     await validateAgentOwnershipOrAdmin(services.agentService, auth, agent_id, 'agent.manage_others');
     const result = await services.agentService.heartbeat(agent_id);
     await services.cardService.renewClaims(agent_id);

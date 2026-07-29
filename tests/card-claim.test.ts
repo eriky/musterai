@@ -325,10 +325,22 @@ describe('Atomic card claiming and lease expiry', () => {
     const now = new Date().toISOString();
     await db.execute('INSERT OR IGNORE INTO principal (id, kind, created_at) VALUES (?, ?, ?)', ['local-agent-2', 'agent', now]);
 
-    // Regression: the zod tool schema must declare `agent_id`, or the MCP SDK
-    // silently strips it before resolveActor() ever sees it, leaving no actor
-    // and tripping comment.author_id's NOT NULL constraint.
+    // Regression: the public MCP schema must make agent_id required in open
+    // mode. Registration does not establish an authenticated request principal.
     const server = createMcpServer(services, { headers: {} } as any) as any;
+    const inputSchema = server._registeredTools['add_comment'].inputSchema;
+    expect(inputSchema.safeParse({ card_id: card.id, content: 'Missing identity' }).success).toBe(false);
+    expect(inputSchema.safeParse({
+      card_id: card.id,
+      author_id: 'local-agent-2',
+      content: 'Legacy alias is not enough',
+    }).success).toBe(false);
+    expect(inputSchema.safeParse({
+      card_id: card.id,
+      agent_id: 'local-agent-2',
+      content: 'Registered identity supplied',
+    }).success).toBe(true);
+
     const result = await server._registeredTools['add_comment'].handler(
       { card_id: card.id, agent_id: 'local-agent-2', content: 'Posted using agent_id instead of author_id' },
       {}
@@ -362,6 +374,11 @@ describe('Atomic card claiming and lease expiry', () => {
         role_name: null,
       };
       const server = createMcpServer(services, { headers: {} } as any, auth) as any;
+      const inputSchema = server._registeredTools['add_comment'].inputSchema;
+      expect(inputSchema.safeParse({
+        card_id: card.id,
+        content: 'Authenticated identity needs no agent_id',
+      }).success).toBe(true);
 
       // Attempt to impersonate a different principal via args — must be ignored.
       const result = await server._registeredTools['add_comment'].handler(

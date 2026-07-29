@@ -156,7 +156,7 @@ isn't an option.
 
 All agents must follow these 5 rules. Full details in [AGENTS.md](AGENTS.md).
 
-1. **Self-Registration & Heartbeat** — Register via `register_agent` on first connection; emit `heartbeat` periodically.
+1. **Self-Registration & Heartbeat** — Register via `register_agent` on first connection. In open mode, retain the returned `id` and pass it as the required `agent_id` on every `heartbeat` and `add_comment`; registration does not bind later requests.
 2. **Read Design Specs & Knowledge Bases First** — Call `list_documents` and check Knowledge Bases (`list_knowledge_bases`, `search_knowledge`) before starting work; record new facts via `add_gained_knowledge`.
 3. **Kanban Card Selection & WIP Limits** — Claim a card with `assign_card` and immediately move it to `In Progress` when starting work (including planning/research), while respecting column WIP limits.
 4. **Transparent Progress Comments** — Log all progress, blockers, and decisions via `add_comment` using human-readable task titles out loud (e.g. `Muster Task: "Title"`), never raw IDs.
