@@ -157,7 +157,7 @@ export function createAuthRouter(
 
       const auth = req.authContext;
       if (!auth?.principal || auth.principal.kind !== 'user') {
-        res.json({ authenticated: false, admitted: false, user: null, role: null, workspace });
+        res.json({ authenticated: false, admitted: false, user: null, role: null, workspace, auth_mode: config.auth.mode });
         return;
       }
 
@@ -173,7 +173,73 @@ export function createAuthRouter(
         user: userRows[0] || null,
         role: auth.role_name,
         workspace,
+        auth_mode: config.auth.mode,
       });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Open-mode-only: establish a human identity with no OIDC involved. A
+  // request already carries full trust in open mode (OPEN_AUTH_CONTEXT
+  // grants everything); this just gives that trust a name — a real
+  // app_user + session, so the person can appear as themselves instead of
+  // being stuck picking an existing agent to post comments as. Explicitly
+  // gated on config.auth.mode, never inferred, same convention as the
+  // self-asserted comment author fallback.
+  router.post('/auth/local', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (config.auth.mode !== 'open') {
+        res.status(404).json({ error: 'not_found', message: 'Not available outside open mode.' });
+        return;
+      }
+
+      const displayName = typeof req.body?.display_name === 'string' ? req.body.display_name.trim() : '';
+      if (!displayName) {
+        res.status(400).json({ error: 'bad_request', message: 'display_name is required' });
+        return;
+      }
+      if (displayName.length > 80) {
+        res.status(400).json({ error: 'bad_request', message: 'display_name must be 80 characters or fewer' });
+        return;
+      }
+
+      const user = await userService.createLocalUser(displayName);
+
+      const wsRows = await db.query<{ id: string }>('SELECT id FROM workspace LIMIT 1');
+      const workspaceId = wsRows[0]?.id || null;
+
+      if (workspaceId) {
+        const ownerRole = await roleService.getByKey(workspaceId, 'owner');
+        if (ownerRole) {
+          await userService.addWorkspaceMember(workspaceId, user.id, ownerRole.id, null);
+        }
+      }
+
+      const session = await sessionService.create(user.id, {
+        userAgent: req.headers['user-agent'] || null,
+        ip: req.ip || null,
+        ttlMs: SESSION_TTL_MS,
+      });
+
+      res.setHeader('Set-Cookie', serializeCookie(SESSION_COOKIE_NAME, session.token, {
+        httpOnly: true,
+        secure: isSecureRequest(req),
+        sameSite: 'Lax',
+        maxAgeSeconds: SESSION_TTL_MS / 1000,
+      }));
+
+      await auditService.log({
+        workspace_id: workspaceId,
+        actor: { id: user.id, kind: 'user' },
+        action: 'user.local_identity_create',
+        target_type: 'user',
+        target_id: user.id,
+        payload: { display_name: displayName },
+        ip: req.ip || null,
+      });
+
+      res.status(201).json({ user });
     } catch (err) {
       next(err);
     }

@@ -37,7 +37,7 @@ export const McpConsent: React.FC = () => {
   useEffect(() => {
     api.getMe()
       .then(setMe)
-      .catch(() => setMe({ authenticated: false, admitted: false, user: null, role: null, workspace: null }))
+      .catch(() => setMe({ authenticated: false, admitted: false, user: null, role: null, workspace: null, auth_mode: 'enforced' }))
       .finally(() => setLoading(false));
   }, []);
 

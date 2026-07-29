@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Project, ProjectSummary, AuthMe } from '../types.js';
-import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, UserPlus, Trash2, Edit2, KeyRound, ShieldCheck } from 'lucide-react';
+import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, UserPlus, Trash2, Edit2, KeyRound, ShieldCheck, UserCircle } from 'lucide-react';
 import { ThemePicker } from './ThemePicker.js';
 import { PrincipalChip } from './PrincipalChip.js';
 
@@ -21,7 +21,62 @@ interface HeaderProps {
   onOpenNewCard: () => void;
   onOpenNewDoc: () => void;
   currentUser?: AuthMe['user'] | null;
+  authMode?: AuthMe['auth_mode'] | null;
+  onSetLocalIdentity?: (displayName: string) => Promise<void>;
 }
+
+/** Open-mode-only "who are you" control — sits where a signed-in user's chip would go. */
+const IdentityPicker: React.FC<{ onSubmit: (displayName: string) => Promise<void> }> = ({ onSubmit }) => {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="muster-btn muster-btn-ghost font-mono text-xs"
+        title="Set your name so comments and assignments show who you are"
+      >
+        <UserCircle className="w-3.5 h-3.5 muster-accent" /> Who are you?
+      </button>
+    );
+  }
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed || saving) return;
+    setSaving(true);
+    try {
+      await onSubmit(trimmed);
+      setOpen(false);
+    } catch {
+      // errors surface via the input staying open with the typed name intact
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="flex items-center space-x-1.5">
+      <input
+        autoFocus
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Your name"
+        maxLength={80}
+        className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1 w-32"
+      />
+      <button type="submit" disabled={!name.trim() || saving} className="muster-btn muster-btn-soft font-mono text-xs">
+        Save
+      </button>
+      <button type="button" onClick={() => setOpen(false)} className="muster-btn muster-btn-ghost font-mono text-xs">
+        Cancel
+      </button>
+    </form>
+  );
+};
 
 /** Vertical rule between header groups. Decorative, so it carries no text. */
 const Divider: React.FC = () => (
@@ -48,6 +103,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewCard,
   onOpenNewDoc,
   currentUser,
+  authMode,
+  onSetLocalIdentity,
 }) => {
   const tabs: { id: TabId; icon: React.ElementType; label: string }[] = [
     { id: 'agents', icon: Bot, label: `Agents ${summary ? `(${summary.active_agent_count}/${summary.agent_count})` : ''}` },
@@ -84,13 +141,19 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Signed-in user — read-only, derived from the session, never picked */}
-            {currentUser && (
+            {/* Signed-in user — read-only, derived from the session, never picked.
+                In open mode with no session yet, offer the self-service name picker instead. */}
+            {currentUser ? (
               <>
                 <PrincipalChip name={currentUser.display_name} kind="user" />
                 <Divider />
               </>
-            )}
+            ) : authMode === 'open' && onSetLocalIdentity ? (
+              <>
+                <IdentityPicker onSubmit={onSetLocalIdentity} />
+                <Divider />
+              </>
+            ) : null}
 
             {/* Project Selector Dropdown, Edit & Delete Buttons */}
             <div className="flex items-center space-x-1.5">

@@ -77,6 +77,27 @@ export class UserService {
     };
   }
 
+  /**
+   * Create a human principal directly, with no OIDC identity behind it —
+   * the open-mode "who are you" self-service flow. Only ever called when
+   * config.auth.mode === 'open': every request there already carries full
+   * trust, so this just gives that trust a name and a real app_user row
+   * (so the person shows up in Members, can be @assigned, etc.) instead of
+   * leaving them unable to appear as anyone at all.
+   */
+  async createLocalUser(displayName: string): Promise<AppUser> {
+    const now = new Date().toISOString();
+    const userId = ulid();
+
+    await this.db.execute('INSERT INTO principal (id, kind, created_at) VALUES (?, ?, ?)', [userId, 'user', now]);
+    await this.db.execute(
+      'INSERT INTO app_user (id, email, display_name, status, created_at) VALUES (?, ?, ?, ?, ?)',
+      [userId, null, displayName, 'active', now],
+    );
+
+    return { id: userId, email: null, display_name: displayName, avatar_url: null, status: 'active', created_at: now };
+  }
+
   async isWorkspaceEmpty(workspaceId: string): Promise<boolean> {
     const rows = await this.db.query<any>('SELECT 1 FROM workspace_member WHERE workspace_id = ? LIMIT 1', [workspaceId]);
     return rows.length === 0;

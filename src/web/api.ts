@@ -112,6 +112,8 @@ export const api = {
 
   // Auth
   getMe: () => fetchJSON<AuthMe>('/auth/me'),
+  setLocalIdentity: (displayName: string) =>
+    fetchJSON<{ user: AuthMe['user'] }>('/auth/local', { method: 'POST', body: JSON.stringify({ display_name: displayName }) }),
 
   // Users (workspace members — humans only)
   getUsers: () => fetchJSON<User[]>(`/users`),
