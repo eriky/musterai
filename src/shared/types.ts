@@ -231,6 +231,11 @@ export interface ClaimRefusal {
   claim_expires_at: string;
 }
 
+export interface CardOperationOptions {
+  /** Set only when the caller explicitly requests an override and has authority to use it. */
+  operatorOverride?: boolean;
+}
+
 export interface CreateCard {
   column_id: string;
   title: string;

@@ -38,26 +38,27 @@ export class BoardService {
     };
 
     // Default or custom columns
-    let defaultCols: { name: string; wip_limit: number | null }[] = [];
+    let defaultCols: { name: string; wip_limit: number | null; is_terminal: boolean }[] = [];
 
     if (data.columns && data.columns.length > 0) {
       defaultCols = data.columns.map((colName) => ({
         name: colName,
         wip_limit: colName.toLowerCase() === 'in progress' ? 3 : null,
+        is_terminal: colName.trim().toLowerCase() === 'done',
       }));
     } else if (data.template === 'simple') {
       defaultCols = [
-        { name: 'To Do', wip_limit: null },
-        { name: 'In Progress', wip_limit: 3 },
-        { name: 'Done', wip_limit: null },
+        { name: 'To Do', wip_limit: null, is_terminal: false },
+        { name: 'In Progress', wip_limit: 3, is_terminal: false },
+        { name: 'Done', wip_limit: null, is_terminal: true },
       ];
     } else {
       defaultCols = [
-        { name: 'Backlog', wip_limit: null },
-        { name: 'To Do', wip_limit: null },
-        { name: 'In Progress', wip_limit: 3 },
-        { name: 'In Review', wip_limit: 2 },
-        { name: 'Done', wip_limit: null },
+        { name: 'Backlog', wip_limit: null, is_terminal: false },
+        { name: 'To Do', wip_limit: null, is_terminal: false },
+        { name: 'In Progress', wip_limit: 3, is_terminal: false },
+        { name: 'In Review', wip_limit: 2, is_terminal: false },
+        { name: 'Done', wip_limit: null, is_terminal: true },
       ];
     }
 
@@ -67,8 +68,8 @@ export class BoardService {
       const pos = rankAfter(lastRank);
       lastRank = pos;
       await this.db.execute(
-        `INSERT INTO "column" (id, board_id, name, position, wip_limit) VALUES (?, ?, ?, ?, ?)`,
-        [colId, id, col.name, pos, col.wip_limit]
+        `INSERT INTO "column" (id, board_id, name, position, wip_limit, is_terminal) VALUES (?, ?, ?, ?, ?, ?)`,
+        [colId, id, col.name, pos, col.wip_limit, col.is_terminal ? 1 : 0]
       );
     }
 

@@ -10,6 +10,12 @@ function getActorId(req: Request): string | undefined {
   return auth?.principal?.id;
 }
 
+function mayUseOperatorOverride(req: Request, requested: unknown): boolean {
+  if (requested !== true) return false;
+  const auth: AuthContext | undefined = (req as any).authContext;
+  return config.auth.mode === 'open' || auth?.is_operator_override === true;
+}
+
 /**
  * Like getActorId, but falls back to a caller-supplied identity hint in the
  * request body — ONLY in open mode (checked explicitly, not inferred from an
@@ -78,7 +84,11 @@ export function createCardRouter(cardService: CardService, commentService: Comme
 
   router.post('/columns/:columnId/cards', async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const card = await cardService.create({ ...req.body, column_id: req.params.columnId });
+      const card = await cardService.create(
+        { ...req.body, column_id: req.params.columnId },
+        getActorId(req),
+        { operatorOverride: mayUseOperatorOverride(req, req.body?.operator_override) },
+      );
       res.status(201).json(card);
     } catch (err) {
       next(err);
@@ -97,7 +107,9 @@ export function createCardRouter(cardService: CardService, commentService: Comme
   router.put('/cards/:id', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const actorId = getActorId(req);
-      const card = await cardService.update(req.params.id, req.body, actorId);
+      const card = await cardService.update(req.params.id, req.body, actorId, {
+        operatorOverride: mayUseOperatorOverride(req, req.body?.operator_override),
+      });
       res.json(card);
     } catch (err) {
       next(err);
@@ -107,7 +119,9 @@ export function createCardRouter(cardService: CardService, commentService: Comme
   router.patch('/cards/:id/move', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const actorId = getActorId(req);
-      const card = await cardService.move(req.params.id, req.body, actorId);
+      const card = await cardService.move(req.params.id, req.body, actorId, {
+        operatorOverride: mayUseOperatorOverride(req, req.body?.operator_override),
+      });
       res.json(card);
     } catch (err) {
       next(err);
@@ -166,7 +180,13 @@ export function createCardRouter(cardService: CardService, commentService: Comme
         res.status(400).json({ error: 'agent_id is required to claim a card' });
         return;
       }
-      const result = await cardService.claim(req.params.id, agentId, req.body.ttl_seconds);
+      const result = await cardService.claim(
+        req.params.id,
+        agentId,
+        req.body.ttl_seconds,
+        getActorId(req) || agentId,
+        { operatorOverride: mayUseOperatorOverride(req, req.body?.operator_override) },
+      );
       res.status('success' in result && result.success === false ? 409 : 200).json(result);
     } catch (err) {
       next(err);

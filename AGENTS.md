@@ -107,6 +107,14 @@ Agents **must adapt dynamically** to the column structure of the active board:
 2. **Claim & Move Immediately**: When starting work on a task, call `claim_card` to record yourself as the assignee and create the work lease, then call `move_card` to advance it to the next active-work lane—normally `In Progress`.
 3. **Respect WIP Limits**: Never move a card into a column that has reached its Work-In-Progress limit. Check column `wip_limit` via `get_board` before moving.
 
+Muster also enforces these rules server-side: card creation and moves respect
+column WIP limits; cards with unresolved `blocked_by` links cannot be claimed
+or moved into `In Progress`; and card status changes follow the validated
+state machine (`active` → `blocked`/`in_review`, `blocked` → `active`/`in_review`,
+`in_review` → `active`). An authenticated workspace operator may explicitly
+request an override where the API or MCP tool exposes `operator_override`; the
+server records that bypass as a distinct `override` activity event.
+
 ---
 
 ### Rule 4: Transparent Execution & Human-Readable Task Descriptions

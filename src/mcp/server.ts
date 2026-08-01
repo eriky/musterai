@@ -78,6 +78,10 @@ function resolveActor(auth: AuthContext, raw?: Record<string, unknown>): string 
   return undefined;
 }
 
+function mayUseOperatorOverride(auth: AuthContext, requested: boolean | undefined): boolean {
+  return requested === true && (config.auth.mode === 'open' || auth.is_operator_override);
+}
+
 /**
  * Like resolveActor but throws if no actor could be determined (enforced mode).
  * In open mode, returns undefined — the caller is unauthenticated.
@@ -175,7 +179,7 @@ All AI agents and human operators collaborating within Muster must follow this p
 3. **Kanban Card Workflow & Flexible Board Structures**:
    - Boards are flexible and may have 3 lanes ('To Do' → 'In Progress' → 'Done'), standard 5 lanes, or custom columns. Inspect the active board layout via \`get_board\`.
    - Call \`list_cards\` or \`get_board\` to find unassigned cards in initial state columns ('To Do' / 'Backlog').
-   - When starting work on a task, call \`claim_card\` to record yourself as the assignee and create the work lease, then call \`move_card\` to advance it to the next active-work lane—normally 'In Progress'. Always respect column WIP limits.
+   - When starting work on a task, call \`claim_card\` to record yourself as the assignee and create the work lease, then call \`move_card\` to advance it to the next active-work lane—normally 'In Progress'. Always respect column WIP limits; the server rejects over-limit creates/moves and unresolved blockers on claims or moves into 'In Progress'.
 
 4. **Transparent Progress & Human-Readable Task Descriptions**:
    - Always state current work using full human-readable task titles and work summaries out loud (e.g. \`Muster Task: "Create user authentication middleware"\`), never raw ID strings like \`Work on card #01J3K...\`.
@@ -320,8 +324,11 @@ All AI agents and human operators collaborating within Muster must follow this p
     labels: z.array(z.string()).optional(),
     assignees: z.array(z.string()).optional(),
     is_epic: z.boolean().optional().describe('Marks this card as a container for related work'),
-  }, withPermission('create_card', auth, async (args) => {
-    const card = await services.cardService.create(args, resolveActor(auth));
+    operator_override: z.boolean().optional().describe('Explicitly bypass card WIP rules when the authenticated caller has operator override authority'),
+  }, withPermission('create_card', auth, async ({ operator_override, ...args }) => {
+    const card = await services.cardService.create(args, resolveActor(auth), {
+      operatorOverride: mayUseOperatorOverride(auth, operator_override),
+    });
     return { content: [{ type: 'text', text: JSON.stringify(card, null, 2) }] };
   }));
 
@@ -339,7 +346,8 @@ All AI agents and human operators collaborating within Muster must follow this p
     status: z.enum(['active', 'blocked', 'in_review']).optional(),
     blocked_reason: z.string().nullable().optional(),
     is_epic: z.boolean().optional().describe('Marks this card as a container for related work'),
-  }, withPermission('update_card', auth, async ({ card_id, ...data }) => {
+    operator_override: z.boolean().optional().describe('Explicitly bypass card status-transition rules when the authenticated caller has operator override authority'),
+  }, withPermission('update_card', auth, async ({ card_id, operator_override, ...data }) => {
     // Layer 2 scope check: if the principal doesn't have card.assign_others,
     // they may only update cards they are assigned to.
     if (!auth.permissions.includes('card.assign_others') && auth.principal) {
@@ -349,15 +357,18 @@ All AI agents and human operators collaborating within Muster must follow this p
         throw new Error(`Forbidden: you may only update cards you are assigned to (principal: ${auth.principal.id})`);
       }
     }
-    const details = await services.cardService.update(card_id, data, resolveActor(auth));
+    const details = await services.cardService.update(card_id, data, resolveActor(auth), {
+      operatorOverride: mayUseOperatorOverride(auth, operator_override),
+    });
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
   }));
 
   server.tool('move_card', {
     card_id: z.string(),
     target_column_id: z.string().optional(),
-    position: z.string().optional()
-  }, withPermission('move_card', auth, async ({ card_id, target_column_id, position }) => {
+    position: z.string().optional(),
+    operator_override: z.boolean().optional().describe('Explicitly bypass card WIP and blocker rules when the authenticated caller has operator override authority'),
+  }, withPermission('move_card', auth, async ({ card_id, target_column_id, position, operator_override }) => {
     // Layer 2 scope check: if the principal doesn't have card.assign_others,
     // they may only move cards they are assigned to.
     if (!auth.permissions.includes('card.assign_others') && auth.principal) {
@@ -367,7 +378,9 @@ All AI agents and human operators collaborating within Muster must follow this p
         throw new Error(`Forbidden: you may only move cards you are assigned to (principal: ${auth.principal.id})`);
       }
     }
-    const details = await services.cardService.move(card_id, { target_column_id, position }, resolveActor(auth));
+    const details = await services.cardService.move(card_id, { target_column_id, position }, resolveActor(auth), {
+      operatorOverride: mayUseOperatorOverride(auth, operator_override),
+    });
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
   }));
 
@@ -375,9 +388,12 @@ All AI agents and human operators collaborating within Muster must follow this p
     card_id: z.string(),
     agent_id: z.string().describe('Required — the principal/agent ID claiming the card. This also records the assignee and work lease. After a successful claim, call move_card to advance it to the next active-work lane.'),
     ttl_seconds: z.number().optional().describe('Lease duration in seconds; defaults to 600 (10 minutes)'),
-  }, withPermission('claim_card', auth, async ({ card_id, agent_id, ttl_seconds }) => {
+    operator_override: z.boolean().optional().describe('Explicitly bypass blocker rules when the authenticated caller has operator override authority'),
+  }, withPermission('claim_card', auth, async ({ card_id, agent_id, ttl_seconds, operator_override }) => {
     await validateAgentOwnershipOrAdmin(services.agentService, auth, agent_id, 'card.assign_others');
-    const result = await services.cardService.claim(card_id, agent_id, ttl_seconds);
+    const result = await services.cardService.claim(card_id, agent_id, ttl_seconds, resolveActor(auth) || agent_id, {
+      operatorOverride: mayUseOperatorOverride(auth, operator_override),
+    });
     const response = 'success' in result && result.success === false
       ? result
       : {

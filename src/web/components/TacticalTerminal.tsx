@@ -5,7 +5,7 @@ import {
   Activity, Filter, RefreshCw, Terminal,
   CreditCard, Bot, FileText, Layout, FolderOpen,
   ArrowRight, Plus, Pencil, Trash2, UserPlus, UserMinus,
-  Link2, CheckCircle, Clock, MessageSquare, Database,
+  Link2, CheckCircle, Clock, MessageSquare, Database, ShieldAlert,
 } from 'lucide-react';
 
 
@@ -86,6 +86,11 @@ function describeEvent(
           return {
             icon: entityIcon('card', ArrowRight),
             text: `${actor} moved card ${card} to a new column`,
+          };
+        case 'override':
+          return {
+            icon: <ShieldAlert className="w-3.5 h-3.5 muster-text-warning" />,
+            text: `${actor} used an operator override for card ${card} (${p.operation || 'card rule'})`,
           };
         case 'assigned': {
           const assignee = agentName(agents, p.agent_id);

@@ -102,6 +102,7 @@ export const App: React.FC = () => {
   const [authMode, setAuthMode] = useState<AuthMe['auth_mode'] | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [boardActionError, setBoardActionError] = useState<string | null>(null);
 
   // Modals visibility
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
@@ -381,10 +382,13 @@ export const App: React.FC = () => {
   }, [selectedProjectId, loadProjectData]);
 
   const handleMoveCard = async (cardId: string, targetColumnId: string, position?: string) => {
+    setBoardActionError(null);
     try {
       await api.moveCard(cardId, targetColumnId, position);
       loadProjectData();
     } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'The card could not be moved.';
+      setBoardActionError(`Card move refused: ${message}`);
       console.error('Failed to move card:', err);
     }
   };
@@ -480,6 +484,19 @@ export const App: React.FC = () => {
       {connectionError && (
         <div className="flex-none bg-danger-950 border-b border-danger-600/40 text-danger-300 text-xs font-sans px-4 py-2 text-center">
           {connectionError}
+        </div>
+      )}
+
+      {boardActionError && (
+        <div role="alert" className="flex-none flex items-center justify-between gap-3 bg-warning-950 border-b border-warning-600/40 text-warning-200 text-xs font-sans px-4 py-2">
+          <span>{boardActionError}</span>
+          <button
+            type="button"
+            className="muster-btn muster-btn-ghost"
+            onClick={() => setBoardActionError(null)}
+          >
+            Dismiss
+          </button>
         </div>
       )}
 

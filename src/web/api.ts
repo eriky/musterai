@@ -4,7 +4,12 @@ import { Project, Board, Column, Card, CardDetails, Document, DocumentVersion, A
 const API_BASE = '/api/v1';
 
 export class ApiError extends Error {
-  constructor(public readonly status: number, message: string) {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly code?: string,
+    public readonly details?: Record<string, unknown>,
+  ) {
     super(message);
     this.name = 'ApiError';
   }
@@ -40,7 +45,14 @@ async function fetchJSON<T>(url: string, options?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new ApiError(res.status, `API Error (${res.status}): ${errText}`);
+    let body: { error?: string; message?: string; code?: string; details?: Record<string, unknown> } | null = null;
+    try {
+      body = JSON.parse(errText);
+    } catch {
+      // Keep the raw response text when the server did not return JSON.
+    }
+    const message = body?.message || body?.error || errText || `Request failed with status ${res.status}`;
+    throw new ApiError(res.status, message, body?.code, body?.details);
   }
 
   if (res.status === 204) {
@@ -75,12 +87,12 @@ export const api = {
 
   // Cards
   getCards: (boardId: string) => fetchJSON<Card[]>(`/boards/${boardId}/cards`),
-  createCard: (columnId: string, data: { title: string; description?: string; priority?: string; status?: string; blocked_reason?: string | null; labels?: string[]; assignees?: string[]; is_epic?: boolean }) =>
+  createCard: (columnId: string, data: { title: string; description?: string; priority?: string; status?: string; blocked_reason?: string | null; labels?: string[]; assignees?: string[]; is_epic?: boolean; operator_override?: boolean }) =>
     fetchJSON<Card>(`/columns/${columnId}/cards`, { method: 'POST', body: JSON.stringify(data) }),
   getCardDetails: (id: string) => fetchJSON<CardDetails>(`/cards/${id}`),
-  updateCard: (id: string, data: Partial<Card>) => fetchJSON<CardDetails>(`/cards/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  moveCard: (id: string, targetColumnId: string, position?: string) =>
-    fetchJSON<CardDetails>(`/cards/${id}/move`, { method: 'PATCH', body: JSON.stringify({ target_column_id: targetColumnId, position }) }),
+  updateCard: (id: string, data: Partial<Card> & { operator_override?: boolean }) => fetchJSON<CardDetails>(`/cards/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  moveCard: (id: string, targetColumnId: string, position?: string, operatorOverride?: boolean) =>
+    fetchJSON<CardDetails>(`/cards/${id}/move`, { method: 'PATCH', body: JSON.stringify({ target_column_id: targetColumnId, position, operator_override: operatorOverride }) }),
   assignCard: (cardId: string, agentId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/assignees`, { method: 'POST', body: JSON.stringify({ agent_id: agentId }) }),
   unassignCard: (cardId: string, agentId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/assignees/${agentId}`, { method: 'DELETE' }),
   addComment: (cardId: string, authorId: string, content: string) => fetchJSON<any>(`/cards/${cardId}/comments`, { method: 'POST', body: JSON.stringify({ author_id: authorId, content }) }),

@@ -158,7 +158,7 @@ All agents must follow these 5 rules. Full details in [AGENTS.md](AGENTS.md).
 
 1. **Self-Registration & Heartbeat** — Register via `register_agent` on first connection. In open mode, retain the returned `id` and pass it as the required `agent_id` on every `heartbeat` and `add_comment`; registration does not bind later requests.
 2. **Read Design Specs & Knowledge Bases First** — Call `list_documents` and check Knowledge Bases (`list_knowledge_bases`, `search_knowledge`) before starting work; record new facts via `add_gained_knowledge`.
-3. **Kanban Card Selection & WIP Limits** — When starting work, call `claim_card` to record yourself as the assignee and create the work lease, then call `move_card` to advance the card to the next active-work lane—normally `In Progress`. Respect column WIP limits.
+3. **Kanban Card Selection & WIP Limits** — When starting work, call `claim_card` to record yourself as the assignee and create the work lease, then call `move_card` to advance the card to the next active-work lane—normally `In Progress`. The server enforces WIP limits, blocks claims and `In Progress` moves for unresolved blockers, validates card status transitions, and records explicit operator overrides.
 4. **Transparent Progress Comments** — Log all progress, blockers, and decisions via `add_comment` using human-readable task titles out loud (e.g. `Muster Task: "Title"`), never raw IDs.
 5. **Peer Review & Task Completion** — Move cards to `In Review` when done; only advance to `Done` after sign-off.
 

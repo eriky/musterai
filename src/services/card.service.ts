@@ -1,10 +1,10 @@
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Document, CardLinkRelationType, StoredCardLinkType, LinkedCardSummary, CardWorkLink, CreateCardWorkLink, ClaimRefusal } from '../shared/types.js';
+import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Document, CardLinkRelationType, StoredCardLinkType, LinkedCardSummary, CardWorkLink, CreateCardWorkLink, ClaimRefusal, CardOperationOptions } from '../shared/types.js';
 import { EventService } from './event.service.js';
 import { rankAfter } from '../shared/lexorank.js';
 import { formatCardKey } from '../shared/card-key.js';
-import { ValidationError } from '../shared/errors.js';
+import { CardRuleError, NotFoundError, ValidationError } from '../shared/errors.js';
 import { config } from '../config/index.js';
 import { assertMaxLength, CARD_TEXT_MAX_CHARS } from '../shared/content-limits.js';
 
@@ -22,13 +22,94 @@ function assertHttpUrl(url: string): void {
 
 const DEFAULT_CLAIM_TTL_SECONDS = 600;
 
+type CardStatus = Card['status'];
+
+interface ColumnCapacity {
+  id: string;
+  name: string;
+  wip_limit: number | null;
+  card_count: number;
+}
+
+interface UnresolvedBlocker {
+  id: string;
+  key: string;
+  title: string;
+  column_id: string;
+  column_name: string;
+}
+
+const ALLOWED_STATUS_TRANSITIONS: Record<CardStatus, CardStatus[]> = {
+  active: ['active', 'blocked', 'in_review'],
+  blocked: ['blocked', 'active', 'in_review'],
+  in_review: ['in_review', 'active'],
+};
+
 export class CardService {
   constructor(
     private db: DatabaseAdapter,
     private eventService?: EventService
   ) {}
 
-  async create(data: CreateCard, actorId?: string): Promise<Card> {
+  private async getColumnCapacity(columnId: string, db: DatabaseAdapter = this.db): Promise<ColumnCapacity> {
+    // WIP checks run inside the create/move transaction. Lock the target
+    // column row on Postgres so concurrent writers to the same lane cannot
+    // both observe spare capacity and exceed the limit.
+    if (db.dialect === 'postgres') {
+      await db.query<{ id: string }>('SELECT id FROM "column" WHERE id = ? FOR UPDATE', [columnId]);
+    }
+    const rows = await db.query<{ id: string; name: string; wip_limit: number | null; card_count: number | string }>(
+      `SELECT col.id, col.name, col.wip_limit, COUNT(c.id) AS card_count
+       FROM "column" col
+       LEFT JOIN card c ON c.column_id = col.id AND c.archived = 0
+       WHERE col.id = ?
+       GROUP BY col.id, col.name, col.wip_limit`,
+      [columnId]
+    );
+    const row = rows[0];
+    if (!row) throw new NotFoundError(`Column with ID ${columnId} not found`);
+    return { ...row, card_count: Number(row.card_count) };
+  }
+
+  private async getUnresolvedBlockers(cardId: string, db: DatabaseAdapter = this.db): Promise<UnresolvedBlocker[]> {
+    return db.query<UnresolvedBlocker>(
+      `SELECT blocker.id, blocker.key, blocker.title, blocker.column_id, blocker_column.name AS column_name
+       FROM card_link link
+       JOIN card blocker ON blocker.id = link.source_card_id
+       JOIN "column" blocker_column ON blocker_column.id = blocker.column_id
+       WHERE link.target_card_id = ?
+         AND link.relation_type = 'blocks'
+         AND blocker.archived = 0
+         AND blocker_column.is_terminal = 0
+       ORDER BY blocker.position ASC`,
+      [cardId]
+    );
+  }
+
+  private getStatusViolation(from: CardStatus, to: CardStatus): { allowed: CardStatus[] } | null {
+    const allowed = ALLOWED_STATUS_TRANSITIONS[from] || [];
+    return allowed.includes(to) ? null : { allowed };
+  }
+
+  private async recordOverride(
+    projectId: string,
+    cardId: string,
+    actorId: string | undefined,
+    operation: string,
+    details: Record<string, unknown>,
+  ): Promise<void> {
+    if (!this.eventService) return;
+    await this.eventService.create({
+      project_id: projectId,
+      entity_type: 'card',
+      entity_id: cardId,
+      action: 'override',
+      actor_id: actorId,
+      payload: { operation, ...details },
+    });
+  }
+
+  async create(data: CreateCard, actorId?: string, options: CardOperationOptions = {}): Promise<Card> {
     assertMaxLength(data.description, CARD_TEXT_MAX_CHARS, 'Card description');
     const id = ulid();
     const created_at = new Date().toISOString();
@@ -36,27 +117,74 @@ export class CardService {
 
     const projectId = await this.getProjectIdForColumn(data.column_id);
     if (!projectId) throw new Error(`Column ${data.column_id} is not attached to a project`);
-    const key = await this.nextCardKey(projectId);
+    const { card, wipViolation } = await this.db.transaction(async (tx) => {
+      let wipViolation: ColumnCapacity | null = null;
+      const capacity = await this.getColumnCapacity(data.column_id, tx);
+      if (capacity.wip_limit !== null && capacity.card_count >= capacity.wip_limit) {
+        wipViolation = capacity;
+        if (!options.operatorOverride) {
+          throw new CardRuleError(
+            'CARD_WIP_LIMIT',
+            `Column "${capacity.name}" is at its WIP limit (${capacity.card_count}/${capacity.wip_limit}); cannot create a card there without operator override.`,
+            {
+              rule: 'wip_limit',
+              operation: 'create',
+              column_id: capacity.id,
+              column_name: capacity.name,
+              current_count: capacity.card_count,
+              wip_limit: capacity.wip_limit,
+            },
+          );
+        }
+      }
 
-    let position = data.position;
-    if (!position) {
-      const cards = await this.list({ column_id: data.column_id });
-      const lastPos = cards.length > 0 ? cards[cards.length - 1].position : '';
-      position = rankAfter(lastPos);
-    }
+      const key = await this.nextCardKey(projectId, tx);
+      let position = data.position;
+      if (!position) {
+        const cards = await tx.query<Card>(
+          'SELECT * FROM card WHERE column_id = ? AND archived = 0 ORDER BY position ASC',
+          [data.column_id]
+        );
+        const lastPos = cards.length > 0 ? cards[cards.length - 1].position : '';
+        position = rankAfter(lastPos);
+      }
 
-    const priority = data.priority || 'medium';
-    const description = data.description || null;
-    const due_date = data.due_date || null;
-    const status = data.status || 'active';
-    const blocked_reason = data.blocked_reason !== undefined ? data.blocked_reason : null;
-    const is_epic = data.is_epic ? 1 : 0;
+      const priority = data.priority || 'medium';
+      const description = data.description || null;
+      const due_date = data.due_date || null;
+      const status = data.status || 'active';
+      const blocked_reason = data.blocked_reason !== undefined ? data.blocked_reason : null;
+      const is_epic = data.is_epic ? 1 : 0;
 
-    await this.db.execute(
-      `INSERT INTO card (id, key, column_id, title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at, archived, is_epic)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-      [id, key, data.column_id, data.title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at, is_epic]
-    );
+      await tx.execute(
+        `INSERT INTO card (id, key, column_id, title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at, archived, is_epic)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+        [id, key, data.column_id, data.title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at, is_epic]
+      );
+
+      return {
+        card: {
+          id,
+          key,
+          column_id: data.column_id,
+          title: data.title,
+          description,
+          position,
+          priority,
+          due_date,
+          status,
+          blocked_reason,
+          created_at,
+          updated_at,
+          archived: 0,
+          claimed_by: null,
+          claimed_at: null,
+          claim_expires_at: null,
+          is_epic,
+        } satisfies Card,
+        wipViolation,
+      };
+    });
 
     if (data.labels && data.labels.length > 0) {
       for (const labelId of data.labels) {
@@ -70,26 +198,6 @@ export class CardService {
       }
     }
 
-    const card: Card = {
-      id,
-      key,
-      column_id: data.column_id,
-      title: data.title,
-      description,
-      position,
-      priority,
-      due_date,
-      status,
-      blocked_reason,
-      created_at,
-      updated_at,
-      archived: 0,
-      claimed_by: null,
-      claimed_at: null,
-      claim_expires_at: null,
-      is_epic,
-    };
-
     if (this.eventService) {
       await this.eventService.create({
         project_id: projectId,
@@ -101,20 +209,28 @@ export class CardService {
       });
     }
 
+    if (wipViolation && options.operatorOverride) {
+      await this.recordOverride(projectId, id, actorId, 'create', {
+        rule: 'wip_limit',
+        column_id: wipViolation.id,
+        column_name: wipViolation.name,
+        current_count: wipViolation.card_count,
+        wip_limit: wipViolation.wip_limit,
+      });
+    }
+
     return card;
   }
 
   /** Atomically claims the next per-project sequence number and formats it as e.g. "MUS-42". */
-  private async nextCardKey(projectId: string): Promise<string> {
-    return this.db.transaction(async tx => {
-      const rows = await tx.query<{ card_seq: number; key_prefix: string }>(
-        `UPDATE project SET card_seq = card_seq + 1 WHERE id = ? RETURNING card_seq, key_prefix`,
-        [projectId]
-      );
-      const row = rows[0];
-      if (!row) throw new Error(`Project ${projectId} not found`);
-      return formatCardKey(row.key_prefix, row.card_seq);
-    });
+  private async nextCardKey(projectId: string, db: DatabaseAdapter = this.db): Promise<string> {
+    const rows = await db.query<{ card_seq: number | string; key_prefix: string }>(
+      `UPDATE project SET card_seq = card_seq + 1 WHERE id = ? RETURNING card_seq, key_prefix`,
+      [projectId]
+    );
+    const row = rows[0];
+    if (!row) throw new Error(`Project ${projectId} not found`);
+    return formatCardKey(row.key_prefix, Number(row.card_seq));
   }
 
   /**
@@ -354,9 +470,28 @@ export class CardService {
     }));
   }
 
-  async update(id: string, data: UpdateCard, actorId?: string): Promise<CardDetails> {
+  async update(id: string, data: UpdateCard, actorId?: string, options: CardOperationOptions = {}): Promise<CardDetails> {
     assertMaxLength(data.description, CARD_TEXT_MAX_CHARS, 'Card description');
     const existing = await this.getById(id);
+
+    let statusViolation: { allowed: CardStatus[] } | null = null;
+    if (data.status !== undefined && data.status !== existing.status) {
+      statusViolation = this.getStatusViolation(existing.status, data.status);
+      if (statusViolation && !options.operatorOverride) {
+        throw new CardRuleError(
+          'CARD_STATUS_TRANSITION',
+          `Invalid card status transition from "${existing.status}" to "${data.status}". Allowed transitions: ${statusViolation.allowed.filter(status => status !== existing.status).join(', ') || 'none'}.`,
+          {
+            rule: 'status_transition',
+            operation: 'update',
+            card_id: id,
+            from: existing.status,
+            to: data.status,
+            allowed_transitions: statusViolation.allowed.filter(status => status !== existing.status),
+          },
+        );
+      }
+    }
 
     const title = data.title !== undefined ? data.title : existing.title;
     const description = data.description !== undefined ? data.description : existing.description;
@@ -386,43 +521,113 @@ export class CardService {
       }
     }
 
+    if (statusViolation && options.operatorOverride) {
+      const projectId = await this.getProjectIdForColumn(existing.column_id);
+      if (projectId) {
+        await this.recordOverride(projectId, id, actorId, 'update', {
+          rule: 'status_transition',
+          from: existing.status,
+          to: data.status,
+          allowed_transitions: statusViolation.allowed.filter(status => status !== existing.status),
+        });
+      }
+    }
+
     return this.getById(id);
   }
 
-  async move(id: string, data: MoveCard, actorId?: string): Promise<CardDetails> {
-    const existing = await this.getById(id);
-    const target_column_id = data.target_column_id || existing.column_id;
+  async move(id: string, data: MoveCard, actorId?: string, options: CardOperationOptions = {}): Promise<CardDetails> {
+    const { moveEvent, overrideRules } = await this.db.transaction(async (tx) => {
+      const overrideRules: Array<Record<string, unknown>> = [];
+      let moveEvent: { projectId: string; fromColumnId: string; toColumnId: string; position: string } | null = null;
+      const lockClause = tx.dialect === 'postgres' ? ' FOR UPDATE' : '';
+      const rows = await tx.query<Card>(`SELECT * FROM card WHERE id = ?${lockClause}`, [id]);
+      const existing = rows[0];
+      if (!existing) throw new NotFoundError(`Card with ID ${id} not found`);
 
-    let position = data.position;
-    if (!position) {
-      const targetCards = await this.list({ column_id: target_column_id });
-      const lastPos = targetCards.length > 0 ? targetCards[targetCards.length - 1].position : '';
-      position = rankAfter(lastPos);
+      const target_column_id = data.target_column_id || existing.column_id;
+      const capacity = await this.getColumnCapacity(target_column_id, tx);
+      const isColumnChange = target_column_id !== existing.column_id;
+
+      if (isColumnChange && capacity.wip_limit !== null && capacity.card_count >= capacity.wip_limit) {
+        const details = {
+          rule: 'wip_limit',
+          operation: 'move',
+          column_id: capacity.id,
+          column_name: capacity.name,
+          current_count: capacity.card_count,
+          wip_limit: capacity.wip_limit,
+        };
+        if (!options.operatorOverride) {
+          throw new CardRuleError(
+            'CARD_WIP_LIMIT',
+            `Column "${capacity.name}" is at its WIP limit (${capacity.card_count}/${capacity.wip_limit}); cannot move this card there without operator override.`,
+            details,
+          );
+        }
+        overrideRules.push(details);
+      }
+
+      if (isColumnChange && capacity.name.trim().toLowerCase() === 'in progress') {
+        const blockers = await this.getUnresolvedBlockers(id, tx);
+        if (blockers.length > 0) {
+          const details = {
+            rule: 'blocked_by',
+            operation: 'move',
+            blockers: blockers.map(blocker => ({ ...blocker })),
+          };
+          if (!options.operatorOverride) {
+            const blockerSummary = blockers.map(blocker => `${blocker.key} "${blocker.title}"`).join(', ');
+            throw new CardRuleError(
+              'CARD_BLOCKED',
+              `Cannot move this card into "${capacity.name}" while it is blocked by ${blockerSummary}. Resolve the blocking cards or use operator override.`,
+              details,
+            );
+          }
+          overrideRules.push(details);
+        }
+      }
+
+      let position = data.position;
+      if (!position) {
+        const targetCards = await tx.query<Card>(
+          'SELECT * FROM card WHERE column_id = ? AND archived = 0 ORDER BY position ASC',
+          [target_column_id]
+        );
+        const lastPos = targetCards.length > 0 ? targetCards[targetCards.length - 1].position : '';
+        position = rankAfter(lastPos);
+      }
+
+      const updated_at = new Date().toISOString();
+      await tx.execute(
+        `UPDATE card SET column_id = ?, position = ?, updated_at = ? WHERE id = ?`,
+        [target_column_id, position, updated_at, id]
+      );
+
+      const projectId = await this.getProjectIdForColumn(target_column_id, tx);
+      if (!projectId) throw new Error(`Column ${target_column_id} is not attached to a project`);
+      moveEvent = { projectId, fromColumnId: existing.column_id, toColumnId: target_column_id, position };
+
+      return { moveEvent, overrideRules };
+    });
+
+    if (this.eventService && moveEvent) {
+      await this.eventService.create({
+        project_id: moveEvent.projectId,
+        entity_type: 'card',
+        entity_id: id,
+        action: 'moved',
+        actor_id: actorId,
+        payload: {
+          from_column_id: moveEvent.fromColumnId,
+          to_column_id: moveEvent.toColumnId,
+          position: moveEvent.position,
+        },
+      });
     }
 
-    const updated_at = new Date().toISOString();
-
-    await this.db.execute(
-      `UPDATE card SET column_id = ?, position = ?, updated_at = ? WHERE id = ?`,
-      [target_column_id, position, updated_at, id]
-    );
-
-    if (this.eventService) {
-      const projectId = await this.getProjectIdForColumn(target_column_id);
-      if (projectId) {
-        await this.eventService.create({
-          project_id: projectId,
-          entity_type: 'card',
-          entity_id: id,
-          action: 'moved',
-          actor_id: actorId,
-          payload: {
-            from_column_id: existing.column_id,
-            to_column_id: target_column_id,
-            position,
-          },
-        });
-      }
+    if (overrideRules.length > 0 && moveEvent) {
+      await this.recordOverride(moveEvent.projectId, id, actorId, 'move', { rules: overrideRules });
     }
 
     return this.getById(id);
@@ -462,8 +667,17 @@ export class CardService {
    * or the existing lease has expired. Runs as a compare-and-swap inside a
    * transaction so two concurrent claims can never both succeed.
    */
-  async claim(cardId: string, agentId: string, ttlSeconds: number = DEFAULT_CLAIM_TTL_SECONDS): Promise<CardDetails | ClaimRefusal> {
-    return this.db.transaction(async (tx) => {
+  async claim(
+    cardId: string,
+    agentId: string,
+    ttlSeconds: number = DEFAULT_CLAIM_TTL_SECONDS,
+    actorId?: string,
+    options: CardOperationOptions = {},
+  ): Promise<CardDetails | ClaimRefusal> {
+    let overrideProjectId: string | null = null;
+    let overrideBlockers: UnresolvedBlocker[] = [];
+
+    const result = await this.db.transaction(async (tx) => {
       // Read-check-write is only atomic if nothing else can write the row
       // between the read and the write. On SQLite that's true by accident —
       // better-sqlite3 is one connection and BEGIN IMMEDIATE serializes every
@@ -500,6 +714,24 @@ export class CardService {
         return refusal;
       }
 
+      const blockers = await this.getUnresolvedBlockers(cardId, tx);
+      if (blockers.length > 0) {
+        if (!options.operatorOverride) {
+          const blockerSummary = blockers.map(blocker => `${blocker.key} "${blocker.title}"`).join(', ');
+          throw new CardRuleError(
+            'CARD_BLOCKED',
+            `Cannot claim this card while it is blocked by ${blockerSummary}. Resolve the blocking cards or use operator override.`,
+            {
+              rule: 'blocked_by',
+              operation: 'claim',
+              blockers: blockers.map(blocker => ({ ...blocker })),
+            },
+          );
+        }
+        overrideProjectId = await this.getProjectIdForColumn(card.column_id, tx);
+        overrideBlockers = blockers;
+      }
+
       const expiresIso = new Date(now.getTime() + ttlSeconds * 1000).toISOString();
       await tx.execute(
         `UPDATE card SET claimed_by = ?, claimed_at = ?, claim_expires_at = ?, updated_at = ? WHERE id = ?`,
@@ -511,7 +743,7 @@ export class CardService {
       );
 
       if (this.eventService) {
-        const projectId = await this.getProjectIdForColumn(card.column_id);
+        const projectId = await this.getProjectIdForColumn(card.column_id, tx);
         if (projectId) {
           await this.eventService.create({
             project_id: projectId,
@@ -526,6 +758,15 @@ export class CardService {
 
       return this.getById(cardId, tx);
     });
+
+    if (overrideProjectId && overrideBlockers.length > 0) {
+      await this.recordOverride(overrideProjectId, cardId, actorId || agentId, 'claim', {
+        rule: 'blocked_by',
+        blockers: overrideBlockers.map(blocker => ({ ...blocker })),
+      });
+    }
+
+    return result;
   }
 
   /** Extend the claim lease on every card currently held by this agent — called on heartbeat. */
@@ -784,8 +1025,8 @@ export class CardService {
     }
   }
 
-  private async getProjectIdForColumn(columnId: string): Promise<string | null> {
-    const rows = await this.db.query<{ project_id: string }>(
+  private async getProjectIdForColumn(columnId: string, db: DatabaseAdapter = this.db): Promise<string | null> {
+    const rows = await db.query<{ project_id: string }>(
       `SELECT b.project_id FROM "column" col JOIN board b ON col.board_id = b.id WHERE col.id = ?`,
       [columnId]
     );
