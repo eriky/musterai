@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseAdapter } from './adapter.js';
 import { deriveKeyPrefix, formatCardKey } from '../shared/card-key.js';
+import { deriveSlug } from '../shared/slug.js';
 
 /**
  * The migrations directory is one canonical set of files, not a fork per
@@ -76,7 +77,46 @@ export class Migrator {
       }
     }
 
+    await this.backfillSlugs();
     await this.backfillCardKeys();
+  }
+
+  /**
+   * Populate URL slugs for rows created before slugs were introduced. The
+   * ordered pass makes collision suffixes deterministic across restarts.
+   */
+  private async backfillSlugs(): Promise<void> {
+    const projects = await this.db.query<{ id: string; name: string; slug: string | null }>(
+      `SELECT id, name, slug FROM project ORDER BY created_at ASC, id ASC`
+    );
+    const projectSlugs = new Set(projects.map(project => project.slug).filter((slug): slug is string => !!slug));
+
+    for (const project of projects) {
+      if (project.slug) continue;
+      const slug = deriveSlug(project.name, projectSlugs);
+      projectSlugs.add(slug);
+      await this.db.execute(`UPDATE project SET slug = ? WHERE id = ?`, [slug, project.id]);
+    }
+
+    const boards = await this.db.query<{ id: string; project_id: string; name: string; slug: string | null }>(
+      `SELECT id, project_id, name, slug FROM board ORDER BY created_at ASC, id ASC`
+    );
+    const slugsByProject = new Map<string, Set<string>>();
+    for (const board of boards) {
+      if (!slugsByProject.has(board.project_id)) slugsByProject.set(board.project_id, new Set());
+      if (board.slug) slugsByProject.get(board.project_id)!.add(board.slug);
+    }
+
+    for (const board of boards) {
+      if (board.slug) continue;
+      const taken = slugsByProject.get(board.project_id)!;
+      const slug = deriveSlug(board.name, taken);
+      taken.add(slug);
+      await this.db.execute(`UPDATE board SET slug = ? WHERE id = ?`, [slug, board.id]);
+    }
+
+    await this.db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_project_slug ON project(slug)`);
+    await this.db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_board_project_slug ON board(project_id, slug)`);
   }
 
   /**

@@ -3,6 +3,7 @@
 export interface Project {
   id: string;
   name: string;
+  slug: string;
   description: string | null;
   key_prefix: string;
   card_seq: number;
@@ -14,6 +15,7 @@ export interface Board {
   id: string;
   project_id: string;
   name: string;
+  slug: string;
   created_at: string;
   updated_at: string;
 }

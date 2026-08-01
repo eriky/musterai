@@ -67,10 +67,12 @@ describe('Domain Services Integration Tests', () => {
   it('Bug 1.1: project creation creates default board and columns', async () => {
     const project = await projectService.create({ name: 'Test Project', description: 'Desc' });
     expect(project.id).toBeDefined();
+    expect(project.slug).toBe('test-project');
 
     const boards = await boardService.list(project.id);
     expect(boards.length).toBe(1);
     expect(boards[0].name).toBe('Sprint 1');
+    expect(boards[0].slug).toBe('sprint-1');
 
     const columns = await columnService.list(boards[0].id);
     expect(columns.length).toBe(5);
@@ -82,6 +84,7 @@ describe('Domain Services Integration Tests', () => {
     const updated = await projectService.update(project.id, { name: 'New Project Name', description: 'Updated Desc' });
 
     expect(updated.name).toBe('New Project Name');
+    expect(updated.slug).toBe('old-project-name');
     expect(updated.description).toBe('Updated Desc');
 
     const fetched = await projectService.getById(project.id);
@@ -101,6 +104,7 @@ describe('Domain Services Integration Tests', () => {
     const simpleCols = await columnService.list(simpleBoard.id);
     expect(simpleCols.length).toBe(3);
     expect(simpleCols.map(c => c.name)).toEqual(['To Do', 'In Progress', 'Done']);
+    expect(simpleBoard.slug).toBe('simple-board');
 
     // Custom columns board
     const customBoard = await boardService.create({
@@ -111,6 +115,7 @@ describe('Domain Services Integration Tests', () => {
     const customCols = await columnService.list(customBoard.id);
     expect(customCols.length).toBe(4);
     expect(customCols.map(c => c.name)).toEqual(['Idea', 'Building', 'QA', 'Shipped']);
+    expect(customBoard.slug).toBe('custom-board');
   });
 
   it('Feature: board update (rename) works correctly and emits event', async () => {
@@ -123,6 +128,7 @@ describe('Domain Services Integration Tests', () => {
 
     const updated = await boardService.update(initialBoard.id, { name: 'Sprint 1 - Renamed' }, agent.id);
     expect(updated.name).toBe('Sprint 1 - Renamed');
+    expect(updated.slug).toBe('sprint-1');
 
     const fetched = await boardService.getById(initialBoard.id);
     expect(fetched?.name).toBe('Sprint 1 - Renamed');
@@ -582,4 +588,3 @@ describe('Domain Services Integration Tests', () => {
     await expect(cardService.getById(card.id)).rejects.toThrow();
   });
 });
-

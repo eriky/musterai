@@ -6,6 +6,7 @@ import { EventService } from './event.service.js';
 import { BoardService } from './board.service.js';
 import { DocumentService } from './document.service.js';
 import { deriveKeyPrefix } from '../shared/card-key.js';
+import { deriveSlug } from '../shared/slug.js';
 
 export class ProjectService {
   constructor(
@@ -24,21 +25,26 @@ export class ProjectService {
       `SELECT key_prefix FROM project WHERE key_prefix IS NOT NULL`
     );
     const key_prefix = deriveKeyPrefix(data.name, new Set(existingPrefixes.map(p => p.key_prefix)));
+    const existingSlugs = await this.db.query<{ slug: string }>(
+      `SELECT slug FROM project WHERE slug IS NOT NULL`
+    );
+    const slug = deriveSlug(data.name, new Set(existingSlugs.map(p => p.slug)));
 
     // Look up the default workspace — projects must belong to a workspace.
     const wsRows = await this.db.query<{ id: string }>('SELECT id FROM workspace LIMIT 1');
     const workspaceId = wsRows[0]?.id || '';
 
     await this.db.execute(
-      `INSERT INTO project (id, workspace_id, name, description, key_prefix, card_seq, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
-      [id, workspaceId, data.name, data.description || null, key_prefix, created_at, updated_at]
+      `INSERT INTO project (id, workspace_id, name, slug, description, key_prefix, card_seq, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+      [id, workspaceId, data.name, slug, data.description || null, key_prefix, created_at, updated_at]
     );
 
     const project: Project = {
       id,
       workspace_id: workspaceId,
       name: data.name,
+      slug,
       description: data.description || null,
       key_prefix,
       card_seq: 0,
@@ -111,13 +117,24 @@ All AI agents and human operators collaborating within this project must observe
     const name = data.name !== undefined ? data.name : existing.name;
     const description = data.description !== undefined ? data.description : existing.description;
     const updated_at = new Date().toISOString();
+    let slug = existing.slug;
+
+    // Rows created before slugs were introduced are repaired lazily if they
+    // are updated before the startup backfill has seen them.
+    if (!slug) {
+      const existingSlugs = await this.db.query<{ slug: string }>(
+        `SELECT slug FROM project WHERE id != ? AND slug IS NOT NULL`,
+        [id]
+      );
+      slug = deriveSlug(name, new Set(existingSlugs.map(p => p.slug)));
+    }
 
     await this.db.execute(
-      `UPDATE project SET name = ?, description = ?, updated_at = ? WHERE id = ?`,
-      [name, description, updated_at, id]
+      `UPDATE project SET name = ?, slug = ?, description = ?, updated_at = ? WHERE id = ?`,
+      [name, slug, description, updated_at, id]
     );
 
-    const updated: Project = { ...existing, name, description, updated_at };
+    const updated: Project = { ...existing, name, slug, description, updated_at };
 
     if (this.eventService) {
       await this.eventService.create({

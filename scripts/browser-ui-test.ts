@@ -116,10 +116,27 @@ async function runBrowserUiTest() {
     await boardSelector.selectOption({ label: 'Release Board' });
     await page.waitForSelector('h3:has-text("BACKLOG")', { state: 'detached' });
     await page.waitForSelector('h3:has-text("TO DO")');
+    const boardUrl = new URL(page.url());
+    if (boardUrl.pathname !== '/projects/e2e-isolated-test-project/board/release-board') {
+      throw new Error(`Selected board is not reflected in URL: ${boardUrl.pathname}`);
+    }
     await page.waitForTimeout(3500);
     const selectedBoardName = await boardSelector.locator('option:checked').textContent();
     if (selectedBoardName !== 'Release Board') {
       throw new Error(`Board selection reset after polling refresh: ${selectedBoardName}`);
+    }
+    if (new URL(page.url()).pathname !== '/projects/e2e-isolated-test-project/board/release-board') {
+      throw new Error(`Board URL changed during polling: ${new URL(page.url()).pathname}`);
+    }
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('h3:has-text("TO DO")');
+    await boardSelector.waitFor();
+    const reloadedBoardName = await boardSelector.locator('option:checked').textContent();
+    if (reloadedBoardName !== 'Release Board') {
+      throw new Error(`Board selection was not restored from URL after reload: ${reloadedBoardName}`);
+    }
+    if (new URL(page.url()).pathname !== '/projects/e2e-isolated-test-project/board/release-board') {
+      throw new Error(`Board URL changed after reload: ${new URL(page.url()).pathname}`);
     }
     console.log('  ✓ Additional board selected and preserved across background refresh.');
 

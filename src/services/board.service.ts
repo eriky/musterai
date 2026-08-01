@@ -4,6 +4,7 @@ import { DatabaseAdapter } from '../db/adapter.js';
 import { Board, CreateBoard, UpdateBoard, Label, CreateLabel } from '../shared/types.js';
 import { EventService } from './event.service.js';
 import { rankAfter } from '../shared/lexorank.js';
+import { deriveSlug } from '../shared/slug.js';
 
 export class BoardService {
   constructor(
@@ -15,17 +16,23 @@ export class BoardService {
     const id = ulid();
     const created_at = new Date().toISOString();
     const updated_at = created_at;
+    const existingSlugs = await this.db.query<{ slug: string }>(
+      `SELECT slug FROM board WHERE project_id = ? AND slug IS NOT NULL`,
+      [data.project_id]
+    );
+    const slug = deriveSlug(data.name, new Set(existingSlugs.map(b => b.slug)));
 
     await this.db.execute(
-      `INSERT INTO board (id, project_id, name, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?)`,
-      [id, data.project_id, data.name, created_at, updated_at]
+      `INSERT INTO board (id, project_id, name, slug, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, data.project_id, data.name, slug, created_at, updated_at]
     );
 
     const board: Board = {
       id,
       project_id: data.project_id,
       name: data.name,
+      slug,
       created_at,
       updated_at,
     };
@@ -94,10 +101,19 @@ export class BoardService {
 
     const name = data.name !== undefined ? data.name : existing.name;
     const updated_at = new Date().toISOString();
+    let slug = existing.slug;
 
-    await this.db.execute('UPDATE board SET name = ?, updated_at = ? WHERE id = ?', [name, updated_at, id]);
+    if (!slug) {
+      const existingSlugs = await this.db.query<{ slug: string }>(
+        `SELECT slug FROM board WHERE project_id = ? AND id != ? AND slug IS NOT NULL`,
+        [existing.project_id, id]
+      );
+      slug = deriveSlug(name, new Set(existingSlugs.map(b => b.slug)));
+    }
 
-    const updated: Board = { ...existing, name, updated_at };
+    await this.db.execute('UPDATE board SET name = ?, slug = ?, updated_at = ? WHERE id = ?', [name, slug, updated_at, id]);
+
+    const updated: Board = { ...existing, name, slug, updated_at };
 
     if (this.eventService) {
       await this.eventService.create({

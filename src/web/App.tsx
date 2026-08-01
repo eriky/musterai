@@ -25,32 +25,43 @@ type TabType = 'board' | 'agents' | 'docs' | 'activity' | 'kb' | 'tokens' | 'adm
 
 // ─── URL Routing Helpers (HTML5 History API — No Hash) ─────────────────────────
 
-function parseLocation(): { projectId: string | null; tab: TabType; docId: string | null; entityId: string | null } {
+function parseLocation(): {
+  projectSlug: string | null;
+  tab: TabType;
+  boardSlug: string | null;
+  docId: string | null;
+  entityId: string | null;
+} {
   const parts = window.location.pathname.split('/').filter(Boolean);
-  // Expected pattern: /projects/:projectId/:tab, /projects/:projectId/docs/:docId, or /projects/:projectId/kb/:entityId
+  // Expected pattern: /projects/:projectSlug/:tab, /projects/:projectSlug/board/:boardSlug,
+  // /projects/:projectSlug/docs/:docId, or /projects/:projectSlug/kb/:entityId.
   if (parts[0] === 'projects' && parts[1]) {
-    const projectId = parts[1];
+    const projectSlug = parts[1];
     const rawTab = parts[2];
     const validTabs: TabType[] = ['board', 'agents', 'docs', 'activity', 'kb', 'tokens', 'admin'];
     const tab = validTabs.includes(rawTab as TabType) ? (rawTab as TabType) : 'board';
+    const boardSlug = tab === 'board' && parts[3] ? parts[3] : null;
     const docId = tab === 'docs' && parts[3] ? parts[3] : null;
     const entityId = tab === 'kb' && parts[3] ? parts[3] : null;
-    return { projectId, tab, docId, entityId };
+    return { projectSlug, tab, boardSlug, docId, entityId };
   }
-  return { projectId: null, tab: 'board', docId: null, entityId: null };
+  return { projectSlug: null, tab: 'board', boardSlug: null, docId: null, entityId: null };
 }
 
 
 function updateLocation(
-  projectId: string | null,
+  projectSlug: string | null,
   tab: TabType,
   docId?: string | null,
   entityId?: string | null,
+  boardSlug?: string | null,
   replace = false,
 ) {
-  if (!projectId) return;
-  let targetPath = `/projects/${projectId}/${tab}`;
-  if (tab === 'docs' && docId) {
+  if (!projectSlug) return;
+  let targetPath = `/projects/${projectSlug}/${tab}`;
+  if (tab === 'board' && boardSlug) {
+    targetPath += `/${boardSlug}`;
+  } else if (tab === 'docs' && docId) {
     targetPath += `/${docId}`;
   } else if (tab === 'kb' && entityId) {
     targetPath += `/${entityId}`;
@@ -70,7 +81,7 @@ export const App: React.FC = () => {
   const initialNav = parseLocation();
 
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(initialNav.projectId);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>(initialNav.tab);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(initialNav.docId);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(initialNav.entityId);
@@ -82,6 +93,7 @@ export const App: React.FC = () => {
   const [columns, setColumns] = useState<Column[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
   const selectedBoardIdRef = useRef<string | null>(null);
+  const selectedBoardSlugRef = useRef<string | null>(initialNav.boardSlug);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -115,20 +127,18 @@ export const App: React.FC = () => {
       setProjects(list);
 
       const nav = parseLocation();
-      let targetId = selectId || nav.projectId;
+      const projectFromRoute = nav.projectSlug
+        ? list.find((project) => project.slug === nav.projectSlug)
+        : undefined;
+      const selectedProject = selectId
+        ? list.find((project) => project.id === selectId)
+        : projectFromRoute || list[0];
 
-      // Validate URL project ID exists in projects list
-      if (targetId && !list.some((p) => p.id === targetId)) {
-        targetId = null;
-      }
-
-      if (!targetId && list.length > 0) {
-        targetId = list[0].id;
-      }
-
-      if (targetId) {
-        setSelectedProjectId(targetId);
-        updateLocation(targetId, activeTab, selectedDocId, selectedEntityId, true);
+      if (selectedProject) {
+        const boardSlug = selectedProject.id === projectFromRoute?.id ? nav.boardSlug : null;
+        selectedBoardSlugRef.current = boardSlug;
+        setSelectedProjectId(selectedProject.id);
+        updateLocation(selectedProject.slug, activeTab, selectedDocId, selectedEntityId, boardSlug, true);
       }
     } catch (err) {
       console.error('Error loading projects:', err);
@@ -157,11 +167,16 @@ export const App: React.FC = () => {
       setConnectionError(null);
 
       setBoards(boardsData);
+      const nav = parseLocation();
       const activeBoardId = selectedBoardIdRef.current;
-      const targetBoardId = activeBoardId && boardsData.some((candidate) => candidate.id === activeBoardId)
-        ? activeBoardId
-        : boardsData[0]?.id ?? null;
+      const targetBoard = (activeBoardId && boardsData.find((candidate) => candidate.id === activeBoardId))
+        || (nav.boardSlug && boardsData.find((candidate) => candidate.slug === nav.boardSlug))
+        || boardsData[0]
+        || null;
+      const targetBoardId = targetBoard?.id ?? null;
       rememberSelectedBoard(targetBoardId);
+      selectedBoardSlugRef.current = targetBoard?.slug ?? null;
+      updateLocation(nav.projectSlug, nav.tab, nav.docId, nav.entityId, targetBoard?.slug ?? null, true);
 
       if (targetBoardId) {
         const boardDetails = await api.getBoardDetails(targetBoardId);
@@ -208,13 +223,19 @@ export const App: React.FC = () => {
     setColumns([]);
     setCards([]);
     setSelectedProjectId(projectId);
-    updateLocation(projectId, activeTab, selectedDocId, selectedEntityId);
+    selectedBoardSlugRef.current = null;
+    const project = projects.find((candidate) => candidate.id === projectId);
+    updateLocation(project?.slug ?? null, activeTab, selectedDocId, selectedEntityId, null);
   };
 
   const handleSelectTab = (tab: TabType) => {
     setActiveTab(tab);
-    if (selectedProjectId) {
-      updateLocation(selectedProjectId, tab, selectedDocId, selectedEntityId);
+    const project = projects.find((candidate) => candidate.id === selectedProjectId);
+    if (project) {
+      const boardSlug = tab === 'board'
+        ? boards.find((candidate) => candidate.id === selectedBoardIdRef.current)?.slug ?? selectedBoardSlugRef.current
+        : null;
+      updateLocation(project.slug, tab, selectedDocId, selectedEntityId, boardSlug);
     }
   };
 
@@ -222,6 +243,12 @@ export const App: React.FC = () => {
     if (boardId === selectedBoardIdRef.current) return;
 
     rememberSelectedBoard(boardId);
+    const project = projects.find((candidate) => candidate.id === selectedProjectId);
+    const selectedBoard = boards.find((candidate) => candidate.id === boardId);
+    selectedBoardSlugRef.current = selectedBoard?.slug ?? null;
+    if (project && selectedBoard) {
+      updateLocation(project.slug, 'board', null, null, selectedBoard.slug);
+    }
     try {
       const boardDetails = await api.getBoardDetails(boardId);
       if (selectedBoardIdRef.current !== boardId) return;
@@ -236,8 +263,9 @@ export const App: React.FC = () => {
 
   const handleSelectDoc = (docId: string) => {
     setSelectedDocId(docId);
-    if (selectedProjectId) {
-      updateLocation(selectedProjectId, 'docs', docId, null);
+    const project = projects.find((candidate) => candidate.id === selectedProjectId);
+    if (project) {
+      updateLocation(project.slug, 'docs', docId, null);
     }
   };
 
@@ -260,18 +288,29 @@ export const App: React.FC = () => {
   // Handle Browser Back / Forward buttons (popstate)
   useEffect(() => {
     const handlePopState = () => {
-      const { projectId, tab, docId, entityId } = parseLocation();
-      if (projectId) {
-        setSelectedProjectId(projectId);
+      const { projectSlug, tab, boardSlug, docId, entityId } = parseLocation();
+      const project = projects.find((candidate) => candidate.slug === projectSlug);
+      if (project) {
+        setSelectedProjectId(project.id);
+      }
+      if (tab === 'board') {
+        selectedBoardSlugRef.current = boardSlug;
+        rememberSelectedBoard(boards.find((candidate) => candidate.slug === boardSlug)?.id ?? null);
       }
       setActiveTab(tab);
       setSelectedDocId(docId);
       setSelectedEntityId(entityId);
+
+      // A board URL can change without the project changing when the user
+      // navigates with the browser back/forward buttons.
+      if (project && project.id === selectedProjectId) {
+        loadProjectData();
+      }
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [boards, loadProjectData, projects, rememberSelectedBoard, selectedProjectId]);
 
 
   useEffect(() => {
