@@ -84,6 +84,10 @@ export const api = {
   assignCard: (cardId: string, agentId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/assignees`, { method: 'POST', body: JSON.stringify({ agent_id: agentId }) }),
   unassignCard: (cardId: string, agentId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/assignees/${agentId}`, { method: 'DELETE' }),
   addComment: (cardId: string, authorId: string, content: string) => fetchJSON<any>(`/cards/${cardId}/comments`, { method: 'POST', body: JSON.stringify({ author_id: authorId, content }) }),
+  updateComment: (cardId: string, commentId: string, content: string) =>
+    fetchJSON<CardDetails['comments'][number]>(`/cards/${cardId}/comments/${commentId}`, { method: 'PUT', body: JSON.stringify({ content }) }),
+  deleteComment: (cardId: string, commentId: string) =>
+    fetchJSON<void>(`/cards/${cardId}/comments/${commentId}`, { method: 'DELETE' }),
   linkDocument: (cardId: string, documentId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/documents`, { method: 'POST', body: JSON.stringify({ document_id: documentId }) }),
   unlinkDocument: (cardId: string, documentId: string) => fetchJSON<CardDetails>(`/cards/${cardId}/documents/${documentId}`, { method: 'DELETE' }),
   searchCards: (projectId: string, query: string, excludeCardId?: string) => {
@@ -214,4 +218,3 @@ export const api = {
     fetchJSON<CreatedApiToken>('/tokens', { method: 'POST', body: JSON.stringify(data) }),
   revokeToken: (id: string) => fetchJSON<{ message: string; id: string }>(`/tokens/${id}`, { method: 'DELETE' }),
 };
-

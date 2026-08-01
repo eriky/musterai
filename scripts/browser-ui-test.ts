@@ -87,6 +87,17 @@ async function runBrowserUiTest() {
     }
     console.log('  ✓ Header rendered correctly.');
 
+    // Establish an open-mode browser identity so the comment controls can be
+    // exercised as the comment author rather than skipped on an empty DB.
+    const whoAreYou = page.getByRole('button', { name: 'Who are you?' });
+    if (await whoAreYou.count() > 0) {
+      await whoAreYou.click();
+      await page.fill('input[placeholder="Your name"]', 'Browser UI Tester');
+      await page.getByRole('button', { name: 'Save' }).click();
+      await page.waitForSelector('text=Browser UI Tester');
+      console.log('  ✓ Open-mode browser identity established.');
+    }
+
     // Step 2: Create New Project via Modal
     console.log('\n[2/8] Testing Project Creation Modal (+ Project)...');
     await page.click('button:has-text("+ Project")');
@@ -198,14 +209,23 @@ async function runBrowserUiTest() {
     const authorSelect = page.locator('select:has-text("Select Author...")');
     if (await authorSelect.count() > 0) {
       const options = await authorSelect.locator('option').allInnerTexts();
-      if (options.length > 1) {
-        await authorSelect.selectOption({ index: 1 });
-        await page.fill('textarea[placeholder*="Add comment"]', 'Verified browser UI functionality.');
-        await page.click('button[type="submit"]:has-text("Comment")');
-        await page.waitForSelector('text=Verified browser UI functionality.');
-        console.log('  ✓ Comment posted and rendered in modal.');
-      }
+      if (options.length > 1) await authorSelect.selectOption({ index: 1 });
     }
+    await page.fill('textarea[placeholder*="Add comment"]', 'Verified browser UI functionality.');
+    await page.click('button[type="submit"]:has-text("Comment")');
+    await page.waitForSelector('text=Verified browser UI functionality.');
+    console.log('  ✓ Comment posted and rendered in modal.');
+
+    await page.getByRole('button', { name: 'Edit comment' }).click();
+    await page.locator('textarea[aria-label="Edit comment"]').fill('Edited browser UI functionality.');
+    await page.getByRole('button', { name: 'Save comment' }).click();
+    await page.waitForSelector('text=Edited browser UI functionality.');
+    await page.waitForSelector('text=Verified browser UI functionality.', { state: 'detached' });
+    console.log('  ✓ Comment edited and refreshed in modal.');
+
+    await page.getByRole('button', { name: 'Delete comment' }).click();
+    await page.waitForSelector('text=Edited browser UI functionality.', { state: 'detached' });
+    console.log('  ✓ Comment deleted and refreshed in modal.');
 
     // Close card modal
     // Assignment/comment actions refresh board data asynchronously. Let the

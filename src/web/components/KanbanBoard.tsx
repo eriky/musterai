@@ -113,6 +113,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [loadingDocumentId, setLoadingDocumentId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
   const [selectedAuthorId, setSelectedAuthorId] = useState<string>('');
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
+  const [savingCommentId, setSavingCommentId] = useState<string | null>(null);
   const [assignAgentId, setAssignAgentId] = useState<string>('');
   const [removingAgentId, setRemovingAgentId] = useState<string | null>(null);
   const [linkDocumentId, setLinkDocumentId] = useState<string>('');
@@ -212,6 +215,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     setIsEditingCard(false);
     setIsCreatingCard(false);
     setNewCardColumnId('');
+    setEditingCommentId(null);
+    setEditingCommentText('');
   };
 
   const handleOpenNewCardForm = (columnId?: string) => {
@@ -274,6 +279,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     setSelectedCardId(cardId);
     setIsCreatingCard(false);
     setNewCardColumnId('');
+    setEditingCommentId(null);
+    setEditingCommentText('');
     try {
       const details = await api.getCardDetails(cardId);
       setCardDetails(details);
@@ -355,6 +362,54 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       onRefresh();
     } catch (err) {
       console.error('Failed to add comment:', err);
+    }
+  };
+
+  const canManageComment = (comment: CardDetails['comments'][number]) => {
+    if (currentUser?.id === comment.author_id) return true;
+    if (!currentUser && selectedAuthorId === comment.author_id) return true;
+    return false;
+  };
+
+  const handleStartEditingComment = (comment: CardDetails['comments'][number]) => {
+    setEditingCommentId(comment.id);
+    setEditingCommentText(comment.content);
+  };
+
+  const handleCancelEditingComment = () => {
+    setEditingCommentId(null);
+    setEditingCommentText('');
+  };
+
+  const handleSaveComment = async (commentId: string) => {
+    if (!selectedCardId || !editingCommentText.trim()) return;
+    setSavingCommentId(commentId);
+    try {
+      await api.updateComment(selectedCardId, commentId, editingCommentText.trim());
+      const updated = await api.getCardDetails(selectedCardId);
+      setCardDetails(updated);
+      handleCancelEditingComment();
+      onRefresh();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update comment');
+    } finally {
+      setSavingCommentId(null);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!selectedCardId || !window.confirm('Delete this comment?')) return;
+    setSavingCommentId(commentId);
+    try {
+      await api.deleteComment(selectedCardId, commentId);
+      const updated = await api.getCardDetails(selectedCardId);
+      setCardDetails(updated);
+      if (editingCommentId === commentId) handleCancelEditingComment();
+      onRefresh();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete comment');
+    } finally {
+      setSavingCommentId(null);
     }
   };
 
@@ -1543,14 +1598,71 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 <div className="space-y-3 max-h-48 overflow-y-auto mb-4">
                   {cardDetails.comments.map((c) => (
                     <div key={c.id} className="bg-muster-surface p-3 rounded-lg border border-muster-border space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px] muster-text-muted">
-                        <PrincipalChip name={c.author_name || 'Unknown'} kind={c.author_kind || 'agent'} />
-                        <span>{new Date(c.created_at).toLocaleString()}</span>
+                      <div className="flex items-center justify-between gap-2 text-[11px] muster-text-muted">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <PrincipalChip name={c.author_name || 'Unknown'} kind={c.author_kind || 'agent'} />
+                          <span>{new Date(c.created_at).toLocaleString()}</span>
+                        </div>
+                        {canManageComment(c) && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              className="muster-btn muster-btn-icon muster-btn-ghost"
+                              title="Edit comment"
+                              aria-label="Edit comment"
+                              disabled={savingCommentId === c.id}
+                              onClick={() => handleStartEditingComment(c)}
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              className="muster-btn muster-btn-icon muster-btn-ghost-danger"
+                              title="Delete comment"
+                              aria-label="Delete comment"
+                              disabled={savingCommentId === c.id}
+                              onClick={() => handleDeleteComment(c.id)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <div
-                        className="markdown-render text-xs text-neutral-200 leading-relaxed overflow-x-auto [&>p:last-child]:mb-0"
-                        dangerouslySetInnerHTML={{ __html: renderMarkdown(c.content) }}
-                      />
+                      {editingCommentId === c.id ? (
+                        <form onSubmit={(e) => { e.preventDefault(); void handleSaveComment(c.id); }} className="space-y-2">
+                          <textarea
+                            autoFocus
+                            rows={3}
+                            value={editingCommentText}
+                            onChange={(e) => setEditingCommentText(e.target.value)}
+                            aria-label="Edit comment"
+                            className="w-full bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-3 py-2 focus:outline-none focus:border-brand-500 resize-y"
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              className="muster-btn muster-btn-secondary"
+                              aria-label="Cancel comment edit"
+                              onClick={handleCancelEditingComment}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="muster-btn muster-btn-primary"
+                              aria-label="Save comment"
+                              disabled={!editingCommentText.trim() || savingCommentId === c.id}
+                            >
+                              {savingCommentId === c.id ? 'Saving…' : 'Save'}
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <div
+                          className="markdown-render text-xs text-neutral-200 leading-relaxed overflow-x-auto [&>p:last-child]:mb-0"
+                          dangerouslySetInnerHTML={{ __html: renderMarkdown(c.content) }}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
