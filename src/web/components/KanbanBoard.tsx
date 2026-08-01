@@ -1595,7 +1595,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   Comments ({cardDetails.comments.length})
                 </h4>
 
-                <div className="space-y-3 max-h-48 overflow-y-auto mb-4">
+                <div className="space-y-3 mb-4">
                   {cardDetails.comments.map((c) => (
                     <div key={c.id} className="bg-muster-surface p-3 rounded-lg border border-muster-border space-y-1.5">
                       <div className="flex items-center justify-between gap-2 text-[11px] muster-text-muted">
