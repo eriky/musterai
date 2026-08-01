@@ -154,6 +154,28 @@ async function runMcpAgentTestSuite() {
     const boardDetails = await callMCPTool('get_board', { board_id: boards[0].id });
     console.log(`  ✓ Board Details Loaded! Columns: ${boardDetails.columns.map((c: any) => c.name).join(', ')}`);
 
+    // Multiple boards must be independently addressable over MCP, matching
+    // the REST-backed UI board selector.
+    const releaseBoard = await callMCPTool('create_board', {
+      project_id: project.id,
+      name: 'Release Board',
+      template: 'simple',
+    });
+    const boardsAfterCreate = await callMCPTool('list_boards', { project_id: project.id });
+    if (!boardsAfterCreate.some((candidate: any) => candidate.id === releaseBoard.id)) {
+      throw new Error('MCP list_boards did not return the newly created board');
+    }
+
+    const releaseBoardDetails = await callMCPTool('get_board', { board_id: releaseBoard.id });
+    const releaseColumns = releaseBoardDetails.columns.map((column: any) => column.name);
+    if (
+      releaseBoardDetails.id !== releaseBoard.id
+      || releaseColumns.join(',') !== 'To Do,In Progress,Done'
+    ) {
+      throw new Error(`MCP get_board returned incorrect board details: ${releaseColumns.join(', ')}`);
+    }
+    console.log('  ✓ Second board created, listed, and loaded independently via MCP.');
+
     const backlogCol = boardDetails.columns.find((c: any) => c.name === 'Backlog');
     const inProgressCol = boardDetails.columns.find((c: any) => c.name === 'In Progress');
 

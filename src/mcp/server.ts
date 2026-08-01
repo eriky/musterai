@@ -175,7 +175,7 @@ All AI agents and human operators collaborating within Muster must follow this p
 3. **Kanban Card Workflow & Flexible Board Structures**:
    - Boards are flexible and may have 3 lanes ('To Do' → 'In Progress' → 'Done'), standard 5 lanes, or custom columns. Inspect the active board layout via \`get_board\`.
    - Call \`list_cards\` or \`get_board\` to find unassigned cards in initial state columns ('To Do' / 'Backlog').
-   - As soon as you start working on a task (including making plans, research, or drafting design docs), **immediately** assign yourself using \`assign_card\` AND move the card to 'In Progress' via \`move_card\`. Do NOT wait until right before editing files. Always respect column WIP limits.
+   - When starting work on a task, call \`claim_card\` to record yourself as the assignee and create the work lease, then call \`move_card\` to advance it to the next active-work lane—normally 'In Progress'. Always respect column WIP limits.
 
 4. **Transparent Progress & Human-Readable Task Descriptions**:
    - Always state current work using full human-readable task titles and work summaries out loud (e.g. \`Muster Task: "Create user authentication middleware"\`), never raw ID strings like \`Work on card #01J3K...\`.
@@ -373,12 +373,18 @@ All AI agents and human operators collaborating within Muster must follow this p
 
   server.tool('claim_card', {
     card_id: z.string(),
-    agent_id: z.string().describe('Required — the principal/agent ID claiming the card'),
+    agent_id: z.string().describe('Required — the principal/agent ID claiming the card. This also records the assignee and work lease. After a successful claim, call move_card to advance it to the next active-work lane.'),
     ttl_seconds: z.number().optional().describe('Lease duration in seconds; defaults to 600 (10 minutes)'),
   }, withPermission('claim_card', auth, async ({ card_id, agent_id, ttl_seconds }) => {
     await validateAgentOwnershipOrAdmin(services.agentService, auth, agent_id, 'card.assign_others');
     const result = await services.cardService.claim(card_id, agent_id, ttl_seconds);
-    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+    const response = 'success' in result && result.success === false
+      ? result
+      : {
+          ...result,
+          next_action: "Claim complete: assignment and work lease recorded. Immediately call move_card to advance this card to the next active-work lane (normally 'In Progress').",
+        };
+    return { content: [{ type: 'text', text: JSON.stringify(response, null, 2) }] };
   }));
 
   server.tool('assign_card', { card_id: z.string(), agent_id: z.string() }, withPermission('assign_card', auth, async ({ card_id, agent_id }) => {

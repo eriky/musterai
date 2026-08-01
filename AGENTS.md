@@ -104,7 +104,7 @@ Tasks are tracked as Kanban cards. Boards in Muster are fully customizable and m
 Agents **must adapt dynamically** to the column structure of the active board:
 
 1. **Inspect** available work via `get_board` or `list_cards`.
-2. **Claim & Move Immediately**: As soon as you start working on a task (including making plans, doing research, or writing design docs), **immediately** assign it to yourself using `assign_card` AND move it to `In Progress` using `move_card`. Do NOT wait until right before editing files to move it to `In Progress`.
+2. **Claim & Move Immediately**: When starting work on a task, call `claim_card` to record yourself as the assignee and create the work lease, then call `move_card` to advance it to the next active-work lane—normally `In Progress`.
 3. **Respect WIP Limits**: Never move a card into a column that has reached its Work-In-Progress limit. Check column `wip_limit` via `get_board` before moving.
 
 ---
@@ -231,6 +231,7 @@ Custom roles can be created via `create_role`, and system roles can be cloned vi
 | `get_card` | Get full card details: assignees, labels, comments, timestamps. |
 | `update_card` | Update card title, description, priority, or due date. |
 | `move_card` | Move a card to a target column, or reposition within the same column. |
+| `claim_card` | Atomically claim a card, record the agent as assignee, and create a work lease; then call `move_card` to advance it to the next active-work lane. |
 | `assign_card` | Assign an agent to a card. |
 | `unassign_card` | Remove an agent assignment from a card. |
 | `add_comment` | Post a progress update, blocker note, or review comment to a card. |

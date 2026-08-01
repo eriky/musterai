@@ -19,7 +19,10 @@ import { User, AuthMe } from '../types.js';
 
 
 interface KanbanBoardProps {
+  boards: Board[];
   board: Board | null;
+  selectedBoardId: string | null;
+  onSelectBoard: (boardId: string) => void;
   columns: Column[];
   cards: Card[];
   agents: Agent[];
@@ -81,7 +84,10 @@ const WORK_LINK_PROVIDER_LABELS: Record<CardWorkLinkProvider, string> = {
 };
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({
+  boards,
   board,
+  selectedBoardId,
+  onSelectBoard,
   columns,
   cards,
   agents,
@@ -552,9 +558,23 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         ) : (
           <div className="flex items-center space-x-2">
             <Layout className="w-5 h-5 muster-accent" />
-            <h2 className="text-base font-sans font-bold muster-text-primary uppercase tracking-wide">
-              Board: {board.name}
-            </h2>
+            <label
+              htmlFor="board-selector"
+              className="text-base font-sans font-bold muster-text-muted uppercase tracking-wide"
+            >
+              Board:
+            </label>
+            <select
+              id="board-selector"
+              value={selectedBoardId ?? board.id}
+              onChange={(event) => onSelectBoard(event.target.value)}
+              className="muster-input w-auto text-sm font-bold"
+              aria-label="Select board"
+            >
+              {boards.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+              ))}
+            </select>
             <button
               onClick={() => {
                 setBoardNameInput(board.name);

@@ -10,10 +10,39 @@ single most consequential deployment mistake:
   they can authenticate as, and eventually someone hostile will try. This
   document is about that case.
 
-**`MUSTER_AUTH_MODE` defaults to `enforced` the moment `MUSTER_HOST` is
-anything other than `localhost`/`127.0.0.1`.** You do not need to set it by
-hand for a public deployment — but you do need to do everything else below.
-Security that requires a deliberate action to turn on does not get turned on.
+## Three knobs that are easy to confuse
+
+Almost every question about "is this deployment actually locked down?" comes
+from conflating these. They are independent:
+
+| | What it is | What it does *not* do |
+| :--- | :--- | :--- |
+| **`MUSTER_HOST`** | Advisory only. Picks the `MUSTER_AUTH_MODE` default and labels the startup banner. | Does **not** change what the server binds to. |
+| **The listen socket** | Always `0.0.0.0:MUSTER_PORT`. Not configurable. | Does **not** follow `MUSTER_HOST`. |
+| **Docker's `ports:` mapping** | The *host-side* address the container's port is published on. This is what actually controls reachability. | Does **not** touch `MUSTER_HOST`, and so does **not** change the auth mode. |
+
+The rule for auth mode itself ([src/config/index.ts](../src/config/index.ts)):
+
+1. If `MUSTER_AUTH_MODE` is set to `open` or `enforced`, that wins, always.
+2. Otherwise it is `open` when `MUSTER_HOST` is unset, `localhost`, or
+   `127.0.0.1` — and `enforced` for any other value.
+
+**The Docker image always starts in `enforced` mode.** The Dockerfile hardcodes
+`ENV MUSTER_HOST=0.0.0.0` and `docker-compose.yml` sets it again, so rule 2
+lands on `enforced` for every container. Nothing in the reverse-proxy setup
+below changes that. The only way a container runs in `open` mode is if someone
+explicitly sets `MUSTER_AUTH_MODE=open` — don't.
+
+You therefore do not need to set `MUSTER_AUTH_MODE` by hand for a public
+deployment; the default is already correct. Setting it explicitly to `enforced`
+in your deployment config is still reasonable as documentation-in-place, and
+costs nothing. What matters is that you do everything *else* below — security
+that requires a deliberate action to turn on does not get turned on.
+
+Confirm the result rather than trusting it: the startup banner prints
+`• Auth:     enforced`. If it says `open`, stop and fix that before exposing
+the port. Muster also logs a loud warning at boot if it finds itself in `open`
+mode with a non-loopback `MUSTER_HOST`.
 
 ## Do not publish port 3000 directly
 
@@ -26,10 +55,11 @@ not to be the public-facing edge itself.
 **Correct topology:**
 
 ```
-Internet → reverse proxy (TLS termination, port 443) → Muster (port 3000, loopback only)
+Internet → reverse proxy (TLS termination, port 443) → Muster (port 3000, reachable only from the proxy)
 ```
 
-Change `docker-compose.yml` to bind Muster to loopback only:
+Change `docker-compose.yml` to publish the port on the host's loopback
+interface only:
 
 ```yaml
 ports:
@@ -38,6 +68,11 @@ ports:
 
 or drop the `ports:` mapping entirely and put the reverse proxy in the same
 Docker network, reaching Muster by its service name.
+
+Either way, **this is a reachability change, not an auth change.** Inside the
+container Muster still binds `0.0.0.0:3000` and `MUSTER_HOST` is still
+`0.0.0.0`, so the container stays in `enforced` mode exactly as before. The
+`127.0.0.1` here is an address on the *host*, not a value Muster ever reads.
 
 ## Reverse proxy
 
@@ -51,6 +86,12 @@ muster.example.com {
 
 That's the whole config. Caddy obtains and renews the certificate itself.
 Restart Caddy after changes; no separate certbot step.
+
+`127.0.0.1:3000` assumes Caddy runs on the host and Muster publishes to
+loopback. If Caddy is a container on the same Docker network instead, use the
+service name — `reverse_proxy muster-server:3000` — and drop the `ports:`
+mapping entirely. The same substitution applies to the nginx `proxy_pass`
+below.
 
 ### nginx
 
@@ -90,9 +131,9 @@ existing ACME tooling) before starting nginx with this config.
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `MUSTER_PORT` | `3000` | HTTP listen port. Bind to loopback via the reverse proxy, not by changing this. |
-| `MUSTER_HOST` | `localhost` | Advisory only — used to pick the `open`/`enforced` default and for the startup banner. The server always binds `0.0.0.0`; use your firewall or Docker's port mapping to actually restrict reachability. |
-| `MUSTER_AUTH_MODE` | derived from `MUSTER_HOST` | `open` or `enforced`. Set explicitly to remove any ambiguity in a deployment script. |
+| `MUSTER_PORT` | `3000` | The port the server listens on, inside the container. Restricting *who can reach* it is the reverse proxy's and Docker's job, not this variable's. |
+| `MUSTER_HOST` | `localhost` (`0.0.0.0` in Docker) | Advisory only — picks the `open`/`enforced` default and labels the startup banner. The server always binds `0.0.0.0`; use your firewall or Docker's port mapping to actually restrict reachability. |
+| `MUSTER_AUTH_MODE` | derived from `MUSTER_HOST` | `open` or `enforced`; an explicit value always overrides the derived one. Already `enforced` in Docker — see [Three knobs that are easy to confuse](#three-knobs-that-are-easy-to-confuse). Never set this to `open` on a public host. |
 | `MUSTER_DB_PATH` | `data/muster.db` | SQLite database file path. |
 | `MUSTER_DB_TYPE` | `sqlite` | Database backend — `sqlite` or `postgres` (see [PostgreSQL, and migrating an existing SQLite install to it](#postgresql-and-migrating-an-existing-sqlite-install-to-it)). |
 | `MUSTER_DATABASE_URL` | — | PostgreSQL connection string, e.g. `postgres://user:pass@host:5432/muster`. Required when `MUSTER_DB_TYPE=postgres`; ignored otherwise. |
@@ -138,6 +179,14 @@ directory. Back it up with:
 ```bash
 docker run --rm -v muster_muster-data:/data -v "$(pwd)":/backup \
   alpine tar czf /backup/muster-data-backup.tar.gz -C /data .
+```
+
+Restore the same way, with the server stopped (`docker compose stop
+muster-server`) so nothing is mid-write:
+
+```bash
+docker run --rm -v muster_muster-data:/data -v "$(pwd)":/backup \
+  alpine sh -c "rm -rf /data/* && tar xzf /backup/muster-data-backup.tar.gz -C /data"
 ```
 
 ## PostgreSQL, and migrating an existing SQLite install to it
@@ -258,11 +307,14 @@ environment variables above:
 
 ## Checklist before going live
 
+- [ ] Startup banner reads `Auth:     enforced`. (Don't infer this from the
+      `ports:` mapping — they're unrelated.)
 - [ ] `MUSTER_PUBLIC_URL` set to the exact HTTPS origin end users will use.
 - [ ] `MUSTER_OIDC_*` configured and a test login completes end-to-end.
-- [ ] Reverse proxy terminates TLS; Muster itself is not reachable except
-      through it (loopback bind or Docker network isolation).
-- [ ] `docker-compose.yml`'s `ports:` mapping does not expose 3000 to `0.0.0.0`.
+- [ ] Reverse proxy terminates TLS, and Muster is not reachable except through
+      it — `docker-compose.yml`'s `ports:` mapping publishes to `127.0.0.1`
+      only, or there is no `ports:` mapping and the proxy shares the Docker
+      network.
 - [ ] A backup of `data/` (or the `muster-data` volume) is scheduled.
 - [ ] `MUSTER_BOOTSTRAP_OWNER_SUBJECT` set, or you're prepared to be the very
       first person to sign in.

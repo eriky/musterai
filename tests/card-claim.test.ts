@@ -131,6 +131,33 @@ describe('Atomic card claiming and lease expiry', () => {
     expect(new Date(details.claim_expires_at!).getTime()).toBeGreaterThan(Date.now() + 5000 * 1000);
   });
 
+  it('claim_card tells the agent to move the card to the next active-work lane', async () => {
+    const card = await makeCard();
+    const agent = await agentService.register({ name: 'Lane Moving Agent' });
+    const services: Services = {
+      projectService,
+      boardService,
+      columnService,
+      cardService,
+      commentService,
+      documentService,
+      agentService,
+      eventService,
+      kbService,
+      roleService: {} as RoleService,
+    };
+
+    const server = createMcpServer(services, { headers: {} } as any) as any;
+    const result = await server._registeredTools['claim_card'].handler(
+      { card_id: card.id, agent_id: agent.id },
+      {}
+    );
+    const response = JSON.parse(result.content[0].text);
+
+    expect(response.next_action).toContain('move_card');
+    expect(response.next_action).toContain('next active-work lane');
+  });
+
   it('an expired lease is reclaimable by a different agent', async () => {
     const card = await makeCard();
     const holder = await agentService.register({ name: 'Original Holder' });

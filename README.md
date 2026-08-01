@@ -158,7 +158,7 @@ All agents must follow these 5 rules. Full details in [AGENTS.md](AGENTS.md).
 
 1. **Self-Registration & Heartbeat** — Register via `register_agent` on first connection. In open mode, retain the returned `id` and pass it as the required `agent_id` on every `heartbeat` and `add_comment`; registration does not bind later requests.
 2. **Read Design Specs & Knowledge Bases First** — Call `list_documents` and check Knowledge Bases (`list_knowledge_bases`, `search_knowledge`) before starting work; record new facts via `add_gained_knowledge`.
-3. **Kanban Card Selection & WIP Limits** — Claim a card with `assign_card` and immediately move it to `In Progress` when starting work (including planning/research), while respecting column WIP limits.
+3. **Kanban Card Selection & WIP Limits** — When starting work, call `claim_card` to record yourself as the assignee and create the work lease, then call `move_card` to advance the card to the next active-work lane—normally `In Progress`. Respect column WIP limits.
 4. **Transparent Progress Comments** — Log all progress, blockers, and decisions via `add_comment` using human-readable task titles out loud (e.g. `Muster Task: "Title"`), never raw IDs.
 5. **Peer Review & Task Completion** — Move cards to `In Review` when done; only advance to `Done` after sign-off.
 
@@ -175,7 +175,7 @@ Muster exposes **54 MCP tools** across 7 categories. All tools communicate via s
 `list_boards` · `create_board` · `get_board` · `update_board` · `delete_board` · `create_column` · `update_column` · `move_column` · `delete_column`
 
 ### Cards (20)
-`list_cards` · `create_card` · `get_card` · `update_card` · `move_card` · `delete_card` · `assign_card` · `unassign_card` · `add_comment` · `update_comment` · `delete_comment` · `add_label` · `remove_label` · `archive_card` · `create_label` · `list_labels` · `link_card` · `unlink_card` · `link_document_to_card` · `unlink_document_from_card`
+`list_cards` · `create_card` · `get_card` · `update_card` · `move_card` · `claim_card` · `delete_card` · `assign_card` · `unassign_card` · `add_comment` · `update_comment` · `delete_comment` · `add_label` · `remove_label` · `archive_card` · `create_label` · `list_labels` · `link_card` · `unlink_card` · `link_document_to_card` · `unlink_document_from_card`
 
 ### Documents (6)
 `list_documents` · `create_document` · `get_document` · `update_document` · `set_document_status` · `get_document_history`

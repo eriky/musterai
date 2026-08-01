@@ -76,9 +76,12 @@ export const App: React.FC = () => {
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(initialNav.entityId);
   const [summary, setSummary] = useState<ProjectSummary | null>(null);
 
+  const [boards, setBoards] = useState<Board[]>([]);
+  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [board, setBoard] = useState<Board | null>(null);
   const [columns, setColumns] = useState<Column[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
+  const selectedBoardIdRef = useRef<string | null>(null);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -99,6 +102,11 @@ export const App: React.FC = () => {
   const newCardTokenRef = useRef(0);
   const [openCardRequest, setOpenCardRequest] = useState<{ cardId: string; token: number } | null>(null);
   const openCardTokenRef = useRef(0);
+
+  const rememberSelectedBoard = useCallback((boardId: string | null) => {
+    selectedBoardIdRef.current = boardId;
+    setSelectedBoardId(boardId);
+  }, []);
 
   // Load Projects
   const loadProjects = useCallback(async (selectId?: string) => {
@@ -148,13 +156,21 @@ export const App: React.FC = () => {
       setEvents(eventsData);
       setConnectionError(null);
 
+      setBoards(boardsData);
+      const activeBoardId = selectedBoardIdRef.current;
+      const targetBoardId = activeBoardId && boardsData.some((candidate) => candidate.id === activeBoardId)
+        ? activeBoardId
+        : boardsData[0]?.id ?? null;
+      rememberSelectedBoard(targetBoardId);
 
-      if (boardsData.length > 0) {
-        const boardDetails = await api.getBoardDetails(boardsData[0].id);
+      if (targetBoardId) {
+        const boardDetails = await api.getBoardDetails(targetBoardId);
+        if (selectedBoardIdRef.current !== targetBoardId) return;
         setBoard(boardDetails);
         setColumns(boardDetails.columns || []);
         setCards(boardDetails.cards || []);
       } else {
+        rememberSelectedBoard(null);
         setBoard(null);
         setColumns([]);
         setCards([]);
@@ -164,6 +180,8 @@ export const App: React.FC = () => {
         // Project was deleted — clear selection and reload the list
         setSelectedProjectId(null);
         setSummary(null);
+        setBoards([]);
+        rememberSelectedBoard(null);
         setBoard(null);
         setColumns([]);
         setCards([]);
@@ -180,10 +198,15 @@ export const App: React.FC = () => {
         console.error('Error loading project data:', err);
       }
     }
-  }, [selectedProjectId, loadProjects]);
+  }, [selectedProjectId, loadProjects, rememberSelectedBoard]);
 
   // Sync state when selectedProjectId or activeTab or selectedDocId changes
   const handleSelectProject = (projectId: string) => {
+    setBoards([]);
+    rememberSelectedBoard(null);
+    setBoard(null);
+    setColumns([]);
+    setCards([]);
     setSelectedProjectId(projectId);
     updateLocation(projectId, activeTab, selectedDocId, selectedEntityId);
   };
@@ -192,6 +215,22 @@ export const App: React.FC = () => {
     setActiveTab(tab);
     if (selectedProjectId) {
       updateLocation(selectedProjectId, tab, selectedDocId, selectedEntityId);
+    }
+  };
+
+  const handleSelectBoard = async (boardId: string) => {
+    if (boardId === selectedBoardIdRef.current) return;
+
+    rememberSelectedBoard(boardId);
+    try {
+      const boardDetails = await api.getBoardDetails(boardId);
+      if (selectedBoardIdRef.current !== boardId) return;
+      setBoard(boardDetails);
+      setColumns(boardDetails.columns || []);
+      setCards(boardDetails.cards || []);
+    } catch (err) {
+      console.error('Failed to select board:', err);
+      loadProjectData();
     }
   };
 
@@ -361,6 +400,9 @@ export const App: React.FC = () => {
   const handleDeleteBoard = async (boardId: string) => {
     try {
       await api.deleteBoard(boardId);
+      if (selectedBoardIdRef.current === boardId) {
+        rememberSelectedBoard(null);
+      }
       loadProjectData();
     } catch (err) {
       console.error('Failed to delete board:', err);
@@ -421,7 +463,10 @@ export const App: React.FC = () => {
 
         {activeTab === 'board' && (
           <KanbanBoard
+            boards={boards}
             board={board}
+            selectedBoardId={selectedBoardId}
+            onSelectBoard={handleSelectBoard}
             columns={columns}
             cards={cards}
             agents={agents}

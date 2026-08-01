@@ -103,6 +103,26 @@ async function runBrowserUiTest() {
     const selectedProject = await page.locator('select').first().inputValue();
     console.log(`  ✓ Active Selected Project ID: ${selectedProject}`);
 
+    // Create a second board and verify that selecting it survives the
+    // three-second polling refresh. The default board uses five lanes while
+    // this one uses three, so the missing Backlog lane proves its data loaded.
+    await page.click('button:has-text("+ Board")');
+    await page.waitForSelector('text=Create New Board');
+    await page.fill('input[placeholder*="Sprint 2"]', 'Release Board');
+    await page.click('button[type="submit"]:has-text("Create Board")');
+    await page.waitForSelector('text=Create New Board', { state: 'detached' });
+
+    const boardSelector = page.getByLabel('Select board');
+    await boardSelector.selectOption({ label: 'Release Board' });
+    await page.waitForSelector('h3:has-text("BACKLOG")', { state: 'detached' });
+    await page.waitForSelector('h3:has-text("TO DO")');
+    await page.waitForTimeout(3500);
+    const selectedBoardName = await boardSelector.locator('option:checked').textContent();
+    if (selectedBoardName !== 'Release Board') {
+      throw new Error(`Board selection reset after polling refresh: ${selectedBoardName}`);
+    }
+    console.log('  ✓ Additional board selected and preserved across background refresh.');
+
     // Step 3: Test Board View & Column Creation
     console.log('\n[3/8] Testing Kanban Board & Column Creation (+ Add Column)...');
     await page.click('button:has-text("Add Column")');
