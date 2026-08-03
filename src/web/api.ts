@@ -87,7 +87,7 @@ export const api = {
 
   // Cards
   getCards: (boardId: string) => fetchJSON<Card[]>(`/boards/${boardId}/cards`),
-  createCard: (columnId: string, data: { title: string; description?: string; priority?: string; status?: string; blocked_reason?: string | null; labels?: string[]; assignees?: string[]; is_epic?: boolean; operator_override?: boolean }) =>
+  createCard: (columnId: string, data: { title: string; description?: string; priority?: string; labels?: string[]; assignees?: string[]; is_epic?: boolean; operator_override?: boolean }) =>
     fetchJSON<Card>(`/columns/${columnId}/cards`, { method: 'POST', body: JSON.stringify(data) }),
   getCardDetails: (id: string) => fetchJSON<CardDetails>(`/cards/${id}`),
   updateCard: (id: string, data: Partial<Card> & { operator_override?: boolean }) => fetchJSON<CardDetails>(`/cards/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

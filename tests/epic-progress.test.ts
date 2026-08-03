@@ -138,16 +138,15 @@ describe('MUS-34: Epic progress rollup', () => {
     expect(details.epic_progress).toEqual({ total: 3, done: 2 });
   });
 
-  it('marking a column terminal does not change any card\'s own status field', async () => {
+  it('marking a column terminal does not change a card\'s position or column', async () => {
     const { todo, done } = await setupBoard();
-    const card = await cardService.create({ column_id: done.id, title: 'Untouched status' });
-    expect(card.status).toBe('active');
+    const card = await cardService.create({ column_id: done.id, title: 'Untouched card' });
 
     await columnService.update(done.id, { is_terminal: true });
 
     const refreshed = await cardService.getById(card.id);
-    expect(refreshed.status).toBe('active');
     expect(refreshed.column_id).toBe(done.id);
+    expect(refreshed.position).toBe(card.position);
   });
 
   it('non-child links (blocks, related) on an Epic do not count toward its progress', async () => {

@@ -3,8 +3,6 @@ import { Project, ProjectSummary, AuthMe } from '../types.js';
 import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, UserPlus, Trash2, Edit2, KeyRound, ShieldCheck, UserCircle } from 'lucide-react';
 import { ThemePicker } from './ThemePicker.js';
 import { PrincipalChip } from './PrincipalChip.js';
-import { NotificationCenter } from './NotificationCenter.js';
-import { NotificationPrefs } from '../notifications.js';
 
 type TabId = 'agents' | 'board' | 'docs' | 'activity' | 'kb' | 'tokens' | 'admin';
 
@@ -24,11 +22,6 @@ interface HeaderProps {
   onOpenNewCard: () => void;
   onOpenNewDoc: () => void;
   currentUser?: AuthMe['user'] | null;
-  attentionCount: number;
-  notificationPermission: NotificationPermission | 'unsupported';
-  notificationPrefs: NotificationPrefs;
-  onUpdateNotificationPrefs: (prefs: NotificationPrefs) => void;
-  onRequestNotificationPermission: () => void;
   authMode?: AuthMe['auth_mode'] | null;
   onSetLocalIdentity?: (displayName: string) => Promise<void>;
 }
@@ -119,11 +112,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewCard,
   onOpenNewDoc,
   currentUser,
-  attentionCount,
-  notificationPermission,
-  notificationPrefs,
-  onUpdateNotificationPrefs,
-  onRequestNotificationPermission,
   authMode,
   onSetLocalIdentity,
 }) => {
@@ -273,13 +261,6 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="hidden xs:inline">Actions</span>
             </button>
 
-            <NotificationCenter
-              attentionCount={attentionCount}
-              permission={notificationPermission}
-              prefs={notificationPrefs}
-              onUpdatePrefs={onUpdateNotificationPrefs}
-              onRequestPermission={onRequestNotificationPermission}
-            />
             <ThemePicker />
           </div>
 

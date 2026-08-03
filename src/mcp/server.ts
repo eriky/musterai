@@ -308,7 +308,6 @@ All AI agents and human operators collaborating within Muster must follow this p
     column_id: z.string().optional(),
     assignee_id: z.string().optional(),
     label: z.string().optional(),
-    status: z.enum(['active', 'blocked', 'in_review']).optional(),
     archived: z.boolean().optional()
   }, withPermission('list_cards', auth, async (filters) => {
     const cards = await services.cardService.list(filters);
@@ -322,8 +321,6 @@ All AI agents and human operators collaborating within Muster must follow this p
     priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
     position: z.string().optional(),
     due_date: z.string().optional(),
-    status: z.enum(['active', 'blocked', 'in_review']).optional(),
-    blocked_reason: z.string().nullable().optional(),
     labels: z.array(z.string()).optional(),
     assignees: z.array(z.string()).optional(),
     is_epic: z.boolean().optional().describe('Marks this card as a container for related work'),
@@ -346,10 +343,8 @@ All AI agents and human operators collaborating within Muster must follow this p
     description: z.string().optional(),
     priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
     due_date: z.string().nullable().optional(),
-    status: z.enum(['active', 'blocked', 'in_review']).optional(),
-    blocked_reason: z.string().nullable().optional(),
     is_epic: z.boolean().optional().describe('Marks this card as a container for related work'),
-    operator_override: z.boolean().optional().describe('Explicitly bypass card status-transition rules when the authenticated caller has operator override authority'),
+    operator_override: z.boolean().optional().describe('Explicitly bypass card WIP rules when the authenticated caller has operator override authority'),
   }, withPermission('update_card', auth, async ({ card_id, operator_override, ...data }) => {
     // Layer 2 scope check: if the principal doesn't have card.assign_others,
     // they may only update cards they are assigned to.

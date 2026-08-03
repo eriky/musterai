@@ -113,11 +113,12 @@ Agents **must adapt dynamically** to the column structure of the active board:
 
 Muster also enforces these rules server-side: card creation and moves respect
 column WIP limits; cards with unresolved `blocked_by` links cannot be claimed
-or moved into `In Progress`; and card status changes follow the validated
-state machine (`active` → `blocked`/`in_review`, `blocked` → `active`/`in_review`,
-`in_review` → `active`). An authenticated workspace operator may explicitly
-request an override where the API or MCP tool exposes `operator_override`; the
-server records that bypass as a distinct `override` activity event.
+or moved into `In Progress`. There is no separate card `status` field — `In
+Review` is a board lane, `blocked` is expressed via the `blocks`/`blocked_by`
+card relationship, and a card is `active` simply by default. An authenticated
+workspace operator may explicitly request an override where the API or MCP tool
+exposes `operator_override`; the server records that bypass as a distinct
+`override` activity event.
 
 ---
 

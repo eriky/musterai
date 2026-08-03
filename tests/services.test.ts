@@ -340,50 +340,6 @@ describe('Domain Services Integration Tests', () => {
     expect(updatedAgent.capabilities).toEqual(['code', 'architecture', 'review']);
   });
 
-  it('Feature: card status (active, blocked, in_review) and blocked_reason management', async () => {
-    const project = await projectService.create({ name: 'Card Status Project' });
-    const boards = await boardService.list(project.id);
-    const columns = await columnService.list(boards[0].id);
-    const colId = columns[0].id;
-
-    // Create card with blocked status
-    const card = await cardService.create({
-      column_id: colId,
-      title: 'Blocked Task',
-      status: 'blocked',
-      blocked_reason: 'Requires human review',
-    });
-
-    expect(card.status).toBe('blocked');
-    expect(card.blocked_reason).toBe('Requires human review');
-
-    // Fetch details
-    const details = await cardService.getById(card.id);
-    expect(details.status).toBe('blocked');
-    expect(details.blocked_reason).toBe('Requires human review');
-
-    // Update status to in_review
-    const updated = await cardService.update(card.id, {
-      status: 'in_review',
-      blocked_reason: 'Waiting for operator signoff',
-    });
-    expect(updated.status).toBe('in_review');
-    expect(updated.blocked_reason).toBe('Waiting for operator signoff');
-
-    // Filter list by status
-    const blockedCards = await cardService.list({ board_id: boards[0].id, status: 'in_review' });
-    expect(blockedCards.length).toBe(1);
-    expect(blockedCards[0].id).toBe(card.id);
-
-    // Unblock card to active
-    const unblocked = await cardService.update(card.id, {
-      status: 'active',
-      blocked_reason: null,
-    });
-    expect(unblocked.status).toBe('active');
-    expect(unblocked.blocked_reason).toBeNull();
-  });
-
   it('includes assignee summaries when listing board cards', async () => {
     const project = await projectService.create({ name: 'Assigned Cards Project' });
     const boards = await boardService.list(project.id);

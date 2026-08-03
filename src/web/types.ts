@@ -46,8 +46,6 @@ export interface Card {
   position: string;
   priority: 'critical' | 'high' | 'medium' | 'low';
   due_date: string | null;
-  status: 'active' | 'blocked' | 'in_review';
-  blocked_reason: string | null;
   created_at: string;
   updated_at: string;
   archived: number;
@@ -151,7 +149,6 @@ export interface LinkedCardSummary {
     title: string;
     column_id: string;
     column_name: string;
-    status: 'active' | 'blocked' | 'in_review';
     priority: 'critical' | 'high' | 'medium' | 'low';
     archived: number;
   };

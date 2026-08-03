@@ -91,7 +91,7 @@ All AI agents and human operators collaborating within this project must observe
    - Select unassigned tasks from initial state columns ('To Do' or 'Backlog').
    - When starting work on a task, call \`claim_card\` to record yourself as the assignee and create the work lease, then call \`move_card\` to advance it to the next active-work lane—normally 'In Progress'.
    - Adhere strictly to WIP limits set on board columns; the server rejects over-limit card creates/moves and unresolved blockers on claims or moves into 'In Progress'.
-   - Card status transitions are validated, and explicit operator overrides are recorded in the activity feed.
+   - There is no separate card status field: 'In Review' is a board lane, 'blocked' is expressed via the \`blocks\`/\`blocked_by\` card relationship, and a card is active by default.
 
 4. **Mandatory Progress Comments on Cards**:
    - Agents **MUST ALWAYS** log their progress as comments directly on the target card using \`add_comment\`.

@@ -138,34 +138,4 @@ describe('server-side card rules', () => {
     expect(events.some(event => event.action === 'override' && event.payload?.operation === 'claim')).toBe(true);
     expect(events.some(event => event.action === 'override' && event.payload?.operation === 'move')).toBe(true);
   });
-
-  it('enforces the status state machine and audits an explicit override', async () => {
-    const project = await projectService.create({ name: 'Status Rules' });
-    const [board] = await boardService.list(project.id);
-    const [backlog] = await columnService.list(board.id);
-    const card = await cardService.create({ column_id: backlog.id, title: 'Status transition task' });
-
-    expect((await cardService.update(card.id, { status: 'blocked' })).status).toBe('blocked');
-    expect((await cardService.update(card.id, { status: 'in_review' })).status).toBe('in_review');
-
-    await expect(cardService.update(card.id, { status: 'blocked' })).rejects.toMatchObject({
-      code: 'CARD_STATUS_TRANSITION',
-      details: {
-        rule: 'status_transition',
-        from: 'in_review',
-        to: 'blocked',
-      },
-    });
-
-    const operator = await agentService.register({ name: 'Status Operator' });
-    expect((await cardService.update(
-      card.id,
-      { status: 'blocked' },
-      operator.id,
-      { operatorOverride: true },
-    )).status).toBe('blocked');
-
-    const events = await eventService.list(project.id, { entity_type: 'card', entity_id: card.id });
-    expect(events.some(event => event.action === 'override' && event.payload?.operation === 'update')).toBe(true);
-  });
 });

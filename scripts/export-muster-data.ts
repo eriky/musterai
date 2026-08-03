@@ -158,8 +158,8 @@ copyTable('label', 'id, board_id, name, color', 'id, board_id, name, color');
 // Card — old schema may lack is_epic, claimed_by, claimed_at, claim_expires_at, key
 const cardRows = oldDb.prepare('SELECT * FROM card').all() as any[];
 const insertCard = newDb.prepare(`
-  INSERT OR IGNORE INTO card (id, key, column_id, title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at, archived, claimed_by, claimed_at, claim_expires_at, is_epic)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT OR IGNORE INTO card (id, key, column_id, title, description, position, priority, due_date, created_at, updated_at, archived, claimed_by, claimed_at, claim_expires_at, is_epic)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 for (const c of cardRows) {
   insertCard.run(
@@ -171,8 +171,6 @@ for (const c of cardRows) {
     c.position,
     c.priority || 'medium',
     c.due_date || null,
-    c.status || 'active',
-    c.blocked_reason || null,
     c.created_at || now,
     c.updated_at || now,
     c.archived || 0,

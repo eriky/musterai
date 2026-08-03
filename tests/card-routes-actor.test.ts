@@ -57,9 +57,9 @@ describe('MUS-17: card routes thread the authenticated actor through to events',
     await db.execute(`INSERT INTO "column" (id, board_id, name, position) VALUES (?, ?, ?, ?)`, [columnId, boardId, 'To Do', 'a']);
     await db.execute(`INSERT INTO "column" (id, board_id, name, position) VALUES (?, ?, ?, ?)`, [targetColumnId, boardId, 'Done', 'b']);
     await db.execute(
-      `INSERT INTO card (id, key, column_id, title, position, priority, status, created_at, updated_at, archived, is_epic)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)`,
-      [cardId, 'PRJ-1', columnId, 'Test card', 'm', 'medium', 'active', now, now]
+      `INSERT INTO card (id, key, column_id, title, position, priority, created_at, updated_at, archived, is_epic)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0)`,
+      [cardId, 'PRJ-1', columnId, 'Test card', 'm', 'medium', now, now]
     );
 
     const app = express();
@@ -93,7 +93,7 @@ describe('MUS-17: card routes thread the authenticated actor through to events',
     const res = await fetch(`${baseUrl}/cards/${cardId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'in_review' }),
+      body: JSON.stringify({ priority: 'high' }),
     });
     expect(res.status).toBe(200);
 

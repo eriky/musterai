@@ -20,8 +20,6 @@ const makeCard = (
   position: id,
   priority: 'medium',
   due_date: null,
-  status: 'active',
-  blocked_reason: null,
   created_at: updatedAt,
   updated_at: updatedAt,
   archived: 0,

@@ -11,7 +11,6 @@ import { KnowledgeBaseView } from './components/KnowledgeBase.js';
 import { TokensView } from './components/TokensView.js';
 import { WorkspaceAdmin } from './components/WorkspaceAdmin.js';
 import { ThemeProvider } from './ThemeContext.js';
-import { useCardNotifications } from './notifications.js';
 import {
   NewProjectModal,
   EditProjectModal,
@@ -120,7 +119,6 @@ export const App: React.FC = () => {
   const [newCardRequest, setNewCardRequest] = useState<{ columnId?: string; token: number } | null>(null);
   const newCardTokenRef = useRef(0);
   const [openCardRequest, setOpenCardRequest] = useState<{ cardId: string; token: number } | null>(null);
-  const openCardTokenRef = useRef(0);
 
   const rememberSelectedBoard = useCallback((boardId: string | null) => {
     selectedBoardIdRef.current = boardId;
@@ -276,22 +274,6 @@ export const App: React.FC = () => {
     }
   };
 
-  // Clicking a notification (or its fallback attention badge) jumps to the board and opens the card
-  const handleOpenCardFromNotification = (cardId: string) => {
-    openCardTokenRef.current += 1;
-    setOpenCardRequest({ cardId, token: openCardTokenRef.current });
-    handleSelectTab('board');
-  };
-
-  const notifications = useCardNotifications(
-    selectedProjectId,
-    currentUser?.id ?? null,
-    cards,
-    handleOpenCardFromNotification,
-  );
-
-  const attentionCount = cards.filter((c) => !c.archived && (c.status === 'in_review' || c.status === 'blocked')).length;
-
   // Handle Browser Back / Forward buttons (popstate)
   useEffect(() => {
     const handlePopState = () => {
@@ -364,9 +346,7 @@ export const App: React.FC = () => {
       try {
         const newEvt: Event = JSON.parse(e.data);
         setEvents((prev) => [newEvt, ...prev.slice(0, 49)]);
-        notifications.handleEvent(newEvt);
-        loadProjectData();
-      } catch (err) {
+        loadProjectData();      } catch (err) {
         console.error('Error parsing SSE event:', err);
       }
     };
@@ -479,11 +459,6 @@ export const App: React.FC = () => {
         onOpenNewCard={() => handleOpenNewCardModal()}
         onOpenNewDoc={() => setShowNewDocModal(true)}
         currentUser={currentUser}
-        attentionCount={attentionCount}
-        notificationPermission={notifications.permission}
-        notificationPrefs={notifications.prefs}
-        onUpdateNotificationPrefs={notifications.updatePrefs}
-        onRequestNotificationPermission={notifications.requestPermission}
         authMode={authMode}
         onSetLocalIdentity={handleSetLocalIdentity}
       />

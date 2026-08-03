@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Board, Column, Card, Agent, CardDetails, Document, CardLinkRelationType, CardWorkLinkKind, CardWorkLinkProvider } from '../types.js';
-import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, Copy, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, GitPullRequest, GitCommit, Workflow, ExternalLink, GripVertical, Layers } from 'lucide-react';
+import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, Copy, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, GitPullRequest, GitCommit, Workflow, ExternalLink, GripVertical, Layers } from 'lucide-react';
 import { renderMarkdown } from '../markdown.js';
 import { api, getLocalProxyToken } from '../api.js';
 import {
@@ -136,8 +136,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [editCardTitle, setEditCardTitle] = useState('');
   const [editCardDescription, setEditCardDescription] = useState('');
   const [editCardPriority, setEditCardPriority] = useState<'critical' | 'high' | 'medium' | 'low'>('medium');
-  const [editCardStatus, setEditCardStatus] = useState<'active' | 'blocked' | 'in_review'>('active');
-  const [editCardBlockedReason, setEditCardBlockedReason] = useState<string>('');
   const [editCardIsEpic, setEditCardIsEpic] = useState(false);
   const [editCardColumnId, setEditCardColumnId] = useState('');
 
@@ -236,8 +234,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     setEditCardTitle('');
     setEditCardDescription('');
     setEditCardPriority('medium');
-    setEditCardStatus('active');
-    setEditCardBlockedReason('');
     setEditCardIsEpic(false);
     setIsEditingCard(true);
     setLinkCardQuery('');
@@ -252,8 +248,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         title: editCardTitle.trim(),
         description: editCardDescription,
         priority: editCardPriority,
-        status: editCardStatus,
-        blocked_reason: editCardStatus !== 'active' ? editCardBlockedReason.trim() : null,
         is_epic: editCardIsEpic,
       });
       onRefresh();
@@ -295,8 +289,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       setEditCardTitle(details.title);
       setEditCardDescription(details.description || '');
       setEditCardPriority(details.priority);
-      setEditCardStatus(details.status || 'active');
-      setEditCardBlockedReason(details.blocked_reason || '');
       setEditCardIsEpic(!!details.is_epic);
       setIsEditingCard(editMode);
       setLinkCardQuery('');
@@ -314,8 +306,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     setEditCardTitle(cardDetails.title);
     setEditCardDescription(cardDetails.description || '');
     setEditCardPriority(cardDetails.priority);
-    setEditCardStatus(cardDetails.status || 'active');
-    setEditCardBlockedReason(cardDetails.blocked_reason || '');
     setEditCardIsEpic(!!cardDetails.is_epic);
     setEditCardColumnId(cardDetails.column_id);
     setIsEditingCard(true);
@@ -333,8 +323,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         title: editCardTitle.trim(),
         description: editCardDescription,
         priority: editCardPriority,
-        status: editCardStatus,
-        blocked_reason: editCardStatus !== 'active' ? editCardBlockedReason.trim() : null,
         is_epic: editCardIsEpic ? 1 : 0,
       });
       setCardDetails({ ...updated, column_id: editCardColumnId || updated.column_id });
@@ -342,22 +330,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       onRefresh();
     } catch (err: any) {
       alert(err.message || 'Failed to update card text');
-    }
-  };
-
-  const handleUpdateCardStatus = async (status: 'active' | 'blocked' | 'in_review', blocked_reason?: string | null) => {
-    if (!cardDetails) return;
-    try {
-      const updated = await api.updateCard(cardDetails.id, {
-        status,
-        blocked_reason: status !== 'active' ? (blocked_reason ?? cardDetails.blocked_reason) : null,
-      });
-      setCardDetails(updated);
-      setEditCardStatus(updated.status);
-      setEditCardBlockedReason(updated.blocked_reason || '');
-      onRefresh();
-    } catch (err: any) {
-      alert(err.message || 'Failed to update card status');
     }
   };
 
@@ -882,24 +854,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                               </div>
 
 
-                              {/* Card Status Banner / Badge */}
-                              {(card.status === 'blocked' || card.status === 'in_review') && (
-                                <div className="mb-2">
-                                  {card.status === 'blocked' && (
-                                    <div className="flex items-center space-x-1.5 px-2 py-1 rounded bg-danger-950/80 text-danger-300 border border-danger-500/50 text-[11px] font-medium">
-                                      <AlertTriangle className="w-3.5 h-3.5 muster-text-danger flex-shrink-0" />
-                                      <span className="truncate">{card.blocked_reason ? `Blocked: ${card.blocked_reason}` : 'Blocked'}</span>
-                                    </div>
-                                  )}
-                                  {card.status === 'in_review' && (
-                                    <div className="flex items-center space-x-1.5 px-2 py-1 rounded bg-warning-950/80 text-warning-300 border border-warning-500/50 text-[11px] font-medium">
-                                      <Eye className="w-3.5 h-3.5 muster-text-warning flex-shrink-0" />
-                                      <span className="truncate">{card.blocked_reason || 'Waiting for Human Review'}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-
                               <h4 className="text-xs font-sans font-semibold muster-text-primary group-hover:text-brand-200 line-clamp-2 mb-2">
                                 {card.title}
                               </h4>
@@ -1051,16 +1005,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       </span>
                     )}
                     {getPriorityBadge(cardDetails.priority)}
-                    {cardDetails.status === 'blocked' && (
-                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-danger-950/80 text-danger-300 border border-danger-500/50 flex items-center">
-                        <AlertTriangle className="w-3 h-3 mr-1 muster-text-danger" /> Blocked
-                      </span>
-                    )}
-                    {cardDetails.status === 'in_review' && (
-                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-warning-950/80 text-warning-300 border border-warning-500/50 flex items-center">
-                        <Eye className="w-3 h-3 mr-1 muster-text-warning" /> Human Review
-                      </span>
-                    )}
                   </>
                 ) : (
                   <span className="font-mono text-xs muster-accent font-bold flex items-center">
@@ -1100,43 +1044,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
             <div className="p-5 overflow-y-auto space-y-5 flex-1 font-sans">
 
-              {/* Prominent Card Status Banners */}
-              {cardDetails && cardDetails.status === 'blocked' && !isEditingCard && (
-                <div className="p-3 bg-danger-950/70 border border-danger-500/60 rounded-lg flex items-center justify-between text-xs text-danger-200">
-                  <div className="flex items-start space-x-2">
-                    <AlertTriangle className="w-4 h-4 muster-text-danger flex-shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold uppercase tracking-wider muster-text-danger">Card Blocked:</span>{' '}
-                      <span className="font-medium">{cardDetails.blocked_reason || 'Requires resolution before proceeding.'}</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleUpdateCardStatus('active', null)}
-                    className="ml-3 px-2.5 py-1 bg-success-950 hover:bg-success-900 text-success-300 border border-success-500/50 rounded text-xs font-semibold cursor-pointer transition-colors flex-shrink-0"
-                  >
-                    Unblock Card
-                  </button>
-                </div>
-              )}
-
-              {cardDetails && cardDetails.status === 'in_review' && !isEditingCard && (
-                <div className="p-3 bg-warning-950/70 border border-warning-500/60 rounded-lg flex items-center justify-between text-xs text-warning-200">
-                  <div className="flex items-start space-x-2">
-                    <Eye className="w-4 h-4 muster-text-warning flex-shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold uppercase tracking-wider muster-text-warning">Waiting for Human Review:</span>{' '}
-                      <span className="font-medium">{cardDetails.blocked_reason || 'Pending operator review and signoff.'}</span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleUpdateCardStatus('active', null)}
-                    className="ml-3 px-2.5 py-1 bg-success-950 hover:bg-success-900 text-success-300 border border-success-500/50 rounded text-xs font-semibold cursor-pointer transition-colors flex-shrink-0"
-                  >
-                    Approve / Activate
-                  </button>
-                </div>
-              )}
-
               {isEditingCard ? (
                 <form onSubmit={isCreatingCard ? handleCreateCard : handleSaveCard} className="space-y-3 bg-muster-surface p-4 rounded-lg border border-brand-500/40">
                   <div>
@@ -1163,7 +1070,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     <div>
                       <label className="muster-label">Priority</label>
                       <select
@@ -1175,19 +1082,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         <option value="high">High</option>
                         <option value="medium">Medium</option>
                         <option value="low">Low</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="muster-label">Card Status</label>
-                      <select
-                        value={editCardStatus}
-                        onChange={(e) => setEditCardStatus(e.target.value as any)}
-                        className="w-full bg-muster-base border border-muster-border muster-text-primary text-xs rounded p-2"
-                      >
-                        <option value="active">Active (Normal)</option>
-                        <option value="in_review">In Review (Waiting for Human)</option>
-                        <option value="blocked">Blocked</option>
                       </select>
                     </div>
                   </div>
@@ -1204,35 +1098,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       Epic — a container for related work
                     </span>
                   </label>
-
-                  {editCardStatus !== 'active' && (
-                    <div>
-                      <label className="muster-label">
-                        {editCardStatus === 'blocked' ? 'Blocked Reason' : 'Review Reason / Note'}
-                      </label>
-                      <div className="space-y-1.5">
-                        <input
-                          type="text"
-                          value={editCardBlockedReason}
-                          onChange={(e) => setEditCardBlockedReason(e.target.value)}
-                          placeholder={editCardStatus === 'blocked' ? 'e.g. Requires human review' : 'e.g. Waiting on operator signoff'}
-                          className="muster-input"
-                        />
-                        <div className="flex flex-wrap gap-1">
-                          {['Requires Human Review', 'Waiting on Dependency', 'Environment Issue', 'Waiting on Input'].map((preset) => (
-                            <button
-                              key={preset}
-                              type="button"
-                              onClick={() => setEditCardBlockedReason(preset)}
-                              className="px-2 py-0.5 bg-neutral-800 hover:bg-neutral-700 text-[10px] muster-text-secondary rounded border border-neutral-700 transition-colors cursor-pointer"
-                            >
-                              + {preset}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   <div>
                     <label className="muster-label">Description (Markdown)</label>
@@ -1267,16 +1132,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   <div className="flex items-center justify-between">
                     <h3 className="text-base font-bold muster-text-primary">{cardDetails.title}</h3>
                     <div className="flex items-center space-x-2">
-                      {/* Direct status switcher pill */}
-                      <select
-                        value={cardDetails.status || 'active'}
-                        onChange={(e) => handleUpdateCardStatus(e.target.value as any)}
-                        className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1"
-                      >
-                        <option value="active">🟢 Active</option>
-                        <option value="in_review">👁️ Waiting for Human Review</option>
-                        <option value="blocked">⛔ Blocked</option>
-                      </select>
                       <button
                         onClick={handleStartEditingCard}
                         className="p-1 text-neutral-500 hover:text-brand-400 transition-colors cursor-pointer"

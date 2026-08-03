@@ -22,8 +22,6 @@ function assertHttpUrl(url: string): void {
 
 const DEFAULT_CLAIM_TTL_SECONDS = 600;
 
-type CardStatus = Card['status'];
-
 interface ColumnCapacity {
   id: string;
   name: string;
@@ -38,12 +36,6 @@ interface UnresolvedBlocker {
   column_id: string;
   column_name: string;
 }
-
-const ALLOWED_STATUS_TRANSITIONS: Record<CardStatus, CardStatus[]> = {
-  active: ['active', 'blocked', 'in_review'],
-  blocked: ['blocked', 'active', 'in_review'],
-  in_review: ['in_review', 'active'],
-};
 
 export class CardService {
   constructor(
@@ -84,11 +76,6 @@ export class CardService {
        ORDER BY blocker.position ASC`,
       [cardId]
     );
-  }
-
-  private getStatusViolation(from: CardStatus, to: CardStatus): { allowed: CardStatus[] } | null {
-    const allowed = ALLOWED_STATUS_TRANSITIONS[from] || [];
-    return allowed.includes(to) ? null : { allowed };
   }
 
   private async recordOverride(
@@ -152,14 +139,12 @@ export class CardService {
       const priority = data.priority || 'medium';
       const description = data.description || null;
       const due_date = data.due_date || null;
-      const status = data.status || 'active';
-      const blocked_reason = data.blocked_reason !== undefined ? data.blocked_reason : null;
       const is_epic = data.is_epic ? 1 : 0;
 
       await tx.execute(
-        `INSERT INTO card (id, key, column_id, title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at, archived, is_epic)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
-        [id, key, data.column_id, data.title, description, position, priority, due_date, status, blocked_reason, created_at, updated_at, is_epic]
+        `INSERT INTO card (id, key, column_id, title, description, position, priority, due_date, created_at, updated_at, archived, is_epic)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`,
+        [id, key, data.column_id, data.title, description, position, priority, due_date, created_at, updated_at, is_epic]
       );
 
       return {
@@ -172,8 +157,6 @@ export class CardService {
           position,
           priority,
           due_date,
-          status,
-          blocked_reason,
           created_at,
           updated_at,
           archived: 0,
@@ -341,10 +324,10 @@ export class CardService {
   }
 
   private async getLinkedCards(cardId: string, db: DatabaseAdapter = this.db): Promise<LinkedCardSummary[]> {
-    type LinkRow = { id: string; relation_type: string; other_id: string; other_key: string; other_title: string; other_column_id: string; other_column_name: string; other_status: string; other_priority: string; other_archived: number };
+    type LinkRow = { id: string; relation_type: string; other_id: string; other_key: string; other_title: string; other_column_id: string; other_column_name: string; other_priority: string; other_archived: number };
 
     const outgoing = await db.query<LinkRow>(
-      `SELECT cl.id, cl.relation_type, c.id as other_id, c.key as other_key, c.title as other_title, c.column_id as other_column_id, col.name as other_column_name, c.status as other_status, c.priority as other_priority, c.archived as other_archived
+      `SELECT cl.id, cl.relation_type, c.id as other_id, c.key as other_key, c.title as other_title, c.column_id as other_column_id, col.name as other_column_name, c.priority as other_priority, c.archived as other_archived
        FROM card_link cl JOIN card c ON c.id = cl.target_card_id
        JOIN "column" col ON col.id = c.column_id
        WHERE cl.source_card_id = ?`,
@@ -352,7 +335,7 @@ export class CardService {
     );
 
     const incoming = await db.query<LinkRow>(
-      `SELECT cl.id, cl.relation_type, c.id as other_id, c.key as other_key, c.title as other_title, c.column_id as other_column_id, col.name as other_column_name, c.status as other_status, c.priority as other_priority, c.archived as other_archived
+      `SELECT cl.id, cl.relation_type, c.id as other_id, c.key as other_key, c.title as other_title, c.column_id as other_column_id, col.name as other_column_name, c.priority as other_priority, c.archived as other_archived
        FROM card_link cl JOIN card c ON c.id = cl.source_card_id
        JOIN "column" col ON col.id = c.column_id
        WHERE cl.target_card_id = ?`,
@@ -368,7 +351,6 @@ export class CardService {
         title: row.other_title,
         column_id: row.other_column_id,
         column_name: row.other_column_name,
-        status: row.other_status as LinkedCardSummary['card']['status'],
         priority: row.other_priority as LinkedCardSummary['card']['priority'],
         archived: row.other_archived,
       },
@@ -386,7 +368,7 @@ export class CardService {
     ];
   }
 
-  async list(filters: { column_id?: string; board_id?: string; assignee_id?: string; label?: string; status?: string; archived?: boolean } = {}): Promise<Card[]> {
+  async list(filters: { column_id?: string; board_id?: string; assignee_id?: string; label?: string; archived?: boolean } = {}): Promise<Card[]> {
     let sql = 'SELECT DISTINCT c.* FROM card c';
     const joins: string[] = [];
     const conditions: string[] = [];
@@ -401,11 +383,6 @@ export class CardService {
     if (filters.column_id) {
       conditions.push('c.column_id = ?');
       params.push(filters.column_id);
-    }
-
-    if (filters.status) {
-      conditions.push('c.status = ?');
-      params.push(filters.status);
     }
 
     if (filters.assignee_id) {
@@ -474,37 +451,16 @@ export class CardService {
     assertMaxLength(data.description, CARD_TEXT_MAX_CHARS, 'Card description');
     const existing = await this.getById(id);
 
-    let statusViolation: { allowed: CardStatus[] } | null = null;
-    if (data.status !== undefined && data.status !== existing.status) {
-      statusViolation = this.getStatusViolation(existing.status, data.status);
-      if (statusViolation && !options.operatorOverride) {
-        throw new CardRuleError(
-          'CARD_STATUS_TRANSITION',
-          `Invalid card status transition from "${existing.status}" to "${data.status}". Allowed transitions: ${statusViolation.allowed.filter(status => status !== existing.status).join(', ') || 'none'}.`,
-          {
-            rule: 'status_transition',
-            operation: 'update',
-            card_id: id,
-            from: existing.status,
-            to: data.status,
-            allowed_transitions: statusViolation.allowed.filter(status => status !== existing.status),
-          },
-        );
-      }
-    }
-
     const title = data.title !== undefined ? data.title : existing.title;
     const description = data.description !== undefined ? data.description : existing.description;
     const priority = data.priority !== undefined ? data.priority : existing.priority;
     const due_date = data.due_date !== undefined ? data.due_date : existing.due_date;
-    const status = data.status !== undefined ? data.status : existing.status;
-    const blocked_reason = data.blocked_reason !== undefined ? data.blocked_reason : existing.blocked_reason;
     const is_epic = data.is_epic !== undefined ? (data.is_epic ? 1 : 0) : existing.is_epic;
     const updated_at = new Date().toISOString();
 
     await this.db.execute(
-      `UPDATE card SET title = ?, description = ?, priority = ?, due_date = ?, status = ?, blocked_reason = ?, is_epic = ?, updated_at = ? WHERE id = ?`,
-      [title, description, priority, due_date, status, blocked_reason, is_epic, updated_at, id]
+      `UPDATE card SET title = ?, description = ?, priority = ?, due_date = ?, is_epic = ?, updated_at = ? WHERE id = ?`,
+      [title, description, priority, due_date, is_epic, updated_at, id]
     );
 
     if (this.eventService) {
@@ -517,18 +473,6 @@ export class CardService {
           action: 'updated',
           actor_id: actorId,
           payload: data as Record<string, unknown>,
-        });
-      }
-    }
-
-    if (statusViolation && options.operatorOverride) {
-      const projectId = await this.getProjectIdForColumn(existing.column_id);
-      if (projectId) {
-        await this.recordOverride(projectId, id, actorId, 'update', {
-          rule: 'status_transition',
-          from: existing.status,
-          to: data.status,
-          allowed_transitions: statusViolation.allowed.filter(status => status !== existing.status),
         });
       }
     }

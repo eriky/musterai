@@ -192,8 +192,6 @@ CREATE TABLE IF NOT EXISTS card (
   position         TEXT NOT NULL,
   priority         TEXT NOT NULL DEFAULT 'medium',
   due_date         TEXT,
-  status           TEXT NOT NULL DEFAULT 'active',
-  blocked_reason   TEXT,
   created_at       TEXT NOT NULL,
   updated_at       TEXT NOT NULL,
   archived         INTEGER NOT NULL DEFAULT 0,
