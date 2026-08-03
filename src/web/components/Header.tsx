@@ -71,7 +71,7 @@ const IdentityPicker: React.FC<{ onSubmit: (displayName: string) => Promise<void
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Your display name…"
+        placeholder="Your name"
         autoFocus
         className="muster-input text-xs py-1 px-2 w-36"
       />
@@ -127,6 +127,8 @@ export const Header: React.FC<HeaderProps> = ({
   authMode,
   onSetLocalIdentity,
 }) => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const kanbanCount = activeBoardNotDoneCount !== undefined && activeBoardNotDoneCount !== null
     ? activeBoardNotDoneCount
     : summary?.not_done_card_count ?? summary?.card_count;
@@ -143,14 +145,14 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="bg-muster-surface border-b border-muster-border sticky top-0 z-40 backdrop-blur-md w-full">
-      <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14">
+      <div className="w-full px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14 gap-2">
 
           {/* Left Side: Brand & Selectors */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
 
             {/* Logo */}
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 shrink-0">
               <div
                 className="w-8 h-8 shrink-0 rounded-md muster-accent-bg border muster-accent flex items-center justify-center"
               >
@@ -166,93 +168,111 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Signed-in user — read-only, derived from the session, never picked.
-                In open mode with no session yet, offer the self-service name picker instead. */}
-            {currentUser ? (
-              <>
-                <PrincipalChip name={currentUser.display_name} kind="user" />
-                <Divider />
-              </>
-            ) : authMode === 'open' && onSetLocalIdentity ? (
-              <>
-                <IdentityPicker onSubmit={onSetLocalIdentity} />
-                <Divider />
-              </>
-            ) : null}
+            {/* Signed-in user — read-only, derived from the session, never picked. */}
+            <div className="flex items-center space-x-2">
+              {currentUser ? (
+                <>
+                  <PrincipalChip name={currentUser.display_name} kind="user" />
+                  <Divider />
+                </>
+              ) : authMode === 'open' && onSetLocalIdentity ? (
+                <>
+                  <IdentityPicker onSubmit={onSetLocalIdentity} />
+                  <Divider />
+                </>
+              ) : null}
+            </div>
 
-            {/* Project Selector Dropdown, Edit & Delete Buttons */}
-            <div className="flex items-center space-x-1.5">
+            {/* Project Selector Dropdown */}
+            <div className="flex items-center space-x-1 min-w-0">
               <select
                 value={selectedProjectId || ''}
                 onChange={(e) => onSelectProject(e.target.value)}
-                className="muster-input w-auto font-mono cursor-pointer"
+                className="muster-input max-w-[140px] sm:max-w-[220px] font-mono cursor-pointer truncate text-xs sm:text-sm py-1.5 px-2"
+                aria-label="Select active project"
               >
                 {projects.map((p) => (
                   <option key={p.id} value={p.id} className="bg-muster-surface muster-text-primary">
-                    Project: {p.name}
+                    {p.name}
                   </option>
                 ))}
               </select>
 
-              {selectedProjectId && projects.length > 0 && onOpenEditProject && (
-                <button
-                  onClick={onOpenEditProject}
-                  className="muster-btn muster-btn-icon muster-btn-ghost"
-                  title="Edit Selected Project Details"
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
-                </button>
-              )}
+              {/* Desktop Project Actions */}
+              <div className="hidden lg:flex items-center space-x-1">
+                {selectedProjectId && projects.length > 0 && onOpenEditProject && (
+                  <button
+                    onClick={onOpenEditProject}
+                    className="muster-btn muster-btn-icon muster-btn-ghost"
+                    title="Edit Selected Project Details"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
 
-              {selectedProjectId && projects.length > 0 && (
-                <button
-                  onClick={() => {
-                    const proj = projects.find(p => p.id === selectedProjectId);
-                    if (proj && confirm(`Are you sure you want to delete project "${proj.name}"?\n\nThis will permanently delete all boards, cards, documents, and knowledge base links in this project.`)) {
-                      onDeleteProject(selectedProjectId);
-                    }
-                  }}
-                  className="muster-btn muster-btn-icon muster-btn-ghost-danger"
-                  title="Delete Selected Project"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
+                {selectedProjectId && projects.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const proj = projects.find(p => p.id === selectedProjectId);
+                      if (proj && confirm(`Are you sure you want to delete project "${proj.name}"?\n\nThis will permanently delete all boards, cards, documents, and knowledge base links in this project.`)) {
+                        onDeleteProject(selectedProjectId);
+                      }
+                    }}
+                    className="muster-btn muster-btn-icon muster-btn-ghost-danger"
+                    title="Delete Selected Project"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
 
-              <button
-                onClick={onOpenNewProject}
-                className="muster-btn muster-btn-soft font-mono"
-                title="Create New Project"
-              >
-                <FolderPlus className="w-3.5 h-3.5" /> + Project
-              </button>
+                <button
+                  onClick={onOpenNewProject}
+                  className="muster-btn muster-btn-soft font-mono text-xs"
+                  title="Create New Project"
+                >
+                  <FolderPlus className="w-3.5 h-3.5" /> + Project
+                </button>
+              </div>
             </div>
 
-            <Divider />
+            <div className="hidden lg:block">
+              <Divider />
+            </div>
 
-            {/* Entity Creation Buttons */}
-            <div className="flex items-center space-x-2">
-              <button onClick={onOpenNewBoard} className="muster-btn muster-btn-secondary font-mono">
+            {/* Desktop Entity Creation Buttons */}
+            <div className="hidden lg:flex items-center space-x-2">
+              <button onClick={onOpenNewBoard} className="muster-btn muster-btn-secondary font-mono text-xs">
                 <Layers className="w-3.5 h-3.5 muster-accent" /> + Board
               </button>
 
-              <button onClick={onOpenRegisterAgent} className="muster-btn muster-btn-secondary font-mono">
+              <button onClick={onOpenRegisterAgent} className="muster-btn muster-btn-secondary font-mono text-xs">
                 <UserPlus className="w-3.5 h-3.5 muster-accent" /> + Agent
               </button>
 
-              <button onClick={onOpenNewCard} className="muster-btn muster-btn-secondary font-mono">
+              <button onClick={onOpenNewCard} className="muster-btn muster-btn-secondary font-mono text-xs">
                 <Plus className="w-3.5 h-3.5 muster-accent" /> + Card
               </button>
 
-              <button onClick={onOpenNewDoc} className="muster-btn muster-btn-secondary font-mono">
+              <button onClick={onOpenNewDoc} className="muster-btn muster-btn-secondary font-mono text-xs">
                 <FileText className="w-3.5 h-3.5 muster-accent" /> + Doc
               </button>
             </div>
 
           </div>
 
-          {/* Right Side: Notifications & Theme Picker */}
-          <div className="flex items-center space-x-1.5">
+          {/* Right Side: Quick Actions on Mobile, Notifications & Theme Picker */}
+          <div className="flex items-center space-x-1.5 shrink-0">
+            {/* Mobile Actions Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="lg:hidden muster-btn muster-btn-soft p-1.5 text-xs font-mono flex items-center gap-1"
+              title="Quick Actions"
+              aria-label="Toggle mobile actions menu"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden xs:inline">Actions</span>
+            </button>
+
             <NotificationCenter
               attentionCount={attentionCount}
               permission={notificationPermission}
@@ -265,27 +285,71 @@ export const Header: React.FC<HeaderProps> = ({
 
         </div>
 
+        {/* Mobile Actions Drawer / Overlay */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden border-t border-muster-border/60 py-3 grid grid-cols-2 gap-2 bg-muster-surface/95 backdrop-blur-md">
+            <button
+              onClick={() => { onOpenNewCard(); setMobileMenuOpen(false); }}
+              className="muster-btn muster-btn-primary font-mono text-xs justify-start py-2"
+            >
+              <Plus className="w-3.5 h-3.5" /> + New Card
+            </button>
+            <button
+              onClick={() => { onOpenNewDoc(); setMobileMenuOpen(false); }}
+              className="muster-btn muster-btn-secondary font-mono text-xs justify-start py-2"
+            >
+              <FileText className="w-3.5 h-3.5 muster-accent" /> + New Doc
+            </button>
+            <button
+              onClick={() => { onOpenNewBoard(); setMobileMenuOpen(false); }}
+              className="muster-btn muster-btn-secondary font-mono text-xs justify-start py-2"
+            >
+              <Layers className="w-3.5 h-3.5 muster-accent" /> + New Board
+            </button>
+            <button
+              onClick={() => { onOpenRegisterAgent(); setMobileMenuOpen(false); }}
+              className="muster-btn muster-btn-secondary font-mono text-xs justify-start py-2"
+            >
+              <UserPlus className="w-3.5 h-3.5 muster-accent" /> + Register Agent
+            </button>
+            <button
+              onClick={() => { onOpenNewProject(); setMobileMenuOpen(false); }}
+              className="muster-btn muster-btn-soft font-mono text-xs justify-start py-2"
+            >
+              <FolderPlus className="w-3.5 h-3.5" /> + New Project
+            </button>
+            {selectedProjectId && projects.length > 0 && onOpenEditProject && (
+              <button
+                onClick={() => { onOpenEditProject(); setMobileMenuOpen(false); }}
+                className="muster-btn muster-btn-ghost font-mono text-xs justify-start py-2"
+              >
+                <Edit2 className="w-3.5 h-3.5" /> Edit Project
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Sub-Navigation & Summary Telemetry */}
-        <div className="flex items-center justify-between border-t border-muster-border/60 py-2">
-          <nav className="flex space-x-2">
+        <div className="flex items-center justify-between border-t border-muster-border/60 py-1.5 overflow-hidden">
+          <nav className="flex space-x-1.5 overflow-x-auto no-scrollbar snap-x py-0.5 w-full md:w-auto">
             {tabs.map(({ id, icon: Icon, label }) => (
               <button
                 key={id}
                 onClick={() => onSelectTab(id)}
                 aria-current={activeTab === id ? 'page' : undefined}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans font-medium muster-tab ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans font-medium muster-tab shrink-0 snap-start whitespace-nowrap ${
                   activeTab === id ? 'muster-tab-active' : ''
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
-                {label}
+                <Icon className="w-3.5 h-3.5 shrink-0" />
+                <span>{label}</span>
               </button>
             ))}
           </nav>
 
           {/* Summary telemetry */}
           {summary && (
-            <div className="hidden md:flex items-center gap-3 text-xs font-sans">
+            <div className="hidden md:flex items-center gap-3 text-xs font-sans shrink-0 pl-3">
               <div>
                 <span className="muster-text-muted">Active Agents: </span>
                 <span className="muster-text-success font-medium">{summary.active_agent_count}</span>

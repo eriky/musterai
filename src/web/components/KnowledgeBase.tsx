@@ -324,19 +324,19 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
   );
 
   return (
-    <div className={`flex flex-col h-full p-6 space-y-4 ${viewMode === 'facts' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+    <div className={`flex flex-col h-full p-2 sm:p-6 space-y-3 sm:space-y-4 ${viewMode === 'facts' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
 
       {/* Header Bar */}
-      <div className="muster-panel flex flex-col md:flex-row md:items-center justify-between gap-4 p-4">
+      <div className="muster-panel flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 sm:p-4">
         <div className="flex items-center space-x-3">
-          <div className="p-2.5 rounded-md border muster-accent-bg muster-accent">
-            <BookOpen className="w-6 h-6" />
+          <div className="p-2 sm:p-2.5 rounded-md border muster-accent-bg muster-accent shrink-0">
+            <BookOpen className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight muster-text-primary">
-              Knowledge Base &amp; Gained Knowledge Graph
+            <h1 className="text-base sm:text-xl font-bold tracking-tight muster-text-primary">
+              Knowledge Base &amp; Knowledge Graph
             </h1>
-            <p className="text-xs muster-text-muted">
+            <p className="text-[11px] sm:text-xs muster-text-muted">
               Operational learnings, hardware specs, network IPs, and agent-gained facts.
             </p>
           </div>
@@ -347,7 +347,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
           <select
             value={selectedKbId}
             onChange={(e) => setSelectedKbId(e.target.value)}
-            className="muster-input w-auto font-medium cursor-pointer"
+            className="muster-input w-auto text-xs sm:text-sm font-medium cursor-pointer py-1.5"
           >
             <option value="all">⚡ All Linked &amp; Global KBs</option>
             {kbs.map((kb: KBType) => (
@@ -357,58 +357,58 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
             ))}
           </select>
 
-          <button onClick={() => setShowCreateKbModal(true)} className="muster-btn muster-btn-secondary">
+          <button onClick={() => setShowCreateKbModal(true)} className="muster-btn muster-btn-secondary text-xs py-1.5">
             <Plus className="w-3.5 h-3.5" />
             New KB
           </button>
 
-          <button onClick={() => setShowAddFactModal(true)} className="muster-btn muster-btn-primary">
+          <button onClick={() => setShowAddFactModal(true)} className="muster-btn muster-btn-primary text-xs py-1.5">
             <PlusCircle className="w-3.5 h-3.5" />
-            Add Gained Knowledge
+            Add Knowledge
           </button>
         </div>
       </div>
 
       {/* Search & View Mode Controls */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="relative w-full sm:w-96">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-4">
+        <div className="relative w-full sm:w-80 md:w-96">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 muster-text-muted" aria-hidden="true" />
           <input
             type="text"
             placeholder="Search IPs, hostnames, emails, or gained facts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="muster-input pl-9 font-medium"
+            className="muster-input pl-9 text-xs sm:text-sm font-medium py-1.5"
           />
         </div>
 
-        <div className="muster-segmented" role="tablist" aria-label="Knowledge view">
+        <div className="muster-segmented self-start sm:self-auto" role="tablist" aria-label="Knowledge view">
           <button
             role="tab"
             aria-selected={viewMode === 'facts'}
             onClick={() => setViewMode('facts')}
-            className="muster-segmented-item"
+            className="muster-segmented-item text-xs"
           >
-            Fact Stream ({facts.length})
+            Facts ({facts.length})
           </button>
           <button
             role="tab"
             aria-selected={viewMode === 'graph'}
             onClick={() => setViewMode('graph')}
-            className="muster-segmented-item"
+            className="muster-segmented-item text-xs"
           >
-            Knowledge Graph ({graphTree.nodes.length} Nodes)
+            Graph ({graphTree.nodes.length})
           </button>
         </div>
       </div>
 
       {/* Main Content Area */}
       {viewMode === 'facts' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {facts.length === 0 ? (
             <div className="col-span-full py-16 text-center muster-panel">
               <p className="text-sm font-medium muster-text-muted">No gained knowledge facts matching search.</p>
-              <p className="text-xs mt-1 muster-text-muted">Click "Add Gained Knowledge" above to log operational learnings.</p>
+              <p className="text-xs mt-1 muster-text-muted">Click "Add Knowledge" above to log operational learnings.</p>
             </div>
           ) : (
             facts.map((fact: KBFact) => (
@@ -418,7 +418,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
                     <span className="muster-badge muster-badge-accent">{fact.category}</span>
                     <div className="flex items-center gap-1">
                       {fact.entity_name && (
-                        <span className="muster-chip">{fact.entity_name}</span>
+                        <span className="muster-chip max-w-[120px] truncate">{fact.entity_name}</span>
                       )}
                       <button
                         onClick={() => handleOpenEditFact(fact)}
@@ -449,7 +449,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
           )}
         </div>
       ) : (
-        <div className="flex-1 flex gap-6 min-h-0 h-full relative overflow-hidden">
+        <div className="flex-1 flex gap-4 min-h-0 h-full relative overflow-hidden">
           <div className="flex-1 h-full min-w-0">
 
             <KnowledgeGraphCanvas
@@ -463,7 +463,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseProps> = ({
 
           {/* Entity Details Inspector */}
           {selectedEntity && (
-            <div className="muster-panel w-80 lg:w-[420px] h-full p-5 flex flex-col min-h-0 overflow-hidden z-30">
+            <div className="muster-panel fixed inset-x-2 bottom-2 max-h-[75vh] lg:relative lg:inset-auto lg:max-h-none lg:w-[420px] lg:h-full p-4 sm:p-5 flex flex-col min-h-0 overflow-hidden z-30 shadow-2xl border border-brand-500/40 lg:border-muster-border">
               {/* Fixed Header */}
               <div className="flex-none flex items-start justify-between gap-2 border-b border-muster-border pb-3 mb-4">
                 <div className="min-w-0">

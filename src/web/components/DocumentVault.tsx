@@ -26,6 +26,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
   const [changeSummary, setChangeSummary] = useState('');
   const [history, setHistory] = useState<DocumentVersion[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [showMobileDetail, setShowMobileDetail] = useState(false);
 
   // Find active doc by ID, or fallback to latest doc if no ID is specified
   const foundDoc = documents.find((d) => d.id === selectedDocId);
@@ -42,6 +43,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
     onSelectDoc(doc.id);
     setIsEditing(false);
     setShowHistory(false);
+    setShowMobileDetail(true);
   };
 
   const handleStartEdit = () => {
@@ -157,7 +159,9 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
         <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 min-h-0 h-full overflow-hidden">
           
           {/* Document Tree Sidebar */}
-          <div className="md:col-span-1 bg-muster-surface rounded-lg p-4 tactical-border flex flex-col h-full min-h-0 overflow-y-auto space-y-2">
+          <div className={`md:col-span-1 bg-muster-surface rounded-lg p-4 tactical-border flex flex-col h-full min-h-0 overflow-y-auto space-y-2 ${
+            showMobileDetail ? 'hidden md:flex' : 'flex'
+          }`}>
             <h3 className="flex-none text-xs font-bold muster-text-muted uppercase mb-3 tracking-wider">
               Documents ({documents.length})
             </h3>
@@ -187,11 +191,21 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
           </div>
 
           {/* Document Reader / Editor */}
-          <div className="md:col-span-3 bg-muster-surface rounded-lg p-6 tactical-border flex flex-col h-full min-h-0 overflow-y-auto">
+          <div className={`md:col-span-3 bg-muster-surface rounded-lg p-4 sm:p-6 tactical-border flex flex-col h-full min-h-0 overflow-y-auto ${
+            showMobileDetail ? 'flex' : 'hidden md:flex'
+          }`}>
 
             {selectedDoc ? (
               <div className="space-y-5">
                 
+                {/* Mobile Back Button */}
+                <button
+                  onClick={() => setShowMobileDetail(false)}
+                  className="md:hidden muster-btn muster-btn-ghost text-xs inline-flex items-center w-auto py-1"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-1" /> Back to Documents
+                </button>
+
                 {/* Spec Toolbar & Status */}
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-muster-border pb-4">
                   <div>
@@ -298,7 +312,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                   </div>
                 ) : (
                   <div
-                    className="markdown-render max-w-none text-xs leading-relaxed bg-muster-surface p-6 rounded-lg border border-muster-border overflow-y-auto max-h-[550px]"
+                    className="markdown-render max-w-none text-xs leading-relaxed bg-muster-surface p-6 rounded-lg border border-muster-border"
                     dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedDoc.content) }}
                   />
                 )}

@@ -217,7 +217,7 @@ async function runMcpAgentTestSuite() {
     console.log('\n[8/12] Adding Comment to Card via MCP (add_comment)...');
     const comment = await callMCPTool('add_comment', {
       card_id: card.id,
-      author_id: agent.id,
+      agent_id: agent.id,
       content: 'Started automated integration verification suite. All tools responding correctly.',
     });
     console.log(`  ✓ Comment Created! ID: ${comment.id}, Content: "${comment.content}"`);

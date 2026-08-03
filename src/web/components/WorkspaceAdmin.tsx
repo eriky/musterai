@@ -207,9 +207,10 @@ const MembersPanel: React.FC<{
   }
 
   return (
-    <table className="w-full text-xs font-sans border-collapse">
-      <thead>
-        <tr className="border-b border-muster-border muster-text-muted uppercase text-[10px] tracking-wide">
+    <div className="w-full overflow-x-auto no-scrollbar">
+      <table className="w-full text-xs font-sans border-collapse">
+        <thead>
+          <tr className="border-b border-muster-border muster-text-muted uppercase text-[10px] tracking-wide">
           <th className="text-left py-2 pr-4 font-semibold">Member</th>
           <th className="text-left py-2 pr-4 font-semibold">Role</th>
           <th className="text-left py-2 pr-4 font-semibold">Agents Operated</th>
@@ -258,6 +259,7 @@ const MembersPanel: React.FC<{
         ))}
       </tbody>
     </table>
+    </div>
   );
 };
 
@@ -591,42 +593,44 @@ const InvitationsPanel: React.FC<{
           <h3 className="text-sm font-sans muster-text-secondary font-semibold">No Invitations Yet</h3>
         </div>
       ) : (
-        <table className="w-full text-xs font-sans border-collapse">
-          <thead>
-            <tr className="border-b border-muster-border muster-text-muted uppercase text-[10px] tracking-wide">
-              <th className="text-left py-2 pr-4 font-semibold">Email</th>
-              <th className="text-left py-2 pr-4 font-semibold">Role</th>
-              <th className="text-left py-2 pr-4 font-semibold">Expires</th>
-              <th className="text-left py-2 pr-4 font-semibold">Status</th>
-              <th className="text-right py-2 font-semibold">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {invitations.map((i) => (
-              <tr key={i.id} className="border-b border-muster-border/60">
-                <td className="py-2.5 pr-4 muster-text-primary font-medium">{i.email}</td>
-                <td className="py-2.5 pr-4 muster-text-secondary">{roleName(i.role_id)}</td>
-                <td className="py-2.5 pr-4 muster-text-muted">{formatDate(i.expires_at)}</td>
-                <td className="py-2.5 pr-4">
-                  {i.accepted_at ? (
-                    <span className="muster-badge muster-badge-success">Accepted</span>
-                  ) : isExpired(i) ? (
-                    <span className="muster-badge muster-badge-neutral">Expired</span>
-                  ) : (
-                    <span className="muster-badge muster-badge-warning">Pending</span>
-                  )}
-                </td>
-                <td className="py-2.5 text-right">
-                  {!i.accepted_at && (
-                    <button onClick={() => handleRevoke(i)} title="Revoke invitation" className="muster-btn muster-btn-icon muster-btn-ghost-danger">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </td>
+        <div className="w-full overflow-x-auto no-scrollbar">
+          <table className="w-full text-xs font-sans border-collapse">
+            <thead>
+              <tr className="border-b border-muster-border muster-text-muted uppercase text-[10px] tracking-wide">
+                <th className="text-left py-2 pr-4 font-semibold">Email</th>
+                <th className="text-left py-2 pr-4 font-semibold">Role</th>
+                <th className="text-left py-2 pr-4 font-semibold">Expires</th>
+                <th className="text-left py-2 pr-4 font-semibold">Status</th>
+                <th className="text-right py-2 font-semibold">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {invitations.map((i) => (
+                <tr key={i.id} className="border-b border-muster-border/60">
+                  <td className="py-2.5 pr-4 muster-text-primary font-medium">{i.email}</td>
+                  <td className="py-2.5 pr-4 muster-text-secondary">{roleName(i.role_id)}</td>
+                  <td className="py-2.5 pr-4 muster-text-muted">{formatDate(i.expires_at)}</td>
+                  <td className="py-2.5 pr-4">
+                    {i.accepted_at ? (
+                      <span className="muster-badge muster-badge-success">Accepted</span>
+                    ) : isExpired(i) ? (
+                      <span className="muster-badge muster-badge-neutral">Expired</span>
+                    ) : (
+                      <span className="muster-badge muster-badge-warning">Pending</span>
+                    )}
+                  </td>
+                  <td className="py-2.5 text-right">
+                    {!i.accepted_at && (
+                      <button onClick={() => handleRevoke(i)} title="Revoke invitation" className="muster-btn muster-btn-icon muster-btn-ghost-danger">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {invited && (
@@ -722,34 +726,36 @@ const AuditLogPanel: React.FC<{
           <h3 className="text-sm font-sans muster-text-secondary font-semibold">No Audit Records Yet</h3>
         </div>
       ) : (
-        <table className="w-full text-xs font-sans border-collapse">
-          <thead>
-            <tr className="border-b border-muster-border muster-text-muted uppercase text-[10px] tracking-wide">
-              <th className="text-left py-2 pr-4 font-semibold">When</th>
-              <th className="text-left py-2 pr-4 font-semibold">Actor</th>
-              <th className="text-left py-2 pr-4 font-semibold">Action</th>
-              <th className="text-left py-2 pr-4 font-semibold">Target</th>
-              <th className="text-left py-2 font-semibold">Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {records.map((r) => (
-              <tr key={r.id} className="border-b border-muster-border/40">
-                <td className="py-2 pr-4 muster-text-muted whitespace-nowrap">{new Date(r.created_at).toLocaleString()}</td>
-                <td className="py-2 pr-4">
-                  <PrincipalChip name={actorName(r.actor_id, r.actor_kind)} kind={r.actor_kind === 'agent' ? 'agent' : 'user'} />
-                </td>
-                <td className="py-2 pr-4 font-mono muster-accent">{r.action}</td>
-                <td className="py-2 pr-4 muster-text-secondary">
-                  {r.target_type ? `${r.target_type}${r.target_id ? ` · ${r.target_id.slice(-8)}` : ''}` : '—'}
-                </td>
-                <td className="py-2 muster-text-muted font-mono text-[10px] max-w-xs truncate" title={r.payload ? JSON.stringify(r.payload) : ''}>
-                  {r.payload ? JSON.stringify(r.payload) : '—'}
-                </td>
+        <div className="w-full overflow-x-auto no-scrollbar">
+          <table className="w-full text-xs font-sans border-collapse">
+            <thead>
+              <tr className="border-b border-muster-border muster-text-muted uppercase text-[10px] tracking-wide">
+                <th className="text-left py-2 pr-4 font-semibold">When</th>
+                <th className="text-left py-2 pr-4 font-semibold">Actor</th>
+                <th className="text-left py-2 pr-4 font-semibold">Action</th>
+                <th className="text-left py-2 pr-4 font-semibold">Target</th>
+                <th className="text-left py-2 font-semibold">Details</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {records.map((r) => (
+                <tr key={r.id} className="border-b border-muster-border/40">
+                  <td className="py-2 pr-4 muster-text-muted whitespace-nowrap">{new Date(r.created_at).toLocaleString()}</td>
+                  <td className="py-2 pr-4">
+                    <PrincipalChip name={actorName(r.actor_id, r.actor_kind)} kind={r.actor_kind === 'agent' ? 'agent' : 'user'} />
+                  </td>
+                  <td className="py-2 pr-4 font-mono muster-accent">{r.action}</td>
+                  <td className="py-2 pr-4 muster-text-secondary">
+                    {r.target_type ? `${r.target_type}${r.target_id ? ` · ${r.target_id.slice(-8)}` : ''}` : '—'}
+                  </td>
+                  <td className="py-2 muster-text-muted font-mono text-[10px] max-w-xs truncate" title={r.payload ? JSON.stringify(r.payload) : ''}>
+                    {r.payload ? JSON.stringify(r.payload) : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

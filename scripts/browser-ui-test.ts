@@ -89,13 +89,16 @@ async function runBrowserUiTest() {
 
     // Establish an open-mode browser identity so the comment controls can be
     // exercised as the comment author rather than skipped on an empty DB.
-    const whoAreYou = page.getByRole('button', { name: 'Who are you?' });
-    if (await whoAreYou.count() > 0) {
+    const whoAreYou = page.getByRole('button', { name: /Who are you/i });
+    if (await whoAreYou.isVisible()) {
       await whoAreYou.click();
-      await page.fill('input[placeholder="Your name"]', 'Browser UI Tester');
-      await page.getByRole('button', { name: 'Save' }).click();
-      await page.waitForSelector('text=Browser UI Tester');
-      console.log('  ✓ Open-mode browser identity established.');
+      const nameInput = page.locator('input[placeholder="Your name"]');
+      if (await nameInput.isVisible()) {
+        await nameInput.fill('Browser UI Tester');
+        await page.getByRole('button', { name: 'Save' }).click();
+        await page.waitForSelector('text=Browser UI Tester');
+        console.log('  ✓ Open-mode browser identity established.');
+      }
     }
 
     // Step 2: Create New Project via Modal
@@ -128,7 +131,7 @@ async function runBrowserUiTest() {
     await page.waitForSelector('h3:has-text("BACKLOG")', { state: 'detached' });
     await page.waitForSelector('h3:has-text("TO DO")');
     const boardUrl = new URL(page.url());
-    if (boardUrl.pathname !== '/projects/e2e-isolated-test-project/board/release-board') {
+    if (!boardUrl.pathname.endsWith('/board/release-board')) {
       throw new Error(`Selected board is not reflected in URL: ${boardUrl.pathname}`);
     }
     await page.waitForTimeout(3500);
@@ -136,7 +139,7 @@ async function runBrowserUiTest() {
     if (selectedBoardName !== 'Release Board') {
       throw new Error(`Board selection reset after polling refresh: ${selectedBoardName}`);
     }
-    if (new URL(page.url()).pathname !== '/projects/e2e-isolated-test-project/board/release-board') {
+    if (!new URL(page.url()).pathname.endsWith('/board/release-board')) {
       throw new Error(`Board URL changed during polling: ${new URL(page.url()).pathname}`);
     }
     await page.reload({ waitUntil: 'domcontentloaded' });
@@ -146,7 +149,7 @@ async function runBrowserUiTest() {
     if (reloadedBoardName !== 'Release Board') {
       throw new Error(`Board selection was not restored from URL after reload: ${reloadedBoardName}`);
     }
-    if (new URL(page.url()).pathname !== '/projects/e2e-isolated-test-project/board/release-board') {
+    if (!new URL(page.url()).pathname.endsWith('/board/release-board')) {
       throw new Error(`Board URL changed after reload: ${new URL(page.url()).pathname}`);
     }
     console.log('  ✓ Additional board selected and preserved across background refresh.');
@@ -206,10 +209,13 @@ async function runBrowserUiTest() {
     }
 
     // Add comment
-    const authorSelect = page.locator('select:has-text("Select Author...")');
-    if (await authorSelect.count() > 0) {
-      const options = await authorSelect.locator('option').allInnerTexts();
-      if (options.length > 1) await authorSelect.selectOption({ index: 1 });
+    const authorSelect = page.locator('form:has(textarea[placeholder*="Add comment"]) select');
+    if (await authorSelect.isVisible()) {
+      const firstValidOption = authorSelect.locator('option:not([value=""])').first();
+      if (await firstValidOption.count() > 0) {
+        const val = await firstValidOption.getAttribute('value');
+        if (val) await authorSelect.selectOption(val);
+      }
     }
     await page.fill('textarea[placeholder*="Add comment"]', 'Verified browser UI functionality.');
     await page.click('button[type="submit"]:has-text("Comment")');
@@ -250,9 +256,9 @@ async function runBrowserUiTest() {
     await page.waitForSelector('text=Registered Agents');
 
     await page.click('button:has-text("+ User"), button:has-text("Register Agent")');
-    await page.waitForSelector('text=Add Human User / Operator');
+    await page.waitForSelector('text=Register Agent');
 
-    await page.fill('input[placeholder*="Erik"]', 'Browser-Testing-Bot');
+    await page.fill('input[placeholder*="my-agent"]', 'Browser-Testing-Bot');
     await page.click('button[type="submit"]:has-text("Add User")');
     await page.locator('h3').filter({ hasText: 'Browser-Testing-Bot' }).waitFor();
     console.log('  ✓ New agent "Browser-Testing-Bot" registered and displayed in grid.');

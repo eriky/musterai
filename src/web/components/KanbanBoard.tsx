@@ -4,7 +4,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { Board, Column, Card, Agent, CardDetails, Document, CardLinkRelationType, CardWorkLinkKind, CardWorkLinkProvider } from '../types.js';
 import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, Copy, AlertTriangle, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, GitPullRequest, GitCommit, Workflow, ExternalLink, GripVertical, Layers } from 'lucide-react';
 import { renderMarkdown } from '../markdown.js';
-import { api } from '../api.js';
+import { api, getLocalProxyToken } from '../api.js';
 import {
   CardDateSortOrder,
   DONE_LANE_PAGE_SIZE,
@@ -145,6 +145,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [newCardColumnId, setNewCardColumnId] = useState('');
   const [cardDateSortOrder, setCardDateSortOrder] = useState<CardDateSortOrder>('newest');
   const [doneVisibleLimits, setDoneVisibleLimits] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!selectedAuthorId) {
+      const defaultId = users[0]?.id || agents[0]?.id || '';
+      if (defaultId) setSelectedAuthorId(defaultId);
+    }
+  }, [users, agents, selectedAuthorId]);
 
   useEffect(() => {
     setDoneVisibleLimits({});
@@ -356,8 +363,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    const authorId = currentUser?.id || selectedAuthorId;
-    if (!selectedCardId || !commentText.trim() || !authorId) return;
+    const authorId = currentUser?.id || selectedAuthorId || users[0]?.id || agents[0]?.id || getLocalProxyToken() || 'open-user';
+    if (!selectedCardId || !commentText.trim()) return;
 
     try {
       await api.addComment(selectedCardId, authorId, commentText);
@@ -617,10 +624,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           </form>
         ) : (
           <div className="flex items-center space-x-2">
-            <Layout className="w-5 h-5 muster-accent" />
+            <Layout className="w-5 h-5 muster-accent shrink-0" />
             <label
               htmlFor="board-selector"
-              className="text-base font-sans font-bold muster-text-muted uppercase tracking-wide"
+              className="text-sm sm:text-base font-sans font-bold muster-text-muted uppercase tracking-wide shrink-0"
             >
               Board:
             </label>
@@ -628,7 +635,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               id="board-selector"
               value={selectedBoardId ?? board.id}
               onChange={(event) => onSelectBoard(event.target.value)}
-              className="muster-input w-auto text-sm font-bold"
+              className="muster-input w-auto text-xs sm:text-sm font-bold py-1 px-2"
               aria-label="Select board"
             >
               {boards.map((candidate) => (
@@ -648,13 +655,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           </div>
         )}
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center flex-wrap gap-2">
           <label className="flex items-center space-x-2">
-            <span className="text-xs font-semibold muster-text-muted">Sort cards</span>
+            <span className="text-xs font-semibold muster-text-muted shrink-0">Sort</span>
             <select
               value={cardDateSortOrder}
               onChange={(event) => setCardDateSortOrder(event.target.value as CardDateSortOrder)}
-              className="muster-input w-auto"
+              className="muster-input w-auto text-xs py-1 px-2"
               aria-label="Sort cards by last updated date"
             >
               <option value="newest">Updated: newest first</option>
@@ -668,7 +675,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 onDeleteBoard(board.id);
               }
             }}
-            className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-semibold bg-danger-950/80 hover:bg-danger-900 text-danger-300 border border-danger-500/40 transition-all cursor-pointer"
+            className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-sans font-semibold bg-danger-950/80 hover:bg-danger-900 text-danger-300 border border-danger-500/40 transition-all cursor-pointer"
             title="Delete Board"
           >
             <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete Board
@@ -676,12 +683,39 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
           <button
             onClick={onOpenNewColumn}
-            className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-sans font-semibold bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 transition-all cursor-pointer"
+            className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-sans font-semibold bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 transition-all cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5 mr-1" /> Add Column
           </button>
         </div>
       </div>
+
+      {/* Mobile Column Quick Switcher */}
+      {columns.length > 0 && (
+        <div className="flex md:hidden items-center space-x-1.5 overflow-x-auto no-scrollbar pb-2 shrink-0">
+          <span className="text-[10px] font-sans font-bold uppercase muster-text-muted shrink-0 pr-0.5">Jump to:</span>
+          {columns.map((col) => {
+            const count = cards.filter((c) => c.column_id === col.id && !c.archived).length;
+            return (
+              <button
+                key={col.id}
+                onClick={() => {
+                  const el = document.getElementById(`kanban-column-${col.id}`);
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                  }
+                }}
+                className="muster-chip shrink-0 text-xs font-sans py-1 px-2.5 flex items-center gap-1.5 cursor-pointer hover:border-brand-500/50"
+              >
+                <span>{col.name}</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-neutral-900 muster-text-muted font-mono">
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Kanban Drag and Drop Context (Stretches 100% height!) */}
       <DragDropContext onDragEnd={handleDragEnd}>
@@ -690,7 +724,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         <div
           ref={columnsProvided.innerRef}
           {...columnsProvided.droppableProps}
-          className="flex-1 flex space-x-4 overflow-x-auto min-h-0 h-full pb-2"
+          className="flex-1 flex space-x-3 sm:space-x-4 overflow-x-auto min-h-0 h-full pb-2 snap-x snap-mandatory"
         >
           {columns.map((column, columnIndex) => {
             const doneVisibleLimit = doneVisibleLimits[column.id] ?? DONE_LANE_PAGE_SIZE;
@@ -712,9 +746,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               <Draggable key={column.id} draggableId={column.id} index={columnIndex}>
                 {(columnDragProvided, columnDragSnapshot) => (
               <div
+                id={`kanban-column-${column.id}`}
                 ref={columnDragProvided.innerRef}
                 {...columnDragProvided.draggableProps}
-                className={`w-80 flex-shrink-0 bg-muster-surface rounded-xl tactical-border flex flex-col h-full min-h-0 ${
+                className={`w-[85vw] max-w-[340px] md:w-80 flex-shrink-0 snap-center bg-muster-surface rounded-xl tactical-border flex flex-col h-full min-h-0 ${
                   columnDragSnapshot.isDragging ? 'shadow-lg ring-1 ring-brand-500/60' : ''
                 }`}
               >
@@ -1724,7 +1759,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     />
                     <button
                       type="submit"
-                      disabled={!commentText.trim() || !(currentUser || selectedAuthorId)}
+                      disabled={!commentText.trim()}
                       className="muster-btn muster-btn-lg muster-btn-primary"
                     >
                       Comment

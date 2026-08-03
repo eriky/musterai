@@ -35,7 +35,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({ onClose, onSuc
 
   return (
     <div className="muster-scrim">
-      <div className="muster-dialog w-full max-w-md p-5 space-y-4 font-sans">
+      <div className="muster-dialog w-full max-w-md max-h-[90vh] overflow-y-auto mx-2 p-4 sm:p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-muster-border pb-3">
           <h3 className="text-sm font-bold muster-text-primary flex items-center">
             <FolderPlus className="w-4 h-4 mr-2 muster-accent" /> Create New Project
@@ -130,7 +130,7 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ project, onC
 
   return (
     <div className="muster-scrim">
-      <div className="muster-dialog w-full max-w-md p-5 space-y-4 font-sans">
+      <div className="muster-dialog w-full max-w-md max-h-[90vh] overflow-y-auto mx-2 p-4 sm:p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-muster-border pb-3">
           <h3 className="text-sm font-bold muster-text-primary flex items-center">
             <Edit2 className="w-4 h-4 mr-2 muster-accent" /> Edit Project Details
@@ -225,7 +225,7 @@ export const NewBoardModal: React.FC<NewBoardModalProps> = ({ projectId, onClose
 
   return (
     <div className="muster-scrim">
-      <div className="muster-dialog w-full max-w-md p-5 space-y-4 font-sans">
+      <div className="muster-dialog w-full max-w-md max-h-[90vh] overflow-y-auto mx-2 p-4 sm:p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-muster-border pb-3">
           <h3 className="text-sm font-bold muster-text-primary flex items-center">
             <Layers className="w-4 h-4 mr-2 muster-accent" /> Create New Board
@@ -323,7 +323,7 @@ export const NewColumnModal: React.FC<NewColumnModalProps> = ({ boardId, onClose
 
   return (
     <div className="muster-scrim">
-      <div className="muster-dialog w-full max-w-md p-5 space-y-4 font-sans">
+      <div className="muster-dialog w-full max-w-md max-h-[90vh] overflow-y-auto mx-2 p-4 sm:p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-muster-border pb-3">
           <h3 className="text-sm font-bold muster-text-primary flex items-center">
             <Plus className="w-4 h-4 mr-2 muster-accent" /> Add Column
@@ -431,7 +431,7 @@ export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClos
 
   return (
     <div className="muster-scrim">
-      <div className="muster-dialog w-full max-w-md p-5 space-y-4 font-sans">
+      <div className="muster-dialog w-full max-w-md max-h-[90vh] overflow-y-auto mx-2 p-4 sm:p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-muster-border pb-3">
           <h3 className="text-sm font-bold muster-text-primary flex items-center">
             <Edit2 className="w-4 h-4 mr-2 muster-accent" /> Edit Column Settings
@@ -536,7 +536,7 @@ export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess
 
   return (
     <div className="muster-scrim">
-      <div className="muster-dialog w-full max-w-md p-5 space-y-4 font-sans">
+      <div className="muster-dialog w-full max-w-md max-h-[90vh] overflow-y-auto mx-2 p-4 sm:p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-muster-border pb-3">
           <h3 className="text-sm font-bold muster-text-primary flex items-center">
             <UserPlus className="w-4 h-4 mr-2 muster-accent" /> Register Agent
@@ -635,7 +635,7 @@ export const NewDocModal: React.FC<NewDocModalProps> = ({ projectId, onClose, on
 
   return (
     <div className="muster-scrim">
-      <div className="muster-dialog w-full max-w-lg p-5 space-y-4 font-sans">
+      <div className="muster-dialog w-full max-w-lg max-h-[90vh] overflow-y-auto mx-2 p-4 sm:p-5 space-y-4 font-sans">
         <div className="flex items-center justify-between border-b border-muster-border pb-3">
           <h3 className="text-sm font-bold muster-text-primary flex items-center">
             <FileText className="w-4 h-4 mr-2 muster-accent" /> Create Design Document
