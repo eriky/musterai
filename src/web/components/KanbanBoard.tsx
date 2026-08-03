@@ -980,13 +980,27 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         <Copy className="w-3 h-3" />
                       )}
                     </button>
-                    <span
-                      className="muster-badge muster-badge-neutral flex items-center"
-                      title={`Current Column: ${columns.find((c) => c.id === cardDetails.column_id)?.name || 'Unknown Column'}`}
-                    >
-                      <Layout className="w-3 h-3 mr-1 opacity-75" aria-hidden="true" />
-                      {columns.find((c) => c.id === cardDetails.column_id)?.name || 'Unknown Column'}
-                    </span>
+                    <div className="flex items-center space-x-1 text-xs muster-badge muster-badge-neutral border border-muster-border py-0.5 px-1.5">
+                      <Layout className="w-3 h-3 text-neutral-400 shrink-0" aria-hidden="true" />
+                      <select
+                        value={cardDetails.column_id}
+                        onChange={async (e) => {
+                          const targetColId = e.target.value;
+                          if (targetColId && targetColId !== cardDetails.column_id) {
+                            await onMoveCard(cardDetails.id, targetColId);
+                            setCardDetails((prev) => (prev ? { ...prev, column_id: targetColId } : null));
+                          }
+                        }}
+                        className="bg-transparent text-neutral-200 text-xs focus:outline-none cursor-pointer font-sans"
+                        title="Change card column / lane"
+                      >
+                        {columns.map((col) => (
+                          <option key={col.id} value={col.id} className="bg-neutral-900 text-neutral-200 font-sans">
+                            {col.name} {col.is_terminal ? '(Done)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     {!!cardDetails.is_epic && (
                       <span className="muster-badge muster-badge-accent flex items-center" title="Epic — a container for related work">
                         <Layers className="w-3 h-3 mr-1" aria-hidden="true" />
@@ -1218,28 +1232,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   <div className="flex items-center justify-between">
                     <h3 className="text-base font-bold muster-text-primary">{cardDetails.title}</h3>
                     <div className="flex items-center space-x-2">
-                      {/* Direct column switcher */}
-                      <div className="flex items-center space-x-1 bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1">
-                        <Layout className="w-3.5 h-3.5 muster-text-muted" aria-hidden="true" />
-                        <select
-                          value={cardDetails.column_id}
-                          onChange={async (e) => {
-                            const targetColId = e.target.value;
-                            if (targetColId && targetColId !== cardDetails.column_id) {
-                              await onMoveCard(cardDetails.id, targetColId);
-                              setCardDetails((prev) => (prev ? { ...prev, column_id: targetColId } : null));
-                            }
-                          }}
-                          className="bg-transparent text-neutral-200 text-xs focus:outline-none cursor-pointer"
-                          title="Change card column"
-                        >
-                          {columns.map((col) => (
-                            <option key={col.id} value={col.id} className="bg-neutral-900 text-neutral-200">
-                              {col.name} {col.is_terminal ? '(Done)' : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
                       {/* Direct status switcher pill */}
                       <select
                         value={cardDetails.status || 'active'}
