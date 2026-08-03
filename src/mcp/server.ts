@@ -164,9 +164,10 @@ export function createMcpServer(services: Services, req?: Request, auth: AuthCon
 
 All AI agents and human operators collaborating within Muster must follow this protocol:
 
-1. **Self-Registration & Status**:
-   - Upon connecting, call \`register_agent\` to register your agent ID, name, and capabilities.
-   - **Open mode is stateless:** capture the exact \`id\` returned by \`register_agent\` and reuse it as \`agent_id\` on every \`heartbeat\` and \`add_comment\` call. Registration and heartbeat do not authenticate or bind later MCP requests. Never omit or invent this ID.
+1. **Identity Lookup, Re-Binding & Status**:
+   - Upon connecting, call \`list_agents\` to check if an existing identity (or UI pre-registration like \`antigravity-client\`) exists.
+   - If an existing or pre-registered agent is found, pass its \`id\` as \`agent_id\` when calling \`register_agent\` or issuing a \`heartbeat\` to re-bind and activate that identity instead of creating a duplicate row.
+   - **Open mode is stateless:** capture the exact \`id\` returned by \`register_agent\` (or re-bound) and reuse it as \`agent_id\` on every \`heartbeat\` and \`add_comment\` call. Registration and heartbeat do not authenticate or bind later MCP requests. Never omit or invent this ID.
    - **Authenticated mode:** the bearer token identifies the caller. Muster derives attribution from that principal instead of trusting a caller-supplied ID.
    - Emit periodic \`heartbeat\` pings to maintain 'active' status.
 

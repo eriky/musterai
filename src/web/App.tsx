@@ -1,5 +1,5 @@
 // File: src/web/App.tsx
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Project, Board, Column, Card, Agent, User, AuthMe, Document, Event, ProjectSummary } from './types.js';
 import { api, ApiError, getLocalProxyToken } from './api.js';
 import { Header } from './components/Header.js';
@@ -103,6 +103,12 @@ export const App: React.FC = () => {
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [boardActionError, setBoardActionError] = useState<string | null>(null);
+
+  const activeBoardNotDoneCount = useMemo(() => {
+    if (!selectedBoardId || !columns.length) return null;
+    const terminalColumnIds = new Set(columns.filter((col) => col.is_terminal === 1).map((col) => col.id));
+    return cards.filter((c) => !c.archived && !terminalColumnIds.has(c.column_id)).length;
+  }, [selectedBoardId, columns, cards]);
 
   // Modals visibility
   const [showNewProjectModal, setShowNewProjectModal] = useState(false);
@@ -464,6 +470,7 @@ export const App: React.FC = () => {
         onDeleteProject={handleDeleteProject}
         onOpenEditProject={() => setShowEditProjectModal(true)}
         summary={summary}
+        activeBoardNotDoneCount={activeBoardNotDoneCount}
         activeTab={activeTab}
         onSelectTab={handleSelectTab}
         onOpenNewProject={() => setShowNewProjectModal(true)}

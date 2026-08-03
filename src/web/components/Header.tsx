@@ -15,6 +15,7 @@ interface HeaderProps {
   onDeleteProject: (id: string) => void;
   onOpenEditProject?: () => void;
   summary: ProjectSummary | null;
+  activeBoardNotDoneCount?: number | null;
   activeTab: TabId;
   onSelectTab: (tab: TabId) => void;
   onOpenNewProject: () => void;
@@ -50,35 +51,42 @@ const IdentityPicker: React.FC<{ onSubmit: (displayName: string) => Promise<void
     );
   }
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = name.trim();
-    if (!trimmed || saving) return;
-    setSaving(true);
-    try {
-      await onSubmit(trimmed);
-      setOpen(false);
-    } catch {
-      // errors surface via the input staying open with the typed name intact
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
-    <form onSubmit={submit} className="flex items-center space-x-1.5">
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const trimmed = name.trim();
+        if (!trimmed || saving) return;
+        setSaving(true);
+        try {
+          await onSubmit(trimmed);
+          setOpen(false);
+        } finally {
+          setSaving(false);
+        }
+      }}
+      className="flex items-center space-x-1.5"
+    >
       <input
-        autoFocus
+        type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Your name"
-        maxLength={80}
-        className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1 w-32"
+        placeholder="Your display name…"
+        autoFocus
+        className="muster-input text-xs py-1 px-2 w-36"
       />
-      <button type="submit" disabled={!name.trim() || saving} className="muster-btn muster-btn-soft font-mono text-xs">
+      <button
+        type="submit"
+        disabled={!name.trim() || saving}
+        className="muster-btn muster-btn-primary text-xs py-1 px-2"
+      >
         Save
       </button>
-      <button type="button" onClick={() => setOpen(false)} className="muster-btn muster-btn-ghost font-mono text-xs">
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="muster-btn muster-btn-ghost text-xs py-1 px-2"
+      >
         Cancel
       </button>
     </form>
@@ -102,6 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
   onDeleteProject,
   onOpenEditProject,
   summary,
+  activeBoardNotDoneCount,
   activeTab,
   onSelectTab,
   onOpenNewProject,
@@ -118,9 +127,13 @@ export const Header: React.FC<HeaderProps> = ({
   authMode,
   onSetLocalIdentity,
 }) => {
+  const kanbanCount = activeBoardNotDoneCount !== undefined && activeBoardNotDoneCount !== null
+    ? activeBoardNotDoneCount
+    : summary?.not_done_card_count ?? summary?.card_count;
+
   const tabs: { id: TabId; icon: React.ElementType; label: string }[] = [
     { id: 'agents', icon: Bot, label: `Agents ${summary ? `(${summary.active_agent_count}/${summary.agent_count})` : ''}` },
-    { id: 'board', icon: Layout, label: `Kanban Board ${summary ? `(${summary.card_count})` : ''}` },
+    { id: 'board', icon: Layout, label: `Kanban Board ${kanbanCount !== undefined ? `(${kanbanCount})` : ''}` },
     { id: 'docs', icon: FileText, label: `Design Documents ${summary ? `(${summary.document_count})` : ''}` },
     { id: 'kb', icon: Database, label: 'Knowledge Base' },
     { id: 'activity', icon: Activity, label: 'Activity Log' },

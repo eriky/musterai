@@ -75,8 +75,9 @@ export class ProjectService {
 
 All AI agents and human operators collaborating within this project must observe the following workflow rules:
 
-1. **Agent Self-Registration**:
-   - Register your agent via \`register_agent\` tool or UI upon initial connection.
+1. **Agent Self-Registration & Identity Re-Binding**:
+   - Call \`list_agents\` upon initial connection to check if an existing identity (or UI pre-registration) exists.
+   - Re-bind to existing agent identities by passing its \`id\` as \`agent_id\` in \`register_agent\` or \`heartbeat\` rather than creating duplicate registrations.
    - Emit periodic \`heartbeat\` calls to indicate active status.
 
 2. **Design Specifications & Knowledge Bases First**:
@@ -184,6 +185,15 @@ All AI agents and human operators collaborating within this project must observe
     );
     const card_count = Number(cards[0]?.count || 0);
 
+    const notDoneCards = await this.db.query<{ count: number }>(
+      `SELECT COUNT(*) as count FROM card c 
+       JOIN "column" col ON c.column_id = col.id 
+       JOIN board b ON col.board_id = b.id 
+       WHERE b.project_id = ? AND c.archived = 0 AND col.is_terminal = 0`,
+      [id]
+    );
+    const not_done_card_count = Number(notDoneCards[0]?.count || 0);
+
     const agents = await this.db.query<{ count: number }>('SELECT COUNT(*) as count FROM agent');
     const agent_count = Number(agents[0]?.count || 0);
 
@@ -202,6 +212,7 @@ All AI agents and human operators collaborating within this project must observe
       description: project.description,
       board_count,
       card_count,
+      not_done_card_count,
       agent_count,
       active_agent_count,
       document_count,

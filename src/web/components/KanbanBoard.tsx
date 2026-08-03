@@ -139,6 +139,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [editCardStatus, setEditCardStatus] = useState<'active' | 'blocked' | 'in_review'>('active');
   const [editCardBlockedReason, setEditCardBlockedReason] = useState<string>('');
   const [editCardIsEpic, setEditCardIsEpic] = useState(false);
+  const [editCardColumnId, setEditCardColumnId] = useState('');
 
   const [isCreatingCard, setIsCreatingCard] = useState(false);
   const [newCardColumnId, setNewCardColumnId] = useState('');
@@ -309,6 +310,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     setEditCardStatus(cardDetails.status || 'active');
     setEditCardBlockedReason(cardDetails.blocked_reason || '');
     setEditCardIsEpic(!!cardDetails.is_epic);
+    setEditCardColumnId(cardDetails.column_id);
     setIsEditingCard(true);
   };
 
@@ -317,6 +319,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     if (!cardDetails || !editCardTitle.trim()) return;
 
     try {
+      if (editCardColumnId && editCardColumnId !== cardDetails.column_id) {
+        await onMoveCard(cardDetails.id, editCardColumnId);
+      }
       const updated = await api.updateCard(cardDetails.id, {
         title: editCardTitle.trim(),
         description: editCardDescription,
@@ -325,7 +330,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         blocked_reason: editCardStatus !== 'active' ? editCardBlockedReason.trim() : null,
         is_epic: editCardIsEpic ? 1 : 0,
       });
-      setCardDetails(updated);
+      setCardDetails({ ...updated, column_id: editCardColumnId || updated.column_id });
       setIsEditingCard(false);
       onRefresh();
     } catch (err: any) {
@@ -975,6 +980,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         <Copy className="w-3 h-3" />
                       )}
                     </button>
+                    <span
+                      className="muster-badge muster-badge-neutral flex items-center"
+                      title={`Current Column: ${columns.find((c) => c.id === cardDetails.column_id)?.name || 'Unknown Column'}`}
+                    >
+                      <Layout className="w-3 h-3 mr-1 opacity-75" aria-hidden="true" />
+                      {columns.find((c) => c.id === cardDetails.column_id)?.name || 'Unknown Column'}
+                    </span>
                     {!!cardDetails.is_epic && (
                       <span className="muster-badge muster-badge-accent flex items-center" title="Epic — a container for related work">
                         <Layers className="w-3 h-3 mr-1" aria-hidden="true" />
@@ -1078,20 +1090,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
               {isEditingCard ? (
                 <form onSubmit={isCreatingCard ? handleCreateCard : handleSaveCard} className="space-y-3 bg-muster-surface p-4 rounded-lg border border-brand-500/40">
-                  {isCreatingCard && (
-                    <div>
-                      <label className="muster-label">Column</label>
-                      <select
-                        value={newCardColumnId}
-                        onChange={(e) => setNewCardColumnId(e.target.value)}
-                        className="w-full bg-muster-base border border-muster-border muster-text-primary text-xs rounded p-2"
-                      >
-                        {columns.map((col) => (
-                          <option key={col.id} value={col.id}>{col.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+                  <div>
+                    <label className="muster-label">Column / State</label>
+                    <select
+                      value={isCreatingCard ? newCardColumnId : editCardColumnId}
+                      onChange={(e) => isCreatingCard ? setNewCardColumnId(e.target.value) : setEditCardColumnId(e.target.value)}
+                      className="w-full bg-muster-base border border-muster-border muster-text-primary text-xs rounded p-2"
+                    >
+                      {columns.map((col) => (
+                        <option key={col.id} value={col.id}>{col.name} {col.is_terminal ? '(Done)' : ''}</option>
+                      ))}
+                    </select>
+                  </div>
 
                   <div>
                     <label className="muster-label">Task Title</label>
@@ -1208,6 +1218,28 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   <div className="flex items-center justify-between">
                     <h3 className="text-base font-bold muster-text-primary">{cardDetails.title}</h3>
                     <div className="flex items-center space-x-2">
+                      {/* Direct column switcher */}
+                      <div className="flex items-center space-x-1 bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1">
+                        <Layout className="w-3.5 h-3.5 muster-text-muted" aria-hidden="true" />
+                        <select
+                          value={cardDetails.column_id}
+                          onChange={async (e) => {
+                            const targetColId = e.target.value;
+                            if (targetColId && targetColId !== cardDetails.column_id) {
+                              await onMoveCard(cardDetails.id, targetColId);
+                              setCardDetails((prev) => (prev ? { ...prev, column_id: targetColId } : null));
+                            }
+                          }}
+                          className="bg-transparent text-neutral-200 text-xs focus:outline-none cursor-pointer"
+                          title="Change card column"
+                        >
+                          {columns.map((col) => (
+                            <option key={col.id} value={col.id} className="bg-neutral-900 text-neutral-200">
+                              {col.name} {col.is_terminal ? '(Done)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       {/* Direct status switcher pill */}
                       <select
                         value={cardDetails.status || 'active'}

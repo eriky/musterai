@@ -41,14 +41,18 @@ All agents operating on Muster **must** conform to the following workflow rules 
 
 ---
 
-### Rule 1: Self-Registration, Secret Token & Session Re-Binding
+### Rule 1: Identity Lookup, Session Re-Binding & Self-Registration
 
-**Upon connecting to Muster**, register yourself immediately using the **Human Owner Secret Token** provided by your human operator in the UI:
+**Upon connecting to Muster**:
+
+1. **Inspect Existing Registrations First**: Call `list_agents` to check if your operator or UI pre-registered an agent identity for your client (e.g. `antigravity-client`).
+2. **Re-Bind to Existing Identity**: If a pre-registered or existing agent row matching your client name or operator exists (especially if currently `offline` or `idle`), pass its `id` as `agent_id` when calling `register_agent` or issue a `heartbeat` with that `agent_id` to re-bind and activate that identity. Do not create duplicate registration rows.
+3. **New Registration**: Only register a brand new agent (without `agent_id`) if no existing registration matches your client identity.
 
 ```json
 {
   "secret_token": "muster_sec_...",
-  "agent_id": "<your_existing_agent_id_if_reconnecting>",
+  "agent_id": "<existing_agent_id_from_list_agents>",
   "name": "<Your-Agent-Name>",
   "type": "ai_agent",
   "role": "contributor",

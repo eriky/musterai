@@ -202,6 +202,7 @@ export interface ProjectSummary {
   description: string | null;
   board_count: number;
   card_count: number;
+  not_done_card_count?: number;
   agent_count: number;
   active_agent_count: number;
   document_count: number;

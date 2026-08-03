@@ -96,6 +96,22 @@ describe('Domain Services Integration Tests', () => {
     expect(updateEvt).toBeDefined();
   });
 
+  it('Feature: project summary includes not_done_card_count', async () => {
+    const project = await projectService.create({ name: 'Summary Project' });
+    const boards = await boardService.list(project.id);
+    const cols = await columnService.list(boards[0].id);
+    const todoCol = cols.find(c => c.name === 'To Do')!;
+    const doneCol = cols.find(c => c.name === 'Done')!;
+
+    await cardService.create({ column_id: todoCol.id, title: 'Card 1' });
+    await cardService.create({ column_id: todoCol.id, title: 'Card 2' });
+    await cardService.create({ column_id: doneCol.id, title: 'Card 3' });
+
+    const summary = await projectService.getSummary(project.id);
+    expect(summary.card_count).toBe(3);
+    expect(summary.not_done_card_count).toBe(2);
+  });
+
   it('Feature: board creation supports simple 3-lane template and custom columns', async () => {
     const project = await projectService.create({ name: 'Simplified Project' });
 
