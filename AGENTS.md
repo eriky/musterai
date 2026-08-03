@@ -121,25 +121,17 @@ server records that bypass as a distinct `override` activity event.
 
 ---
 
-### Rule 4: Transparent Execution & Human-Readable Task Descriptions
+### Rule 4: Transparent Execution & Progress Comments on Cards
 
-When communicating progress, subagent tasks, or conversation updates:
+When working on a card, agents **MUST ALWAYS log their progress as comments directly on the target card** via `add_comment`:
+
 - **State Task Titles Out Loud**: Always write out the full task title and summary of work clearly (e.g. `Working on Muster Task "Create user authentication middleware"`). **Never** refer to work using raw database ID strings like `Work on card #01J3K8...` or `card #123`.
-- **Log Meaningful Updates**: As you work, log **all meaningful progress, blockers, and decisions** using `add_comment`:
-
-```json
-{
-  "card_id": "<card_id>",
-  "agent_id": "<the_exact_id_returned_by_register_agent>",
-  "content": "Implemented auth middleware for Muster Task \"Create user authentication middleware\". Unit tests green."
-}
-```
-
-Comment on:
-- Work started / sub-tasks completed
-- Blockers encountered and how they were resolved
-- Architectural decisions made during implementation
-- Test results and verification outcomes
+- **Log Progress as Card Comments**: As you work, you **MUST ALWAYS** post comments on the card using `add_comment` for:
+  - Task pickup / work started
+  - Sub-tasks completed & intermediate milestones
+  - Blockers encountered and how they were resolved
+  - Architectural decisions made during implementation
+  - Test results and verification outcomes
 
 `agent_id` is **required on every `add_comment` call in local/open mode**. Use the
 exact `id` returned by `register_agent`; registration does not bind later requests.

@@ -182,9 +182,11 @@ All AI agents and human operators collaborating within Muster must follow this p
    - Call \`list_cards\` or \`get_board\` to find unassigned cards in initial state columns ('To Do' / 'Backlog').
    - When starting work on a task, call \`claim_card\` to record yourself as the assignee and create the work lease, then call \`move_card\` to advance it to the next active-work lane—normally 'In Progress'. Always respect column WIP limits; the server rejects over-limit creates/moves and unresolved blockers on claims or moves into 'In Progress'.
 
-4. **Transparent Progress & Human-Readable Task Descriptions**:
-   - Always state current work using full human-readable task titles and work summaries out loud (e.g. \`Muster Task: "Create user authentication middleware"\`), never raw ID strings like \`Work on card #01J3K...\`.
-   - Log key progress updates, code diffs, or blockers on cards using \`add_comment\`. On a local/open-mode install, \`agent_id\` is REQUIRED on every call: pass the exact \`id\` returned by \`register_agent\`. You can edit or delete your own comments afterward with \`update_comment\` / \`delete_comment\`.
+4. **Mandatory Progress Comments on Cards**:
+   - Agents **MUST ALWAYS** log their progress as comments directly on the target card using \`add_comment\`.
+   - Post card comments for task pickup, sub-task completions, intermediate milestones, blockers, architectural decisions, and test/verification results.
+   - Always state current work using full human-readable task titles and work summaries out loud (e.g. \`Working on Muster Task "Create user authentication middleware"\`), never raw ID strings like \`Work on card #01J3K...\`.
+   - On a local/open-mode install, \`agent_id\` is REQUIRED on every \`add_comment\` call: pass the exact \`id\` returned by \`register_agent\`. You can edit or delete your own comments afterward with \`update_comment\` / \`delete_comment\`.
 
 5. **Peer Review & Task Completion**:
    - Before moving a card to 'In Review', attach the branch, pull request, or commit you worked on via \`add_work_link\` — the human operator should never have to go find the work themselves.

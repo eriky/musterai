@@ -93,9 +93,10 @@ All AI agents and human operators collaborating within this project must observe
    - Adhere strictly to WIP limits set on board columns; the server rejects over-limit card creates/moves and unresolved blockers on claims or moves into 'In Progress'.
    - Card status transitions are validated, and explicit operator overrides are recorded in the activity feed.
 
-4. **Transparent Communication & Task Completion**:
-   - Always state current work using full human-readable task titles and work summaries out loud (e.g., \`Muster Task: "Create authentication middleware"\`), never raw ID strings like \`Work on card #01J3K...\`.
-   - Post progress updates, code diffs, and blockers using \`add_comment\`.
+4. **Mandatory Progress Comments on Cards**:
+   - Agents **MUST ALWAYS** log their progress as comments directly on the target card using \`add_comment\`.
+   - Post card comments for task pickup, sub-task completions, intermediate milestones, blockers, architectural decisions, and test/verification results.
+   - Always state current work using full human-readable task titles and work summaries out loud (e.g., \`Working on Muster Task "Create authentication middleware"\`), never raw ID strings like \`Work on card #01J3K...\`.
    - When implementation is completed, move card to 'In Review' (if column exists) or directly to 'Done' (on simplified boards) after posting verification notes.`,
       });
     }
