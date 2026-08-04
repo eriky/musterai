@@ -1,8 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Column, Project } from '../types.js';
-import { X, Bot, Plus, FileText, FolderPlus, Layers, AlertCircle, UserPlus, Edit2 } from 'lucide-react';
+import { X, Bot, Plus, FileText, FolderPlus, Layers, AlertCircle, UserPlus, Edit2, Trash2 } from 'lucide-react';
 
 import { api } from '../api.js';
+
+function useEscapeKey(onClose: () => void) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+}
 
 interface NewProjectModalProps {
   onClose: () => void;
@@ -10,6 +20,7 @@ interface NewProjectModalProps {
 }
 
 export const NewProjectModal: React.FC<NewProjectModalProps> = ({ onClose, onSuccess }) => {
+  useEscapeKey(onClose);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -102,9 +113,11 @@ interface EditProjectModalProps {
   project: Project;
   onClose: () => void;
   onSuccess: () => void;
+  onDeleteProject?: (projectId: string) => void;
 }
 
-export const EditProjectModal: React.FC<EditProjectModalProps> = ({ project, onClose, onSuccess }) => {
+export const EditProjectModal: React.FC<EditProjectModalProps> = ({ project, onClose, onSuccess, onDeleteProject }) => {
+  useEscapeKey(onClose);
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -129,8 +142,8 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ project, onC
   };
 
   return (
-    <div className="muster-scrim">
-      <div className="muster-dialog w-full max-w-md max-h-[90vh] overflow-y-auto mx-2 p-4 sm:p-5 space-y-4 font-sans">
+    <div className="muster-scrim" onClick={onClose}>
+      <div className="muster-dialog w-full max-w-md max-h-[90vh] overflow-y-auto mx-2 p-4 sm:p-5 space-y-4 font-sans" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-muster-border pb-3">
           <h3 className="text-sm font-bold muster-text-primary flex items-center">
             <Edit2 className="w-4 h-4 mr-2 muster-accent" /> Edit Project Details
@@ -188,6 +201,23 @@ export const EditProjectModal: React.FC<EditProjectModalProps> = ({ project, onC
             </button>
           </div>
         </form>
+
+        {onDeleteProject && (
+          <div className="border-t border-muster-border pt-3 mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm(`Are you sure you want to delete project "${project.name}"?\n\nThis will permanently delete all boards, cards, documents, and knowledge base links in this project.`)) {
+                  onDeleteProject(project.id);
+                  onClose();
+                }
+              }}
+              className="muster-btn muster-btn-danger-soft text-xs w-full justify-center"
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" /> Delete Project
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -200,6 +230,7 @@ interface NewBoardModalProps {
 }
 
 export const NewBoardModal: React.FC<NewBoardModalProps> = ({ projectId, onClose, onSuccess }) => {
+  useEscapeKey(onClose);
   const [name, setName] = useState('');
   const [template, setTemplate] = useState<'simple' | 'standard'>('simple');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -296,6 +327,7 @@ interface NewColumnModalProps {
 }
 
 export const NewColumnModal: React.FC<NewColumnModalProps> = ({ boardId, onClose, onSuccess }) => {
+  useEscapeKey(onClose);
   const [name, setName] = useState('');
   const [wipLimit, setWipLimit] = useState<string>('');
   const [isTerminal, setIsTerminal] = useState(false);
@@ -322,8 +354,8 @@ export const NewColumnModal: React.FC<NewColumnModalProps> = ({ boardId, onClose
   };
 
   return (
-    <div className="muster-scrim">
-      <div className="muster-dialog w-full max-w-md max-h-[90vh] overflow-y-auto mx-2 p-4 sm:p-5 space-y-4 font-sans">
+    <div className="muster-scrim" onClick={onClose}>
+      <div className="muster-dialog w-full max-w-md max-h-[90vh] overflow-y-auto mx-2 p-4 sm:p-5 space-y-4 font-sans" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-muster-border pb-3">
           <h3 className="text-sm font-bold muster-text-primary flex items-center">
             <Plus className="w-4 h-4 mr-2 muster-accent" /> Add Column
@@ -401,9 +433,11 @@ interface EditColumnModalProps {
   column: Column;
   onClose: () => void;
   onSuccess: () => void;
+  onDelete?: (columnId: string) => void;
 }
 
-export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClose, onSuccess }) => {
+export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClose, onSuccess, onDelete }) => {
+  useEscapeKey(onClose);
   const [name, setName] = useState(column.name);
   const [wipLimit, setWipLimit] = useState<string>(column.wip_limit !== null && column.wip_limit !== undefined ? String(column.wip_limit) : '');
   const [isTerminal, setIsTerminal] = useState(!!column.is_terminal);
@@ -430,8 +464,8 @@ export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClos
   };
 
   return (
-    <div className="muster-scrim">
-      <div className="muster-dialog w-full max-w-md max-h-[90vh] overflow-y-auto mx-2 p-4 sm:p-5 space-y-4 font-sans">
+    <div className="muster-scrim" onClick={onClose}>
+      <div className="muster-dialog w-full max-w-md max-h-[90vh] overflow-y-auto mx-2 p-4 sm:p-5 space-y-4 font-sans" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-muster-border pb-3">
           <h3 className="text-sm font-bold muster-text-primary flex items-center">
             <Edit2 className="w-4 h-4 mr-2 muster-accent" /> Edit Column Settings
@@ -496,10 +530,27 @@ export const EditColumnModal: React.FC<EditColumnModalProps> = ({ column, onClos
               disabled={isSubmitting || !name.trim()}
               className="muster-btn muster-btn-primary"
             >
-              {isSubmitting ? 'Saving...' : 'Save Column'}
+              {isSubmitting ? 'Saving...' : 'Save Changes'}
             </button>
           </div>
         </form>
+
+        {onDelete && (
+          <div className="border-t border-muster-border pt-3 mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm(`Are you sure you want to delete column "${column.name}"?\n\nThis will delete the column and all cards inside it.`)) {
+                  onDelete(column.id);
+                  onClose();
+                }
+              }}
+              className="muster-btn muster-btn-danger-soft text-xs w-full justify-center"
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" /> Delete Column
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -511,6 +562,7 @@ interface NewAgentModalProps {
 }
 
 export const NewAgentModal: React.FC<NewAgentModalProps> = ({ onClose, onSuccess }) => {
+  useEscapeKey(onClose);
   const [name, setName] = useState('');
   const [capabilities, setCapabilities] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -610,6 +662,7 @@ interface NewDocModalProps {
 }
 
 export const NewDocModal: React.FC<NewDocModalProps> = ({ projectId, onClose, onSuccess }) => {
+  useEscapeKey(onClose);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('# Document Title\n\n## Overview\nDetails...');
   const [isSubmitting, setIsSubmitting] = useState(false);

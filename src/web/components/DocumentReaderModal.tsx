@@ -1,5 +1,4 @@
-// File: src/web/components/DocumentReaderModal.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { FileText, X, ExternalLink, Clock, ShieldCheck, FileEdit, CheckCircle2, AlertCircle } from 'lucide-react';
 import { renderMarkdown } from '../markdown.js';
 import { Document } from '../types.js';
@@ -15,6 +14,13 @@ export const DocumentReaderModal: React.FC<DocumentReaderModalProps> = ({
   onClose,
   onOpenInVault,
 }) => {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
   const getStatusBadge = (status: Document['status']) => {
     switch (status) {
       case 'approved':

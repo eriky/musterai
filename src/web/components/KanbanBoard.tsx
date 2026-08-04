@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Board, Column, Card, Agent, CardDetails, Document, CardLinkRelationType, CardWorkLinkKind, CardWorkLinkProvider } from '../types.js';
-import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, Copy, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, GitPullRequest, GitCommit, Workflow, ExternalLink, GripVertical, Layers } from 'lucide-react';
+import { Layout, Plus, MessageSquare, X, Tag, UserPlus, Trash2, Edit2, FileText, Link2, Unlink, Check, Copy, Eye, ShieldAlert, CheckCircle2, ArrowRight, GitBranch, GitPullRequest, GitCommit, Workflow, ExternalLink, GripVertical, Layers, Settings } from 'lucide-react';
 import { renderMarkdown } from '../markdown.js';
 import { api, getLocalProxyToken } from '../api.js';
 import {
@@ -15,6 +15,7 @@ import {
 import { EditColumnModal } from './Modals.js';
 import { DocumentReaderModal } from './DocumentReaderModal.js';
 import { PrincipalChip } from './PrincipalChip.js';
+import { CardSearch } from './CardSearch.js';
 import { User, AuthMe } from '../types.js';
 
 
@@ -130,6 +131,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [workLinkError, setWorkLinkError] = useState<string | null>(null);
   const [isEditingBoardName, setIsEditingBoardName] = useState(false);
   const [boardNameInput, setBoardNameInput] = useState('');
+  const [showBoardSettingsModal, setShowBoardSettingsModal] = useState(false);
   const [editingColumn, setEditingColumn] = useState<Column | null>(null);
 
   const [isEditingCard, setIsEditingCard] = useState(false);
@@ -143,6 +145,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const [newCardColumnId, setNewCardColumnId] = useState('');
   const [cardDateSortOrder, setCardDateSortOrder] = useState<CardDateSortOrder>('newest');
   const [doneVisibleLimits, setDoneVisibleLimits] = useState<Record<string, number>>({});
+  const [focusedCardId, setFocusedCardId] = useState<string | null>(null);
+  const [focusedColumnIdx, setFocusedColumnIdx] = useState<number>(0);
 
   useEffect(() => {
     if (!selectedAuthorId) {
@@ -151,9 +155,233 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     }
   }, [users, agents, selectedAuthorId]);
 
+  const closeCardModal = () => {
+    setSelectedCardId(null);
+    setCardDetails(null);
+    setIsEditingCard(false);
+    setIsCreatingCard(false);
+    setNewCardColumnId('');
+    setEditingCommentId(null);
+    setEditingCommentText('');
+  };
+
+  // Global Escape key handler for Card Details Modal, Board Settings Modal, and Edit Column Modal
   useEffect(() => {
-    setDoneVisibleLimits({});
-  }, [board?.id, cardDateSortOrder]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showBoardSettingsModal) {
+          setShowBoardSettingsModal(false);
+        } else if (editingColumn) {
+          setEditingColumn(null);
+        } else if (cardDetails || isCreatingCard) {
+          closeCardModal();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showBoardSettingsModal, editingColumn, cardDetails, isCreatingCard, closeCardModal]);
+
+  // Keyboard navigation across columns and cards
+  useEffect(() => {
+    const handleBoardKeyDown = (e: KeyboardEvent) => {
+      const activeElement = document.activeElement;
+      const isTyping =
+        activeElement &&
+        (activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.tagName === 'SELECT' ||
+          (activeElement as HTMLElement).isContentEditable);
+
+      if (isTyping || cardDetails || isCreatingCard || showBoardSettingsModal || editingColumn) {
+        return;
+      }
+
+      if (e.key === '/') {
+        e.preventDefault();
+        const searchInput = document.querySelector<HTMLInputElement>('input[placeholder*="Search"]');
+        searchInput?.focus();
+        return;
+      }
+
+      if (columns.length === 0) return;
+
+      // Map columns to their exact visually rendered cards in order
+      const colCardsMap: Record<string, Card[]> = {};
+      columns.forEach((col) => {
+        const doneLimit = doneVisibleLimits[col.id] ?? DONE_LANE_PAGE_SIZE;
+        colCardsMap[col.id] = getLaneCards(cards, col.id, col.name, cardDateSortOrder, doneLimit).visible;
+      });
+
+      // Determine current active column and card index
+      let activeColIdx = Math.min(Math.max(0, focusedColumnIdx), columns.length - 1);
+      let activeCardIdx = -1;
+
+      if (focusedCardId) {
+        for (let i = 0; i < columns.length; i++) {
+          const cList = colCardsMap[columns[i].id] || [];
+          const idx = cList.findIndex((c) => c.id === focusedCardId);
+          if (idx !== -1) {
+            activeColIdx = i;
+            activeCardIdx = idx;
+            break;
+          }
+        }
+      }
+
+      const activeCol = columns[activeColIdx];
+      const activeColCards = colCardsMap[activeCol.id] || [];
+
+      const focusCard = (cardId: string) => {
+        setFocusedCardId(cardId);
+        requestAnimationFrame(() => {
+          const cardEl = document.getElementById(`kanban-card-${cardId}`);
+          if (cardEl) {
+            cardEl.focus();
+            cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+        });
+      };
+
+      switch (e.key) {
+        case 'ArrowRight': {
+          e.preventDefault();
+          const targetColIdx = Math.min(columns.length - 1, activeColIdx + 1);
+          setFocusedColumnIdx(targetColIdx);
+          const targetCol = columns[targetColIdx];
+          const targetCards = colCardsMap[targetCol.id] || [];
+          
+          if (targetCards.length > 0) {
+            const targetCardIdx = activeCardIdx >= 0 ? Math.min(activeCardIdx, targetCards.length - 1) : 0;
+            focusCard(targetCards[targetCardIdx].id);
+          } else {
+            setFocusedCardId(null);
+            document.getElementById(`kanban-column-${targetCol.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+          break;
+        }
+
+        case 'ArrowLeft': {
+          e.preventDefault();
+          const targetColIdx = Math.max(0, activeColIdx - 1);
+          setFocusedColumnIdx(targetColIdx);
+          const targetCol = columns[targetColIdx];
+          const targetCards = colCardsMap[targetCol.id] || [];
+          
+          if (targetCards.length > 0) {
+            const targetCardIdx = activeCardIdx >= 0 ? Math.min(activeCardIdx, targetCards.length - 1) : 0;
+            focusCard(targetCards[targetCardIdx].id);
+          } else {
+            setFocusedCardId(null);
+            document.getElementById(`kanban-column-${targetCol.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+          break;
+        }
+
+        case 'ArrowDown': {
+          e.preventDefault();
+          if (activeColCards.length > 0) {
+            let nextCardIdx = 0;
+            if (activeCardIdx >= 0) {
+              nextCardIdx = Math.min(activeColCards.length - 1, activeCardIdx + 1);
+            }
+            focusCard(activeColCards[nextCardIdx].id);
+          }
+          break;
+        }
+
+        case 'ArrowUp': {
+          e.preventDefault();
+          if (activeColCards.length > 0) {
+            let prevCardIdx = activeColCards.length - 1;
+            if (activeCardIdx >= 0) {
+              prevCardIdx = Math.max(0, activeCardIdx - 1);
+            }
+            focusCard(activeColCards[prevCardIdx].id);
+          }
+          break;
+        }
+
+        case 'PageDown': {
+          e.preventDefault();
+          if (activeColCards.length > 0) {
+            let nextCardIdx = 0;
+            if (activeCardIdx >= 0) {
+              nextCardIdx = Math.min(activeColCards.length - 1, activeCardIdx + 5);
+            }
+            focusCard(activeColCards[nextCardIdx].id);
+          }
+          break;
+        }
+
+        case 'PageUp': {
+          e.preventDefault();
+          if (activeColCards.length > 0) {
+            let prevCardIdx = activeColCards.length - 1;
+            if (activeCardIdx >= 0) {
+              prevCardIdx = Math.max(0, activeCardIdx - 5);
+            }
+            focusCard(activeColCards[prevCardIdx].id);
+          }
+          break;
+        }
+
+        case 'Home': {
+          e.preventDefault();
+          if (activeColCards.length > 0) {
+            focusCard(activeColCards[0].id);
+          }
+          break;
+        }
+
+        case 'End': {
+          e.preventDefault();
+          if (activeColCards.length > 0) {
+            focusCard(activeColCards[activeColCards.length - 1].id);
+          }
+          break;
+        }
+
+        case 'Enter': {
+          if (focusedCardId) {
+            e.preventDefault();
+            handleOpenCard(focusedCardId);
+          }
+          break;
+        }
+
+        case 'n':
+        case 'N':
+        case 'c':
+        case 'C': {
+          e.preventDefault();
+          handleOpenNewCardForm(activeCol.id);
+          break;
+        }
+
+        case 'Delete':
+        case 'Backspace': {
+          if (focusedCardId) {
+            e.preventDefault();
+            const focusedCard = cards.find((c) => c.id === focusedCardId);
+            if (focusedCard) {
+              handleDeleteCard(focusedCard.id, focusedCard.title);
+              setFocusedCardId(null);
+            }
+          }
+          break;
+        }
+
+        case 'Escape': {
+          setFocusedCardId(null);
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleBoardKeyDown);
+    return () => window.removeEventListener('keydown', handleBoardKeyDown);
+  }, [columns, cards, focusedCardId, focusedColumnIdx, cardDateSortOrder, doneVisibleLimits, cardDetails, isCreatingCard, showBoardSettingsModal, editingColumn]);
 
   useEffect(() => {
     if (!projectId || !selectedCardId || !linkCardQuery.trim()) {
@@ -214,16 +442,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     }
   };
 
-
-  const closeCardModal = () => {
-    setSelectedCardId(null);
-    setCardDetails(null);
-    setIsEditingCard(false);
-    setIsCreatingCard(false);
-    setNewCardColumnId('');
-    setEditingCommentId(null);
-    setEditingCommentText('');
-  };
 
   const handleOpenNewCardForm = (columnId?: string) => {
     const targetColumnId = columnId || columns[0]?.id || '';
@@ -526,17 +744,17 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   const getPriorityBadge = (priority: Card['priority']) => {
     switch (priority) {
       case 'critical':
-        return <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-danger-950 muster-text-danger border border-danger-600/50 rounded">CRITICAL</span>;
+        return <span className="px-1.5 py-0.5 text-[10px] font-sans font-bold bg-danger-950 muster-text-danger border border-danger-600/50 rounded">CRITICAL</span>;
       case 'high':
-        return <span className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-warning-950 muster-text-warning border border-warning-600/50 rounded">HIGH</span>;
+        return <span className="px-1.5 py-0.5 text-[10px] font-sans font-bold bg-warning-950 muster-text-warning border border-warning-600/50 rounded">HIGH</span>;
       case 'medium':
         // `info`, not `brand`: priority is a severity scale, and the other
         // four steps are profile-independent. On `brand` this step alone
         // changed hue per profile — reading as "success" under Emerald.
-        return <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium bg-info-950 muster-text-info border border-info-600/40 rounded">MEDIUM</span>;
+        return <span className="px-1.5 py-0.5 text-[10px] font-sans font-medium bg-info-950 muster-text-info border border-info-600/40 rounded">MEDIUM</span>;
       case 'low':
       default:
-        return <span className="px-1.5 py-0.5 text-[10px] font-mono font-medium bg-neutral-900 muster-text-muted border border-neutral-700 rounded">LOW</span>;
+        return <span className="px-1.5 py-0.5 text-[10px] font-sans font-medium bg-neutral-900 muster-text-muted border border-neutral-700 rounded">LOW</span>;
     }
   };
 
@@ -553,119 +771,64 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   return (
     <div className="flex flex-col flex-1 h-full min-h-0 font-sans space-y-4">
       
-      {/* Board Controls */}
-      <div className="flex-none flex items-center justify-between border-b border-muster-border pb-3">
-        {isEditingBoardName ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleRenameBoard();
-            }}
-            className="flex items-center space-x-2"
+      {/* Compact Board Controls */}
+      <div className="flex-none flex items-center justify-between border-b border-muster-border pb-2.5 pt-0.5 gap-2">
+        <div className="flex items-center space-x-2 min-w-0">
+          <Layout className="w-4 h-4 muster-accent shrink-0" />
+          <span className="text-xs font-sans font-bold muster-text-muted uppercase tracking-wider shrink-0 hidden sm:inline">
+            Board
+          </span>
+          <select
+            id="board-selector"
+            value={selectedBoardId ?? board.id}
+            onChange={(event) => onSelectBoard(event.target.value)}
+            className="muster-input w-auto text-xs sm:text-sm font-semibold py-1 px-2 cursor-pointer max-w-[180px] sm:max-w-[260px] truncate"
+            aria-label="Select board"
           >
-            <Layout className="w-5 h-5 muster-accent" />
-            <span className="text-base font-sans font-bold muster-text-muted uppercase tracking-wide">
-              Board:
-            </span>
-            <input
-              type="text"
-              autoFocus
-              value={boardNameInput}
-              onChange={(e) => setBoardNameInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') setIsEditingBoardName(false);
-              }}
-              className="bg-muster-surface border border-brand-500 muster-text-primary text-sm font-sans font-bold px-2 py-1 rounded focus:outline-none focus:ring-1 focus:ring-brand-500"
-            />
-            <button
-              type="submit"
-              disabled={!boardNameInput.trim()}
-              className="p-1.5 hover:bg-brand-950 muster-accent hover:text-brand-300 rounded transition-colors cursor-pointer disabled:opacity-50"
-              title="Save Board Name"
-            >
-              <Check className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsEditingBoardName(false)}
-              className="p-1.5 hover:bg-neutral-800 muster-text-muted hover:text-neutral-200 rounded transition-colors cursor-pointer"
-              title="Cancel"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </form>
-        ) : (
-          <div className="flex items-center space-x-2">
-            <Layout className="w-5 h-5 muster-accent shrink-0" />
-            <label
-              htmlFor="board-selector"
-              className="text-sm sm:text-base font-sans font-bold muster-text-muted uppercase tracking-wide shrink-0"
-            >
-              Board:
-            </label>
-            <select
-              id="board-selector"
-              value={selectedBoardId ?? board.id}
-              onChange={(event) => onSelectBoard(event.target.value)}
-              className="muster-input w-auto text-xs sm:text-sm font-bold py-1 px-2"
-              aria-label="Select board"
-            >
-              {boards.map((candidate) => (
-                <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
-              ))}
-            </select>
-            <button
-              onClick={() => {
-                setBoardNameInput(board.name);
-                setIsEditingBoardName(true);
-              }}
-              className="p-1 hover:bg-neutral-800 text-neutral-500 hover:text-brand-400 rounded transition-colors cursor-pointer"
-              title="Rename Board"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+            {boards.map((candidate) => (
+              <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
+            ))}
+          </select>
 
-        <div className="flex items-center flex-wrap gap-2">
-          <label className="flex items-center space-x-2">
-            <span className="text-xs font-semibold muster-text-muted shrink-0">Sort</span>
+          <button
+            onClick={() => {
+              setBoardNameInput(board.name);
+              setShowBoardSettingsModal(true);
+            }}
+            className="muster-btn muster-btn-icon muster-btn-ghost"
+            title="Board Settings (Rename, Add Column, Delete Board)"
+            aria-label="Board settings"
+          >
+            <Settings className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="flex items-center space-x-2 shrink-0">
+          <CardSearch
+            cards={cards}
+            placeholder="Search card..."
+            onSelectCard={(card) => handleOpenCard(card.id)}
+            className="w-36 sm:w-56"
+          />
+
+          <label className="flex items-center space-x-1.5">
+            <span className="text-xs font-sans font-medium muster-text-muted shrink-0 hidden sm:inline">Sort</span>
             <select
               value={cardDateSortOrder}
               onChange={(event) => setCardDateSortOrder(event.target.value as CardDateSortOrder)}
-              className="muster-input w-auto text-xs py-1 px-2"
+              className="muster-input w-auto text-xs py-1 px-2 cursor-pointer font-sans"
               aria-label="Sort cards by last updated date"
             >
               <option value="newest">Updated: newest first</option>
               <option value="oldest">Updated: oldest first</option>
             </select>
           </label>
-
-          <button
-            onClick={() => {
-              if (confirm(`Are you sure you want to delete board "${board.name}"?\n\nThis will permanently delete all columns and cards on this board.`)) {
-                onDeleteBoard(board.id);
-              }
-            }}
-            className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-sans font-semibold bg-danger-950/80 hover:bg-danger-900 text-danger-300 border border-danger-500/40 transition-all cursor-pointer"
-            title="Delete Board"
-          >
-            <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete Board
-          </button>
-
-          <button
-            onClick={onOpenNewColumn}
-            className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-sans font-semibold bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 transition-all cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5 mr-1" /> Add Column
-          </button>
         </div>
       </div>
 
       {/* Mobile Column Quick Switcher */}
       {columns.length > 0 && (
         <div className="flex md:hidden items-center space-x-1.5 overflow-x-auto no-scrollbar pb-2 shrink-0">
-          <span className="text-[10px] font-sans font-bold uppercase muster-text-muted shrink-0 pr-0.5">Jump to:</span>
           {columns.map((col) => {
             const count = cards.filter((c) => c.column_id === col.id && !c.archived).length;
             return (
@@ -677,7 +840,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                   }
                 }}
-                className="muster-chip shrink-0 text-xs font-sans py-1 px-2.5 flex items-center gap-1.5 cursor-pointer hover:border-brand-500/50"
+                className={`muster-chip shrink-0 text-xs font-sans py-1 px-2.5 flex items-center gap-1.5 cursor-pointer ${
+                  focusedColumnIdx === columns.findIndex((c) => c.id === col.id)
+                    ? 'border-brand-500 bg-brand-950/40 text-brand-300 font-semibold ring-1 ring-brand-500/50'
+                    : 'hover:border-brand-500/50'
+                }`}
               >
                 <span>{col.name}</span>
                 <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-neutral-900 muster-text-muted font-mono">
@@ -722,27 +889,32 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 ref={columnDragProvided.innerRef}
                 {...columnDragProvided.draggableProps}
                 className={`w-[85vw] max-w-[340px] md:w-80 flex-shrink-0 snap-center bg-muster-surface rounded-xl tactical-border flex flex-col h-full min-h-0 ${
-                  columnDragSnapshot.isDragging ? 'shadow-lg ring-1 ring-brand-500/60' : ''
+                  columnDragSnapshot.isDragging
+                    ? 'shadow-lg ring-1 ring-brand-500/60'
+                    : focusedColumnIdx === columnIndex
+                    ? 'ring-2 ring-brand-500/60 border-brand-500/80 bg-brand-950/20 shadow-xl'
+                    : ''
                 }`}
               >
 
                 {/* Column Header */}
-                <div className={`p-3.5 border-b flex items-center justify-between ${
+                <div className={`p-3.5 border-b flex items-center justify-between rounded-t-xl ${
+                  focusedColumnIdx === columnIndex ? 'bg-brand-950/40 border-brand-500/40' :
                   isExceededWip ? 'bg-danger-950/40 border-danger-500/50 text-danger-300' :
                   isAtWipLimit ? 'bg-warning-950/40 border-warning-500/50 text-warning-300' :
-                  'border-muster-border text-neutral-200'
+                  'border-muster-border muster-text-primary'
                 }`}>
                   <div className="flex items-center space-x-2">
                     <span
                       {...columnDragProvided.dragHandleProps}
-                      className="cursor-grab active:cursor-grabbing muster-text-muted hover:text-neutral-200 -ml-1 flex-shrink-0"
+                      className="cursor-grab active:cursor-grabbing muster-text-muted hover:muster-text-primary -ml-1 flex-shrink-0"
                       title="Drag to reorder column"
                       aria-label={`Drag to reorder ${column.name} column`}
                     >
                       <GripVertical className="w-3.5 h-3.5" />
                     </span>
                     <h3 className="font-sans text-xs font-bold tracking-wide uppercase">{column.name}</h3>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-neutral-900 muster-text-secondary border border-neutral-700">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-muster-surface-hover muster-text-secondary border border-muster-border">
                       {columnCards.length}
                     </span>
                   </div>
@@ -751,7 +923,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     {column.wip_limit !== null && (
                       <span
                         title="WIP limit"
-                        className={`text-[10px] font-mono font-semibold ${isExceededWip ? 'muster-text-danger' : isAtWipLimit ? 'muster-text-warning' : 'text-neutral-500'}`}
+                        className={`text-[10px] font-mono font-semibold ${isExceededWip ? 'muster-text-danger' : isAtWipLimit ? 'muster-text-warning' : 'muster-text-muted'}`}
                       >
                         {columnCards.length}/{column.wip_limit}
                       </span>
@@ -767,18 +939,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
                     <button
                       onClick={() => setEditingColumn(column)}
-                      className="p-1 hover:bg-neutral-800 text-neutral-500 hover:text-brand-400 rounded transition-colors cursor-pointer"
+                      className="p-1 hover:bg-neutral-800 muster-text-muted hover:text-brand-400 rounded transition-colors cursor-pointer"
                       title="Edit column settings"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-
-                    <button
-                      onClick={() => handleDeleteColumn(column.id)}
-                      className="p-1 hover:bg-neutral-800 text-neutral-500 hover:text-danger-400 rounded transition-colors cursor-pointer"
-                      title="Delete column"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -797,12 +961,19 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         <Draggable key={card.id} draggableId={card.id} index={index}>
                           {(dragProvided, dragSnapshot) => (
                             <div
+                              id={`kanban-card-${card.id}`}
                               ref={dragProvided.innerRef}
+                              tabIndex={focusedCardId === card.id ? 0 : -1}
                               {...dragProvided.draggableProps}
                               {...dragProvided.dragHandleProps}
-                              onClick={() => handleOpenCard(card.id)}
+                              onClick={() => {
+                                setFocusedCardId(card.id);
+                                handleOpenCard(card.id);
+                              }}
                               className={`p-3.5 rounded-lg border transition-all cursor-pointer group ${
-                                dragSnapshot.isDragging
+                                focusedCardId === card.id
+                                  ? 'ring-2 ring-brand-500 bg-brand-950/30 border-brand-500 shadow-xl scale-[1.01]'
+                                  : dragSnapshot.isDragging
                                   ? 'bg-muster-surface border-brand-500 shadow-lg scale-102 z-50'
                                   : card.is_epic
                                   ? 'bg-brand-950/20 border-brand-500/50 hover:border-brand-500/80 hover:bg-brand-950/30'
@@ -875,8 +1046,28 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                 </div>
                               )}
 
-                              <div className="flex items-center justify-between pt-2 border-t border-muster-border/50 text-[10px] font-mono text-neutral-500">
+                              <div className="flex items-center justify-between pt-2 border-t border-muster-border/50 text-[10px] font-sans text-neutral-500 gap-1">
                                 <span>Updated {new Date(card.updated_at).toLocaleDateString()}</span>
+                                <select
+                                  value={column.id}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={async (e) => {
+                                    e.stopPropagation();
+                                    const targetColId = e.target.value;
+                                    if (targetColId && targetColId !== column.id) {
+                                      await onMoveCard(card.id, targetColId);
+                                    }
+                                  }}
+                                  className="bg-transparent muster-text-muted hover:muster-text-primary text-[10px] focus:outline-none cursor-pointer font-sans rounded px-1 py-0.5 border border-transparent hover:border-muster-border"
+                                  title="Quick move to lane"
+                                  aria-label={`Move ${card.title} to another lane`}
+                                >
+                                  {columns.map((col) => (
+                                    <option key={col.id} value={col.id} className="bg-muster-surface muster-text-primary font-sans">
+                                      → {col.name}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
                             </div>
                           )}
@@ -886,7 +1077,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
                       {isDoneLane(column.name) && columnCards.length > DONE_LANE_PAGE_SIZE && (
                         <div className="muster-panel p-3 space-y-2 text-center">
-                          <p className="text-[10px] font-mono muster-text-muted">
+                          <p className="text-[10px] font-sans muster-text-muted">
                             Showing {visibleColumnCards.length} of {columnCards.length} cards
                           </p>
                           <div className="flex items-center justify-center gap-2">
@@ -949,7 +1140,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           onClick={closeCardModal}
         >
           <div
-            className="muster-dialog w-full max-w-2xl max-h-[85vh] flex flex-col"
+            className="muster-dialog w-full max-w-2xl max-h-[85vh] flex flex-col overflow-x-hidden min-w-0"
             onClick={(e) => e.stopPropagation()}
           >
 
@@ -980,11 +1171,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             setCardDetails((prev) => (prev ? { ...prev, column_id: targetColId } : null));
                           }
                         }}
-                        className="bg-transparent text-neutral-200 text-xs focus:outline-none cursor-pointer font-sans"
+                        className="bg-transparent muster-text-primary text-xs focus:outline-none cursor-pointer font-sans"
                         title="Change card column / lane"
                       >
                         {columns.map((col) => (
-                          <option key={col.id} value={col.id} className="bg-neutral-900 text-neutral-200 font-sans">
+                          <option key={col.id} value={col.id} className="bg-muster-surface muster-text-primary font-sans">
                             {col.name} {col.is_terminal ? '(Done)' : ''}
                           </option>
                         ))}
@@ -1033,7 +1224,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 )}
                 <button
                   onClick={closeCardModal}
-                  className="p-1 muster-text-muted hover:text-neutral-100 rounded cursor-pointer"
+                  className="p-1 muster-text-muted hover:muster-text-primary rounded cursor-pointer"
                   title="Close Task"
                 >
                   <X className="w-5 h-5" />
@@ -1180,7 +1371,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <select
                       value={assignAgentId}
                       onChange={(e) => setAssignAgentId(e.target.value)}
-                      className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1 flex-1"
+                      className="muster-input text-xs py-1 flex-1"
                     >
                       <option value="">Assign to...</option>
                       {users.map((u) => (
@@ -1205,12 +1396,12 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                   <div className="flex flex-wrap gap-1.5">
                     {cardDetails.labels.length > 0 ? (
                       cardDetails.labels.map((label) => (
-                        <span key={label.id} className="px-2 py-1 bg-neutral-900 text-neutral-200 border border-neutral-700 text-xs rounded">
+                        <span key={label.id} className="px-2 py-1 bg-muster-surface-hover muster-text-primary border border-muster-border text-xs rounded">
                           🏷️ {label.name}
                         </span>
                       ))
                     ) : (
-                      <span className="text-xs text-neutral-500 italic">No labels</span>
+                      <span className="text-xs muster-text-muted italic">No labels</span>
                     )}
                   </div>
                 </div>
@@ -1223,7 +1414,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <FileText className="w-4 h-4 mr-1.5 muster-text-warning" />
                     Linked Documents ({(cardDetails.linked_documents || []).length})
                   </span>
-                  <span className="text-[10px] text-neutral-500 font-normal">Click document to read</span>
+                  <span className="text-[10px] muster-text-muted font-normal">Click document to read</span>
                 </h4>
 
                 <div className="space-y-2 mb-3">
@@ -1233,17 +1424,17 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         key={doc.id}
                         onClick={() => handleOpenLinkedDocument(doc.id)}
                         aria-busy={loadingDocumentId === doc.id}
-                        className="flex items-center justify-between bg-muster-surface p-2.5 rounded-lg border border-warning-500/20 hover:border-warning-500/60 hover:bg-neutral-900/90 group cursor-pointer transition-all"
+                        className="flex items-center justify-between bg-muster-surface p-2.5 rounded-lg border border-warning-500/20 hover:border-warning-500/60 hover:bg-muster-surface-hover group cursor-pointer transition-all"
                       >
                         <div className="flex items-center space-x-2 min-w-0">
                           <FileText className="w-3.5 h-3.5 muster-text-warning flex-shrink-0 group-hover:scale-110 transition-transform" />
-                          <span className="text-xs font-sans text-neutral-200 group-hover:text-warning-300 truncate font-semibold">
+                          <span className="text-xs font-sans muster-text-primary group-hover:text-warning-300 truncate font-semibold">
                             {doc.title}
                           </span>
                           <span className={`px-1.5 py-0.5 text-[10px] font-mono rounded flex-shrink-0 ${
                             doc.status === 'approved' ? 'bg-success-950 muster-text-success border border-success-600/40' :
                             doc.status === 'in_review' ? 'bg-warning-950 muster-text-warning border border-warning-600/40' :
-                            'bg-neutral-900 muster-text-muted border border-neutral-700'
+                            'bg-muster-surface-hover muster-text-muted border border-muster-border'
                           }`}>{doc.status}</span>
                         </div>
                         <div className="flex items-center space-x-2 flex-shrink-0">
@@ -1264,7 +1455,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-neutral-500 italic">No documents linked to this card.</p>
+                    <p className="text-xs muster-text-muted italic">No documents linked to this card.</p>
                   )}
                 </div>
 
@@ -1274,7 +1465,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <select
                       value={linkDocumentId}
                       onChange={(e) => setLinkDocumentId(e.target.value)}
-                      className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1 flex-1"
+                      className="muster-input text-xs py-1 flex-1"
                     >
                       <option value="">Link a document...</option>
                       {documents
@@ -1308,16 +1499,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       <div
                         key={link.id}
                         onClick={() => handleOpenCard(link.card.id)}
-                        className="flex items-center justify-between bg-muster-surface p-2.5 rounded-lg border border-info-500/20 hover:border-info-500/60 hover:bg-neutral-900/90 group cursor-pointer transition-all"
+                        className="flex items-center justify-between bg-muster-surface p-2.5 rounded-lg border border-info-500/20 hover:border-info-500/60 hover:bg-muster-surface-hover group cursor-pointer transition-all"
                       >
                         <div className="flex items-center space-x-2 min-w-0">
                           <span className={`muster-badge ${CARD_LINK_BADGE_CLASSES[link.relation_type]} flex-shrink-0`}>
                             {CARD_LINK_RELATION_LABELS[link.relation_type]}
                           </span>
-                          <span className="font-mono text-[10px] text-neutral-500 group-hover:text-info-400 flex-shrink-0">
+                          <span className="font-mono text-[10px] muster-text-muted group-hover:text-info-400 flex-shrink-0">
                             {link.card.key}
                           </span>
-                          <span className="text-xs font-sans text-neutral-200 group-hover:text-info-300 truncate font-semibold">
+                          <span className="text-xs font-sans muster-text-primary group-hover:text-info-300 truncate font-semibold">
                             {link.card.title}
                           </span>
                           {link.card.archived ? (
@@ -1342,16 +1533,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-neutral-500 italic">No linked cards.</p>
+                    <p className="text-xs muster-text-muted italic">No linked cards.</p>
                   )}
                 </div>
 
-                {/* Relation type + card title search */}
-                <div className="flex space-x-1.5">
+                {/* Relation type + card title search with keyboard navigation */}
+                <div className="flex flex-col sm:flex-row gap-1.5 min-w-0">
                   <select
                     value={linkCardRelationType}
                     onChange={(e) => setLinkCardRelationType(e.target.value as CardLinkRelationType)}
-                    className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1 flex-shrink-0"
+                    className="muster-input text-xs py-1 w-full sm:w-36 shrink-0"
                   >
                     <option value="blocks">Blocks</option>
                     <option value="blocked_by">Blocked by</option>
@@ -1360,34 +1551,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <option value="parent_of">Parent of</option>
                     <option value="child_of">Child of</option>
                   </select>
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      value={linkCardQuery}
-                      onChange={(e) => setLinkCardQuery(e.target.value)}
-                      placeholder="Search cards by title..."
-                      className="w-full bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1"
-                    />
-                    {linkCardQuery.trim() && (
-                      <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-muster-surface border border-muster-border rounded-lg shadow-lg">
-                        {isSearchingLinkCards ? (
-                          <div className="px-2.5 py-2 text-xs text-neutral-500 italic">Searching...</div>
-                        ) : linkCardResults.length > 0 ? (
-                          linkCardResults.map((c) => (
-                            <div
-                              key={c.id}
-                              onClick={() => handleLinkCard(c.id)}
-                              className="px-2.5 py-1.5 text-xs text-neutral-200 hover:bg-info-950/60 hover:text-info-300 cursor-pointer truncate"
-                            >
-                              {c.title}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="px-2.5 py-2 text-xs text-neutral-500 italic">No matching cards</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                  <CardSearch
+                    cards={cards}
+                    excludeCardId={cardDetails.id}
+                    placeholder="Search cards to link..."
+                    onSelectCard={(card) => handleLinkCard(card.id)}
+                    className="flex-1 min-w-0"
+                  />
                 </div>
               </div>
 
@@ -1414,19 +1584,19 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             {links.map((link) => (
                               <div
                                 key={link.id}
-                                className="flex items-center justify-between bg-muster-surface p-2.5 rounded-lg border border-success-500/20 hover:border-success-500/60 hover:bg-neutral-900/90 group transition-all"
+                                className="flex items-center justify-between bg-muster-surface p-2.5 rounded-lg border border-success-500/20 hover:border-success-500/60 hover:bg-muster-surface-hover group transition-all min-w-0 gap-2"
                               >
                                 <a
                                   href={link.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="flex items-center space-x-2 min-w-0 flex-1"
+                                  className="flex items-center space-x-2 min-w-0 flex-1 overflow-hidden"
                                 >
                                   <KindIcon className="w-3.5 h-3.5 muster-text-success flex-shrink-0 group-hover:scale-110 transition-transform" />
-                                  <span className="px-1.5 py-0.5 text-[10px] font-mono rounded flex-shrink-0 bg-neutral-900 muster-text-muted border border-neutral-700">
+                                  <span className="px-1.5 py-0.5 text-[10px] font-mono rounded flex-shrink-0 bg-muster-surface-hover muster-text-muted border border-muster-border">
                                     {WORK_LINK_PROVIDER_LABELS[link.provider]}
                                   </span>
-                                  <span className="text-xs font-mono text-neutral-200 group-hover:text-success-300 truncate">
+                                  <span className="text-xs font-mono muster-text-primary group-hover:text-success-300 truncate min-w-0">
                                     {link.external_ref || link.title || link.url}
                                   </span>
                                   <ExternalLink className="w-3 h-3 muster-text-muted flex-shrink-0 opacity-0 group-hover:opacity-100" />
@@ -1445,16 +1615,16 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       );
                     })
                   ) : (
-                    <p className="text-xs text-neutral-500 italic">No work linked to this card yet.</p>
+                    <p className="text-xs muster-text-muted italic">No work linked to this card yet.</p>
                   )}
                 </div>
 
-                <form onSubmit={handleAddWorkLink} className="space-y-1.5">
-                  <div className="flex space-x-1.5">
+                <form onSubmit={handleAddWorkLink} className="space-y-1.5 min-w-0">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                     <select
                       value={workLinkKind}
                       onChange={(e) => setWorkLinkKind(e.target.value as CardWorkLinkKind)}
-                      className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1 flex-shrink-0"
+                      className="muster-input text-xs py-1 w-full"
                     >
                       <option value="branch">Branch</option>
                       <option value="pull_request">Pull Request</option>
@@ -1464,7 +1634,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                     <select
                       value={workLinkProvider}
                       onChange={(e) => setWorkLinkProvider(e.target.value as CardWorkLinkProvider)}
-                      className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1 flex-shrink-0"
+                      className="muster-input text-xs py-1 w-full"
                     >
                       <option value="forgejo">Forgejo</option>
                       <option value="github">GitHub</option>
@@ -1476,21 +1646,21 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       value={workLinkRef}
                       onChange={(e) => setWorkLinkRef(e.target.value)}
                       placeholder="Ref (feat/x, #42, 98bb52e)"
-                      className="w-32 bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1"
+                      className="muster-input text-xs py-1 w-full col-span-2 sm:col-span-1"
                     />
                   </div>
-                  <div className="flex space-x-1.5">
+                  <div className="flex items-center space-x-1.5 min-w-0">
                     <input
                       type="text"
                       value={workLinkUrl}
                       onChange={(e) => setWorkLinkUrl(e.target.value)}
                       placeholder="https://forgejo.example/org/repo/pulls/42"
-                      className="flex-1 bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1"
+                      className="muster-input text-xs py-1 min-w-0 flex-1"
                     />
                     <button
                       type="submit"
                       disabled={!workLinkUrl.trim()}
-                      className="muster-btn muster-btn-primary"
+                      className="muster-btn muster-btn-primary shrink-0"
                     >
                       <Link2 className="w-3 h-3" />
                       <span>Attach</span>
@@ -1550,7 +1720,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             value={editingCommentText}
                             onChange={(e) => setEditingCommentText(e.target.value)}
                             aria-label="Edit comment"
-                            className="w-full bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-3 py-2 focus:outline-none focus:border-brand-500 resize-y"
+                            className="muster-input text-xs p-3 leading-relaxed w-full resize-y"
                           />
                           <div className="flex justify-end gap-2">
                             <button
@@ -1573,7 +1743,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                         </form>
                       ) : (
                         <div
-                          className="markdown-render text-xs text-neutral-200 leading-relaxed overflow-x-auto [&>p:last-child]:mb-0"
+                          className="markdown-render text-xs muster-text-primary leading-relaxed overflow-x-auto [&>p:last-child]:mb-0"
                           dangerouslySetInnerHTML={{ __html: renderMarkdown(c.content) }}
                         />
                       )}
@@ -1592,7 +1762,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       <select
                         value={selectedAuthorId}
                         onChange={(e) => setSelectedAuthorId(e.target.value)}
-                        className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2.5 py-1.5"
+                        className="muster-input text-xs py-1.5 px-2.5"
                       >
                         <option value="">Select Author...</option>
                         {users.map((u) => (
@@ -1610,7 +1780,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
                       placeholder="Add comment (Markdown supported)..."
-                      className="flex-1 bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-3 py-2 focus:outline-none focus:border-brand-500 resize-y"
+                      className="muster-input text-xs p-3 leading-relaxed flex-1 resize-y"
                     />
                     <button
                       type="submit"
@@ -1640,12 +1810,87 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         />
       )}
 
+      {/* Board Settings Modal (Rename, Add Column, Delete Board) */}
+      {showBoardSettingsModal && (
+        <div className="muster-scrim" onClick={() => setShowBoardSettingsModal(false)}>
+          <div className="muster-dialog w-full max-w-md p-5 space-y-4 font-sans" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-muster-border pb-3">
+              <h3 className="text-sm font-bold muster-text-primary flex items-center">
+                <Settings className="w-4 h-4 mr-2 muster-accent" /> Board Settings
+              </h3>
+              <button onClick={() => setShowBoardSettingsModal(false)} className="muster-btn muster-btn-icon muster-btn-ghost">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Rename Form */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleRenameBoard();
+                setShowBoardSettingsModal(false);
+              }}
+              className="space-y-2"
+            >
+              <label className="muster-label">Rename Board</label>
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={boardNameInput}
+                  onChange={(e) => setBoardNameInput(e.target.value)}
+                  placeholder="Board name"
+                  className="muster-input flex-1"
+                />
+                <button
+                  type="submit"
+                  disabled={!boardNameInput.trim() || boardNameInput === board.name}
+                  className="muster-btn muster-btn-primary"
+                >
+                  Save
+                </button>
+              </div>
+            </form>
+
+            <div className="border-t border-muster-border/60 pt-3 space-y-2">
+              <label className="muster-label">Board Actions</label>
+              <div className="flex flex-col space-y-2">
+                <button
+                  onClick={() => {
+                    setShowBoardSettingsModal(false);
+                    onOpenNewColumn();
+                  }}
+                  className="muster-btn muster-btn-secondary justify-start text-xs py-2"
+                >
+                  <Plus className="w-4 h-4 mr-1.5 muster-accent" /> Add New Column
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowBoardSettingsModal(false);
+                    if (confirm(`Are you sure you want to delete board "${board.name}"?\n\nThis will permanently delete all columns and cards on this board.`)) {
+                      onDeleteBoard(board.id);
+                    }
+                  }}
+                  className="muster-btn muster-btn-danger-soft justify-start text-xs py-2"
+                >
+                  <Trash2 className="w-4 h-4 mr-1.5" /> Delete Board
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Column Modal */}
       {editingColumn && (
         <EditColumnModal
           column={editingColumn}
           onClose={() => setEditingColumn(null)}
-          onSuccess={onRefresh}
+          onSuccess={() => {
+            setEditingColumn(null);
+            onRefresh();
+          }}
+          onDelete={(colId) => handleDeleteColumn(colId)}
         />
       )}
 

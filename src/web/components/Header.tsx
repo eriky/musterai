@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Project, ProjectSummary, AuthMe } from '../types.js';
-import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, UserPlus, Trash2, Edit2, KeyRound, ShieldCheck, UserCircle } from 'lucide-react';
+import { Bot, Layout, FileText, Activity, Plus, FolderPlus, Layers, Database, UserPlus, Trash2, Edit2, KeyRound, ShieldCheck, UserCircle, HelpCircle } from 'lucide-react';
 import { ThemePicker } from './ThemePicker.js';
 import { PrincipalChip } from './PrincipalChip.js';
 
@@ -24,6 +24,8 @@ interface HeaderProps {
   currentUser?: AuthMe['user'] | null;
   authMode?: AuthMe['auth_mode'] | null;
   onSetLocalIdentity?: (displayName: string) => Promise<void>;
+  onOpenUserAccount?: (tab?: 'appearance' | 'tokens' | 'admin' | 'profile') => void;
+  onOpenShortcutsHelp?: () => void;
 }
 
 /** Open-mode-only "who are you" control — sits where a signed-in user's chip would go. */
@@ -36,7 +38,7 @@ const IdentityPicker: React.FC<{ onSubmit: (displayName: string) => Promise<void
     return (
       <button
         onClick={() => setOpen(true)}
-        className="muster-btn muster-btn-ghost font-mono text-xs"
+        className="muster-btn muster-btn-ghost font-sans text-xs"
         title="Set your name so comments and assignments show who you are"
       >
         <UserCircle className="w-3.5 h-3.5 muster-accent" /> Who are you?
@@ -114,21 +116,19 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   authMode,
   onSetLocalIdentity,
+  onOpenUserAccount,
+  onOpenShortcutsHelp,
 }) => {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   const kanbanCount = activeBoardNotDoneCount !== undefined && activeBoardNotDoneCount !== null
     ? activeBoardNotDoneCount
     : summary?.not_done_card_count ?? summary?.card_count;
 
   const tabs: { id: TabId; icon: React.ElementType; label: string }[] = [
-    { id: 'agents', icon: Bot, label: `Agents ${summary ? `(${summary.active_agent_count}/${summary.agent_count})` : ''}` },
     { id: 'board', icon: Layout, label: `Kanban Board ${kanbanCount !== undefined ? `(${kanbanCount})` : ''}` },
     { id: 'docs', icon: FileText, label: `Design Documents ${summary ? `(${summary.document_count})` : ''}` },
     { id: 'kb', icon: Database, label: 'Knowledge Base' },
     { id: 'activity', icon: Activity, label: 'Activity Log' },
-    { id: 'tokens', icon: KeyRound, label: 'Tokens' },
-    { id: 'admin', icon: ShieldCheck, label: 'Admin' },
+    { id: 'agents', icon: Bot, label: `Agents ${summary ? `(${summary.active_agent_count}/${summary.agent_count})` : ''}` },
   ];
 
   return (
@@ -136,7 +136,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="w-full px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 gap-2">
 
-          {/* Left Side: Brand & Selectors */}
+          {/* Left Side: Brand & Project Selector */}
           <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
 
             {/* Logo */}
@@ -156,27 +156,12 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Signed-in user — read-only, derived from the session, never picked. */}
-            <div className="flex items-center space-x-2">
-              {currentUser ? (
-                <>
-                  <PrincipalChip name={currentUser.display_name} kind="user" />
-                  <Divider />
-                </>
-              ) : authMode === 'open' && onSetLocalIdentity ? (
-                <>
-                  <IdentityPicker onSubmit={onSetLocalIdentity} />
-                  <Divider />
-                </>
-              ) : null}
-            </div>
-
             {/* Project Selector Dropdown */}
             <div className="flex items-center space-x-1 min-w-0">
               <select
                 value={selectedProjectId || ''}
                 onChange={(e) => onSelectProject(e.target.value)}
-                className="muster-input max-w-[140px] sm:max-w-[220px] font-mono cursor-pointer truncate text-xs sm:text-sm py-1.5 px-2"
+                className="muster-input max-w-[140px] sm:max-w-[220px] font-sans font-medium cursor-pointer truncate text-xs sm:text-sm py-1.5 px-2"
                 aria-label="Select active project"
               >
                 {projects.map((p) => (
@@ -198,24 +183,9 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 )}
 
-                {selectedProjectId && projects.length > 0 && (
-                  <button
-                    onClick={() => {
-                      const proj = projects.find(p => p.id === selectedProjectId);
-                      if (proj && confirm(`Are you sure you want to delete project "${proj.name}"?\n\nThis will permanently delete all boards, cards, documents, and knowledge base links in this project.`)) {
-                        onDeleteProject(selectedProjectId);
-                      }
-                    }}
-                    className="muster-btn muster-btn-icon muster-btn-ghost-danger"
-                    title="Delete Selected Project"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-
                 <button
                   onClick={onOpenNewProject}
-                  className="muster-btn muster-btn-soft font-mono text-xs"
+                  className="muster-btn muster-btn-soft font-sans text-xs"
                   title="Create New Project"
                 >
                   <FolderPlus className="w-3.5 h-3.5" /> + Project
@@ -223,102 +193,61 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            <div className="hidden lg:block">
-              <Divider />
-            </div>
-
-            {/* Desktop Entity Creation Buttons */}
-            <div className="hidden lg:flex items-center space-x-2">
-              <button onClick={onOpenNewBoard} className="muster-btn muster-btn-secondary font-mono text-xs">
-                <Layers className="w-3.5 h-3.5 muster-accent" /> + Board
-              </button>
-
-              <button onClick={onOpenRegisterAgent} className="muster-btn muster-btn-secondary font-mono text-xs">
-                <UserPlus className="w-3.5 h-3.5 muster-accent" /> + Agent
-              </button>
-
-              <button onClick={onOpenNewCard} className="muster-btn muster-btn-secondary font-mono text-xs">
-                <Plus className="w-3.5 h-3.5 muster-accent" /> + Card
-              </button>
-
-              <button onClick={onOpenNewDoc} className="muster-btn muster-btn-secondary font-mono text-xs">
-                <FileText className="w-3.5 h-3.5 muster-accent" /> + Doc
-              </button>
-            </div>
-
           </div>
 
-          {/* Right Side: Quick Actions on Mobile, Notifications & Theme Picker */}
-          <div className="flex items-center space-x-1.5 shrink-0">
-            {/* Mobile Actions Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden muster-btn muster-btn-soft p-1.5 text-xs font-mono flex items-center gap-1"
-              title="Quick Actions"
-              aria-label="Toggle mobile actions menu"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden xs:inline">Actions</span>
-            </button>
+          {/* Right Side: Keyboard Shortcuts Help & User Account Button at Top Right */}
+          <div className="flex items-center space-x-2 shrink-0">
+            {onOpenShortcutsHelp && (
+              <button
+                onClick={onOpenShortcutsHelp}
+                className="inline-flex items-center justify-center w-7 h-7 rounded-md hover:bg-muster-surface-hover border border-muster-border/60 text-xs font-mono font-bold cursor-pointer transition-colors muster-text-muted hover:muster-text-primary"
+                title="Keyboard Shortcuts & Help (?)"
+                aria-label="Keyboard shortcuts"
+              >
+                <HelpCircle className="w-4 h-4 muster-accent" />
+              </button>
+            )}
 
-            <ThemePicker />
+            {currentUser ? (
+              <button
+                onClick={() => onOpenUserAccount?.('appearance')}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md hover:bg-muster-surface-hover border border-muster-border/60 text-xs font-sans font-semibold cursor-pointer transition-colors"
+                title="Account Settings & Appearance"
+              >
+                <PrincipalChip name={currentUser.display_name} kind="user" />
+              </button>
+            ) : authMode === 'open' && onSetLocalIdentity ? (
+              <button
+                onClick={() => onOpenUserAccount?.('profile')}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md hover:bg-muster-surface-hover border border-muster-border/60 text-xs font-sans font-semibold cursor-pointer transition-colors"
+                title="Account & Identity Settings"
+              >
+                <UserCircle className="w-4 h-4 muster-accent" />
+                <span className="muster-text-primary text-xs font-medium">Set Name</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => onOpenUserAccount?.('appearance')}
+                className="muster-btn muster-btn-secondary text-xs"
+                title="Account & Appearance Settings"
+              >
+                <UserCircle className="w-4 h-4 muster-accent" />
+                <span>Account</span>
+              </button>
+            )}
           </div>
 
         </div>
 
-        {/* Mobile Actions Drawer / Overlay */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-muster-border/60 py-3 grid grid-cols-2 gap-2 bg-muster-surface/95 backdrop-blur-md">
-            <button
-              onClick={() => { onOpenNewCard(); setMobileMenuOpen(false); }}
-              className="muster-btn muster-btn-primary font-mono text-xs justify-start py-2"
-            >
-              <Plus className="w-3.5 h-3.5" /> + New Card
-            </button>
-            <button
-              onClick={() => { onOpenNewDoc(); setMobileMenuOpen(false); }}
-              className="muster-btn muster-btn-secondary font-mono text-xs justify-start py-2"
-            >
-              <FileText className="w-3.5 h-3.5 muster-accent" /> + New Doc
-            </button>
-            <button
-              onClick={() => { onOpenNewBoard(); setMobileMenuOpen(false); }}
-              className="muster-btn muster-btn-secondary font-mono text-xs justify-start py-2"
-            >
-              <Layers className="w-3.5 h-3.5 muster-accent" /> + New Board
-            </button>
-            <button
-              onClick={() => { onOpenRegisterAgent(); setMobileMenuOpen(false); }}
-              className="muster-btn muster-btn-secondary font-mono text-xs justify-start py-2"
-            >
-              <UserPlus className="w-3.5 h-3.5 muster-accent" /> + Register Agent
-            </button>
-            <button
-              onClick={() => { onOpenNewProject(); setMobileMenuOpen(false); }}
-              className="muster-btn muster-btn-soft font-mono text-xs justify-start py-2"
-            >
-              <FolderPlus className="w-3.5 h-3.5" /> + New Project
-            </button>
-            {selectedProjectId && projects.length > 0 && onOpenEditProject && (
-              <button
-                onClick={() => { onOpenEditProject(); setMobileMenuOpen(false); }}
-                className="muster-btn muster-btn-ghost font-mono text-xs justify-start py-2"
-              >
-                <Edit2 className="w-3.5 h-3.5" /> Edit Project
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Sub-Navigation & Summary Telemetry */}
-        <div className="flex items-center justify-between border-t border-muster-border/60 py-1.5 overflow-hidden">
-          <nav className="flex space-x-1.5 overflow-x-auto no-scrollbar snap-x py-0.5 w-full md:w-auto">
+        {/* Sub-Navigation Bar — Shown on desktop (≥768px) where bottom bar is hidden */}
+        <div className="hidden md:flex items-center border-t border-muster-border/60 py-1.5 w-full">
+          <nav className="flex flex-wrap items-center gap-1.5 py-0.5 w-full">
             {tabs.map(({ id, icon: Icon, label }) => (
               <button
                 key={id}
                 onClick={() => onSelectTab(id)}
                 aria-current={activeTab === id ? 'page' : undefined}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans font-medium muster-tab shrink-0 snap-start whitespace-nowrap ${
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-sans font-medium muster-tab shrink-0 whitespace-nowrap ${
                   activeTab === id ? 'muster-tab-active' : ''
                 }`}
               >
@@ -327,26 +256,6 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             ))}
           </nav>
-
-          {/* Summary telemetry */}
-          {summary && (
-            <div className="hidden md:flex items-center gap-3 text-xs font-sans shrink-0 pl-3">
-              <div>
-                <span className="muster-text-muted">Active Agents: </span>
-                <span className="muster-text-success font-medium">{summary.active_agent_count}</span>
-              </div>
-              <Dot />
-              <div>
-                <span className="muster-text-muted">Boards: </span>
-                <span className="muster-text-primary font-medium">{summary.board_count}</span>
-              </div>
-              <Dot />
-              <div>
-                <span className="muster-text-muted">Total Cards: </span>
-                <span className="muster-accent font-medium">{summary.card_count}</span>
-              </div>
-            </div>
-          )}
         </div>
 
       </div>

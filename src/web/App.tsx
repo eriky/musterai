@@ -10,6 +10,9 @@ import { TacticalTerminal } from './components/TacticalTerminal.js';
 import { KnowledgeBaseView } from './components/KnowledgeBase.js';
 import { TokensView } from './components/TokensView.js';
 import { WorkspaceAdmin } from './components/WorkspaceAdmin.js';
+import { MobileBottomNav } from './components/MobileBottomNav.js';
+import { UserAccountModal } from './components/UserAccountModal.js';
+import { ShortcutsHelpModal } from './components/ShortcutsHelpModal.js';
 import { ThemeProvider } from './ThemeContext.js';
 import {
   NewProjectModal,
@@ -116,6 +119,9 @@ export const App: React.FC = () => {
   const [showNewColumnModal, setShowNewColumnModal] = useState(false);
   const [showRegisterAgentModal, setShowRegisterAgentModal] = useState(false);
   const [showNewDocModal, setShowNewDocModal] = useState(false);
+  const [showUserAccountModal, setShowUserAccountModal] = useState(false);
+  const [userAccountInitialTab, setUserAccountInitialTab] = useState<'appearance' | 'tokens' | 'admin' | 'profile'>('appearance');
+  const [showShortcutsHelpModal, setShowShortcutsHelpModal] = useState(false);
   const [newCardRequest, setNewCardRequest] = useState<{ columnId?: string; token: number } | null>(null);
   const newCardTokenRef = useRef(0);
   const [openCardRequest, setOpenCardRequest] = useState<{ cardId: string; token: number } | null>(null);
@@ -123,6 +129,26 @@ export const App: React.FC = () => {
   const rememberSelectedBoard = useCallback((boardId: string | null) => {
     selectedBoardIdRef.current = boardId;
     setSelectedBoardId(boardId);
+  }, []);
+
+  // Global keydown listener for ? shortcuts help
+  useEffect(() => {
+    const handleGlobalShortcuts = (e: KeyboardEvent) => {
+      const activeElement = document.activeElement;
+      const isTyping =
+        activeElement &&
+        (activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.tagName === 'SELECT' ||
+          (activeElement as HTMLElement).isContentEditable);
+
+      if (!isTyping && (e.key === '?' || (e.shiftKey && e.key === '/'))) {
+        e.preventDefault();
+        setShowShortcutsHelpModal((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalShortcuts);
+    return () => window.removeEventListener('keydown', handleGlobalShortcuts);
   }, []);
 
   // Load Projects
@@ -461,6 +487,11 @@ export const App: React.FC = () => {
         currentUser={currentUser}
         authMode={authMode}
         onSetLocalIdentity={handleSetLocalIdentity}
+        onOpenUserAccount={(tab) => {
+          setUserAccountInitialTab(tab || 'appearance');
+          setShowUserAccountModal(true);
+        }}
+        onOpenShortcutsHelp={() => setShowShortcutsHelpModal(true)}
       />
 
       {connectionError && (
@@ -483,7 +514,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Main Full-Width View Area */}
-      <main className="flex-1 flex flex-col min-h-0 w-full px-4 sm:px-6 lg:px-8 py-4 overflow-hidden">
+      <main className="flex-1 flex flex-col min-h-0 w-full px-4 sm:px-6 lg:px-8 pt-4 pb-16 md:pb-4 overflow-hidden">
 
         {activeTab === 'agents' && (
           <AgentGrid
@@ -563,7 +594,12 @@ export const App: React.FC = () => {
           />
         )}
 
-        {activeTab === 'tokens' && <TokensView />}
+        {activeTab === 'tokens' && (
+          <div className="muster-panel p-6 max-w-4xl mx-auto my-8 space-y-4">
+            <h2 className="text-sm font-bold muster-text-primary">API Tokens Management</h2>
+            <TokensView />
+          </div>
+        )}
 
         {activeTab === 'admin' && (
           workspaceId
@@ -571,6 +607,9 @@ export const App: React.FC = () => {
             : <div className="text-center py-16 muster-text-muted text-sm">No workspace found yet.</div>
         )}
       </main>
+
+      {/* Mobile Bottom Navigation Bar */}
+      <MobileBottomNav activeTab={activeTab} onSelectTab={handleSelectTab} />
 
 
       {/* Modals */}
@@ -592,6 +631,7 @@ export const App: React.FC = () => {
             loadProjects(selectedProjectId);
             loadProjectData();
           }}
+          onDeleteProject={handleDeleteProject}
         />
       )}
 
@@ -629,6 +669,21 @@ export const App: React.FC = () => {
             loadProjectData();
           }}
         />
+      )}
+
+      {showUserAccountModal && (
+        <UserAccountModal
+          currentUser={currentUser}
+          workspaceId={workspaceId}
+          authMode={authMode}
+          onSetLocalIdentity={handleSetLocalIdentity}
+          initialTab={userAccountInitialTab}
+          onClose={() => setShowUserAccountModal(false)}
+        />
+      )}
+
+      {showShortcutsHelpModal && (
+        <ShortcutsHelpModal onClose={() => setShowShortcutsHelpModal(false)} />
       )}
     </div>
     </ThemeProvider>
