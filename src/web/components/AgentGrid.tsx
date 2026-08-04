@@ -296,7 +296,7 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
                         <button
                           onClick={() => handleOpenEdit(agent)}
                           title="Edit Agent Attributes"
-                          className="muster-btn muster-btn-secondary font-mono"
+                          className="muster-btn muster-btn-secondary font-sans"
                         >
                           <Pencil className="w-3 h-3 mr-1" /> Edit
                         </button>
@@ -304,7 +304,7 @@ export const AgentGrid: React.FC<AgentGridProps> = ({
                         <button
                           onClick={() => onHeartbeat(agent.id)}
                           title="Send Heartbeat"
-                          className="muster-btn muster-btn-secondary font-mono"
+                          className="muster-btn muster-btn-secondary font-sans"
                         >
                           <RefreshCw className="w-3 h-3 mr-1" /> Ping
                         </button>

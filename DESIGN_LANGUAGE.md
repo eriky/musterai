@@ -53,7 +53,7 @@ Three things worth internalising:
 The active theme is set on `<html>`:
 
 ```html
-<html class="dark|light" data-profile="cyber|amber|emerald|violet">
+<html class="dark|light" data-profile="slate|cyber|amber|emerald|violet">
 ```
 
 Specificity is deliberate: `html.light` (0,1,1) outranks `[data-profile]`
@@ -63,7 +63,8 @@ Specificity is deliberate: `html.light` (0,1,1) outranks `[data-profile]`
 
 | Profile | Brand hue | Identity |
 | :-- | :-- | :-- |
-| `cyber` (default) | Cyan | High-tech tactical mission control |
+| `slate` (default) | Slate | Neutral modern tactical workplace |
+| `cyber` | Cyan | High-tech tactical mission control |
 | `amber` | Amber | Command console & priority alerts |
 | `emerald` | Emerald | System health & code execution |
 | `violet` | Violet | Agent coordination |

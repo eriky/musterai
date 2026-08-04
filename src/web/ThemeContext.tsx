@@ -17,7 +17,7 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme: { profile: 'cyber', mode: 'dark' },
+  theme: { profile: 'slate', mode: 'dark' },
   setProfile: () => {},
   setMode: () => {},
   toggleMode: () => {},

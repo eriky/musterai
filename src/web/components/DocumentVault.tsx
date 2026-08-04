@@ -306,7 +306,7 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                         rows={16}
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
-                        className="muster-input font-mono p-3 leading-relaxed"
+                        className="muster-input font-sans p-3 leading-relaxed"
                       />
                     </div>
                   </div>

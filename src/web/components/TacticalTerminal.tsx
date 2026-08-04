@@ -345,7 +345,7 @@ export const TacticalTerminal: React.FC<TacticalTerminalProps> = ({
             <select
               value={filterEntity}
               onChange={(e) => setFilterEntity(e.target.value)}
-              className="bg-muster-surface border border-muster-border text-neutral-200 text-xs font-mono rounded px-2.5 py-1"
+              className="muster-input text-xs rounded px-2.5 py-1"
             >
               <option value="all">All</option>
               <option value="card">Cards</option>

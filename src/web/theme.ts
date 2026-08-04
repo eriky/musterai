@@ -1,7 +1,7 @@
 // File: src/web/theme.ts
 // Theme profiles and persistence for Muster UI Design Language
 
-export type ColorProfile = 'cyber' | 'amber' | 'emerald' | 'violet';
+export type ColorProfile = 'slate' | 'cyber' | 'amber' | 'emerald' | 'violet';
 export type AppearanceMode = 'dark' | 'light';
 
 export interface ThemePreference {
@@ -18,6 +18,12 @@ export interface ColorProfileMeta {
 }
 
 export const COLOR_PROFILES: ColorProfileMeta[] = [
+  {
+    id: 'slate',
+    name: 'Modern Slate',
+    accent: '#64748b',
+    description: 'Sleek neutral modern workplace',
+  },
   {
     id: 'cyber',
     name: 'Tactical Cyber',
@@ -47,21 +53,21 @@ export const COLOR_PROFILES: ColorProfileMeta[] = [
 const STORAGE_KEY_PREFIX = 'muster_user_theme_';
 
 export function loadThemeForUser(userId: string | null): ThemePreference {
-  if (!userId) return { profile: 'cyber', mode: 'dark' };
+  if (!userId) return { profile: 'slate', mode: 'dark' };
   try {
     const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${userId}`);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<ThemePreference>;
       const profile = parsed.profile && COLOR_PROFILES.some(p => p.id === parsed.profile)
         ? parsed.profile
-        : 'cyber';
+        : 'slate';
       const mode: AppearanceMode = parsed.mode === 'light' ? 'light' : 'dark';
       return { profile, mode };
     }
   } catch {
     // ignore
   }
-  return { profile: 'cyber', mode: 'dark' };
+  return { profile: 'slate', mode: 'dark' };
 }
 
 export function saveThemeForUser(userId: string | null, theme: ThemePreference): void {

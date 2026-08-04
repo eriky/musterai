@@ -1,111 +1,97 @@
 // File: src/web/components/ThemePicker.tsx
-import React, { useState, useRef, useEffect } from 'react';
-import { Moon, Sun, Palette, Check } from 'lucide-react';
+import React from 'react';
+import { Moon, Sun, Check, Sparkles } from 'lucide-react';
 import { useTheme } from '../ThemeContext.js';
 import { COLOR_PROFILES } from '../theme.js';
 
 export const ThemePicker: React.FC = () => {
   const { theme, setProfile, toggleMode } = useTheme();
-  const [open, setOpen] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  const activeProfile = COLOR_PROFILES.find(p => p.id === theme.profile) ?? COLOR_PROFILES[0];
 
   return (
-    <div className="relative" ref={panelRef}>
-      {/* Trigger button */}
-      <button
-        onClick={() => setOpen(v => !v)}
-        title="Theme & Appearance"
-        aria-expanded={open}
-        className="muster-btn muster-btn-soft font-mono"
-      >
-        <Palette className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">{activeProfile.name}</span>
-        {theme.mode === 'dark' ? (
-          <Moon className="w-3 h-3 opacity-70" />
-        ) : (
-          <Sun className="w-3 h-3 opacity-70" />
-        )}
-      </button>
+    <div className="space-y-6 w-full font-sans">
+      {/* Light / Dark Mode Toggle Section */}
+      <div>
+        <h3 className="text-xs font-bold uppercase tracking-wider muster-text-muted mb-2 flex items-center gap-1.5">
+          <Sparkles className="w-3.5 h-3.5 muster-accent" /> Appearance Mode
+        </h3>
+        <div className="grid grid-cols-2 gap-3 max-w-md">
+          <button
+            type="button"
+            onClick={() => { if (theme.mode !== 'dark') toggleMode(); }}
+            className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+              theme.mode === 'dark'
+                ? 'bg-brand-500/10 border-brand-500 muster-text-primary shadow-sm font-bold'
+                : 'bg-muster-surface border-muster-border muster-text-muted hover:muster-text-primary'
+            }`}
+          >
+            <Moon className={`w-4 h-4 ${theme.mode === 'dark' ? 'muster-accent' : ''}`} />
+            <span className="muster-text-primary">Dark Mode</span>
+            {theme.mode === 'dark' && <Check className="w-3.5 h-3.5 muster-accent ml-auto" />}
+          </button>
 
-      {/* Dropdown panel */}
-      {open && (
-        <div className="muster-panel absolute right-0 top-full mt-1.5 z-50 shadow-2xl p-3 w-56 flex flex-col gap-3">
-          {/* Mode toggle */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide muster-text-muted">
-              Appearance
-            </span>
-            <button onClick={toggleMode} className="muster-btn muster-btn-secondary font-mono">
-              {theme.mode === 'dark' ? (
-                <>
-                  <Moon className="w-3.5 h-3.5" />
-                  Dark
-                </>
-              ) : (
-                <>
-                  <Sun className="w-3.5 h-3.5" />
-                  Light
-                </>
-              )}
-            </button>
-          </div>
-
-          <div className="muster-divider h-px" aria-hidden="true" />
-
-          {/* Profile selection */}
-          <div>
-            <span className="text-xs font-semibold uppercase tracking-wide block mb-2 muster-text-muted">
-              Color Profile
-            </span>
-            <div className="flex flex-col gap-1.5" role="radiogroup" aria-label="Color profile">
-              {COLOR_PROFILES.map(profile => {
-                const isActive = theme.profile === profile.id;
-                return (
-                  <button
-                    key={profile.id}
-                    role="radio"
-                    aria-checked={isActive}
-                    onClick={() => { setProfile(profile.id); setOpen(false); }}
-                    className={`muster-btn justify-start text-left w-full font-normal ${
-                      isActive ? 'muster-btn-soft' : 'muster-btn-ghost'
-                    }`}
-                  >
-                    {/* The swatch is the one place a literal profile hue belongs:
-                        it previews the theme rather than being themed by it. */}
-                    <span
-                      className="w-4 h-4 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: profile.accent }}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold leading-none mb-0.5 muster-text-primary">
-                        {profile.name}
-                      </span>
-                      <span className="block text-[10px] leading-none truncate muster-text-muted">
-                        {profile.description}
-                      </span>
-                    </span>
-                    {isActive && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => { if (theme.mode !== 'light') toggleMode(); }}
+            className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
+              theme.mode === 'light'
+                ? 'bg-brand-500/10 border-brand-500 muster-text-primary shadow-sm font-bold'
+                : 'bg-muster-surface border-muster-border muster-text-muted hover:muster-text-primary'
+            }`}
+          >
+            <Sun className={`w-4 h-4 ${theme.mode === 'light' ? 'muster-accent' : ''}`} />
+            <span className="muster-text-primary">Light Mode</span>
+            {theme.mode === 'light' && <Check className="w-3.5 h-3.5 muster-accent ml-auto" />}
+          </button>
         </div>
-      )}
+      </div>
+
+      <div className="border-t border-muster-border/60" />
+
+      {/* Color Profile Grid Section */}
+      <div>
+        <h3 className="text-xs font-bold uppercase tracking-wider muster-text-muted mb-2">
+          Color Profile Theme
+        </h3>
+        <p className="text-xs muster-text-secondary mb-3">
+          Choose a color profile for the entire platform interface.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="Color profile">
+          {COLOR_PROFILES.map((profile) => {
+            const isActive = theme.profile === profile.id;
+            return (
+              <button
+                key={profile.id}
+                type="button"
+                role="radio"
+                aria-checked={isActive}
+                onClick={() => setProfile(profile.id)}
+                className={`flex items-start gap-3 p-3.5 rounded-lg border text-left cursor-pointer transition-all ${
+                  isActive
+                    ? 'bg-brand-500/10 border-brand-500 shadow-sm ring-1 ring-brand-500/50'
+                    : 'bg-muster-surface border-muster-border/80 hover:border-muster-border hover:bg-muster-surface-hover'
+                }`}
+              >
+                <span
+                  className="w-5 h-5 rounded-full shrink-0 mt-0.5 shadow-sm border border-black/20"
+                  style={{ backgroundColor: profile.accent }}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs muster-text-primary">
+                      {profile.name}
+                    </span>
+                    {isActive && <Check className="w-4 h-4 muster-accent shrink-0" />}
+                  </div>
+                  <span className="block text-[11px] muster-text-muted mt-0.5 leading-snug">
+                    {profile.description}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };

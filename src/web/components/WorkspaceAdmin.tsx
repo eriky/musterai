@@ -231,7 +231,7 @@ const MembersPanel: React.FC<{
                 value={u.role_id}
                 onChange={(e) => handleRoleChange(u.id, e.target.value)}
                 disabled={savingId === u.id}
-                className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1 cursor-pointer"
+                className="muster-input text-xs py-1 cursor-pointer"
               >
                 {roles.map((r) => (
                   <option key={r.id} value={r.id}>{r.name}</option>
@@ -707,7 +707,7 @@ const AuditLogPanel: React.FC<{
           <select
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value)}
-            className="bg-muster-surface border border-muster-border text-neutral-200 text-xs rounded px-2 py-1 cursor-pointer"
+            className="muster-input text-xs py-1 cursor-pointer"
           >
             <option value="">All actions</option>
             {actions.map((a) => <option key={a} value={a}>{a}</option>)}
