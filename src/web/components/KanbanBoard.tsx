@@ -12,6 +12,7 @@ import {
 } from '../kanban.js';
 import { EditColumnModal } from './Modals.js';
 import { DocumentReaderModal } from './DocumentReaderModal.js';
+import { CardSearch } from './CardSearch.js';
 import { KanbanColumn } from './kanban/KanbanColumn.js';
 import { CardDetailDrawer } from './kanban/CardDetailDrawer.js';
 
@@ -678,8 +679,56 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             <Plus className="w-4 h-4 mr-1.5" />
             Add Card
           </button>
+
+          <CardSearch
+            cards={cards}
+            placeholder="Search card..."
+            onSelectCard={(card) => handleOpenCard(card.id)}
+            className="w-36 sm:w-56"
+          />
+
+          <label className="flex items-center space-x-1.5">
+            <span className="text-xs font-sans font-medium muster-text-muted shrink-0 hidden sm:inline">Sort</span>
+            <select
+              value={cardDateSortOrder}
+              onChange={(e) => setCardDateSortOrder(e.target.value as CardDateSortOrder)}
+              className="muster-input w-auto text-xs py-1 px-2 cursor-pointer font-sans"
+              aria-label="Sort cards by last updated date"
+            >
+              <option value="newest">Updated: newest first</option>
+              <option value="oldest">Updated: oldest first</option>
+            </select>
+          </label>
         </div>
       </div>
+
+      {/* Mobile Column Quick Switcher */}
+      {columns.length > 0 && (
+        <div className="flex md:hidden items-center space-x-1.5 overflow-x-auto no-scrollbar pb-2 shrink-0">
+          {columns.map((col) => {
+            const count = cards.filter((c) => c.column_id === col.id && !c.archived).length;
+            return (
+              <button
+                key={col.id}
+                onClick={() => {
+                  const el = document.getElementById(`kanban-column-${col.id}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                }}
+                className={`muster-chip shrink-0 text-xs font-sans py-1 px-2.5 flex items-center gap-1.5 cursor-pointer ${
+                  focusedColumnIdx === columns.findIndex((c) => c.id === col.id)
+                    ? 'border-brand-500 bg-brand-950/40 text-brand-300 font-semibold ring-1 ring-brand-500/50'
+                    : 'hover:border-brand-500/50'
+                }`}
+              >
+                <span>{col.name}</span>
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-neutral-900 muster-text-muted font-mono">
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Main Board Columns Area */}
       <DragDropContext onDragEnd={onDragEnd}>
