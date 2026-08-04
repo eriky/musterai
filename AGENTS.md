@@ -154,7 +154,15 @@ requires `workspace.admin`.
 
 ---
 
-### Rule 6: Roles & Permission Enforcement
+### Rule 6: Mandatory Frontend Rebuild After Code Changes
+
+Whenever modifying frontend UI code in `src/web/` or shared components/styles, agents **MUST ALWAYS rebuild the frontend bundle by executing `npm run build:ui` immediately after making code changes.**
+
+This ensures that the static production bundle served by the Express backend and the local dev server (`npm run dev`) immediately reflects your changes for the human operator. Never declare a frontend task complete without running `npm run build:ui`.
+
+---
+
+### Rule 7: Roles & Permission Enforcement
 
 Muster enforces a **permission model** on every MCP tool and REST endpoint. Each agent and human operator has a **role** that determines which permissions they hold. Permissions are verbs from the catalog (e.g. `card.create`, `doc.approve`, `project.delete`), and every tool is mapped to exactly one required permission.
 
