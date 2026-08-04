@@ -1,24 +1,14 @@
 import { ulid } from 'ulid';
 import { DatabaseAdapter } from '../db/adapter.js';
-import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Document, CardLinkRelationType, StoredCardLinkType, LinkedCardSummary, CardWorkLink, CreateCardWorkLink, ClaimRefusal, CardOperationOptions } from '../shared/types.js';
+import { Card, CardAssignee, CardDetails, CreateCard, UpdateCard, MoveCard, Label, Document, CardLinkRelationType, LinkedCardSummary, CardWorkLink, CreateCardWorkLink, ClaimRefusal, CardOperationOptions } from '../shared/types.js';
 import { EventService } from './event.service.js';
 import { rankAfter } from '../shared/lexorank.js';
 import { formatCardKey } from '../shared/card-key.js';
 import { CardRuleError, NotFoundError, ValidationError } from '../shared/errors.js';
 import { config } from '../config/index.js';
 import { assertMaxLength, CARD_TEXT_MAX_CHARS } from '../shared/content-limits.js';
-
-function assertHttpUrl(url: string): void {
-  let parsed: URL;
-  try {
-    parsed = new URL(url);
-  } catch {
-    throw new ValidationError(`Work link URL is not a valid URL: ${url}`);
-  }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new ValidationError(`Work link URL must use http or https, got: ${parsed.protocol}`);
-  }
-}
+import { assertHttpUrl } from '../shared/url.js';
+import { canonicalizeCardLink } from './helpers/card-links.helper.js';
 
 const DEFAULT_CLAIM_TTL_SECONDS = 600;
 
@@ -799,27 +789,7 @@ export class CardService {
   }
 
   async linkCard(cardId: string, targetCardId: string, relationType: CardLinkRelationType, actorId?: string): Promise<void> {
-    if (cardId === targetCardId) throw new Error('A card cannot be linked to itself');
-
-    let sourceCardId = cardId;
-    let destCardId = targetCardId;
-    // 'blocked_by' and 'child_of' are inverse views: the caller names the
-    // relationship from cardId's perspective, but storage is always
-    // canonical ('blocks'/'parent_of' with source as the blocker/parent).
-    let storedType: StoredCardLinkType =
-      relationType === 'blocked_by' ? 'blocks' :
-      relationType === 'child_of' ? 'parent_of' :
-      relationType;
-
-    if (relationType === 'blocked_by' || relationType === 'child_of') {
-      sourceCardId = targetCardId;
-      destCardId = cardId;
-    } else if (storedType === 'relates_to' || storedType === 'duplicates') {
-      // Symmetric relations: canonicalize direction so A-B and B-A collapse to one row.
-      if (sourceCardId > destCardId) {
-        [sourceCardId, destCardId] = [destCardId, sourceCardId];
-      }
-    }
+    const { sourceCardId, destCardId, storedType } = canonicalizeCardLink(cardId, targetCardId, relationType);
 
     const id = ulid();
     const created_at = new Date().toISOString();
