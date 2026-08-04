@@ -730,14 +730,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 );
               })}
               {provided.placeholder}
-
-              <button
-                onClick={onOpenNewColumn}
-                className="w-72 sm:w-80 flex-shrink-0 flex items-center justify-center border-2 border-dashed border-muster-border hover:border-brand-500/50 rounded-xl p-4 muster-text-muted hover:muster-text-primary transition-all cursor-pointer group h-24"
-              >
-                <Plus className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
-                <span className="text-xs font-semibold uppercase tracking-wide">Add New Column</span>
-              </button>
             </div>
           )}
         </Droppable>
