@@ -111,6 +111,187 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showBoardSettingsModal, editingColumn, cardDetails, isCreatingCard]);
 
+  // Keyboard navigation across columns and cards
+  useEffect(() => {
+    const handleBoardKeyDown = (e: KeyboardEvent) => {
+      const activeElement = document.activeElement;
+      const isTyping =
+        activeElement &&
+        (activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.tagName === 'SELECT' ||
+          (activeElement as HTMLElement).isContentEditable);
+
+      if (isTyping || cardDetails || isCreatingCard || showBoardSettingsModal || editingColumn) {
+        return;
+      }
+
+      if (e.key === '/') {
+        e.preventDefault();
+        const searchInput = document.querySelector<HTMLInputElement>('input[placeholder*="Search"]');
+        searchInput?.focus();
+        return;
+      }
+
+      if (columns.length === 0) return;
+
+      // Map columns to their exact visually rendered cards in order
+      const colCardsMap: Record<string, Card[]> = {};
+      columns.forEach((col) => {
+        const doneLimit = doneVisibleLimits[col.id] ?? DONE_LANE_PAGE_SIZE;
+        colCardsMap[col.id] = getLaneCards(cards, col.id, col.name, cardDateSortOrder, doneLimit).visible;
+      });
+
+      // Determine current active column and card index
+      let activeColIdx = Math.min(Math.max(0, focusedColumnIdx), columns.length - 1);
+      let activeCardIdx = -1;
+
+      if (focusedCardId) {
+        for (let i = 0; i < columns.length; i++) {
+          const cList = colCardsMap[columns[i].id] || [];
+          const idx = cList.findIndex((c) => c.id === focusedCardId);
+          if (idx !== -1) {
+            activeColIdx = i;
+            activeCardIdx = idx;
+            break;
+          }
+        }
+      }
+
+      const activeCol = columns[activeColIdx];
+      const activeColCards = colCardsMap[activeCol.id] || [];
+
+      const focusCard = (cardId: string) => {
+        setFocusedCardId(cardId);
+        requestAnimationFrame(() => {
+          const cardEl = document.getElementById(`kanban-card-${cardId}`);
+          if (cardEl) {
+            cardEl.focus();
+            cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+        });
+      };
+
+      switch (e.key) {
+        case 'ArrowRight': {
+          e.preventDefault();
+          const nextColIdx = Math.min(columns.length - 1, activeColIdx + 1);
+          setFocusedColumnIdx(nextColIdx);
+          const nextCol = columns[nextColIdx];
+          const nextColCards = colCardsMap[nextCol.id] || [];
+          if (nextColCards.length > 0) {
+            focusCard(nextColCards[Math.min(activeCardIdx >= 0 ? activeCardIdx : 0, nextColCards.length - 1)].id);
+          } else {
+            setFocusedCardId(null);
+            document.getElementById(`kanban-column-${nextCol.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+          break;
+        }
+
+        case 'ArrowLeft': {
+          e.preventDefault();
+          const prevColIdx = Math.max(0, activeColIdx - 1);
+          setFocusedColumnIdx(prevColIdx);
+          const prevCol = columns[prevColIdx];
+          const prevColCards = colCardsMap[prevCol.id] || [];
+          if (prevColCards.length > 0) {
+            focusCard(prevColCards[Math.min(activeCardIdx >= 0 ? activeCardIdx : 0, prevColCards.length - 1)].id);
+          } else {
+            setFocusedCardId(null);
+            document.getElementById(`kanban-column-${prevCol.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+          break;
+        }
+
+        case 'ArrowDown': {
+          e.preventDefault();
+          if (activeColCards.length > 0) {
+            const nextIdx = activeCardIdx >= 0 ? Math.min(activeColCards.length - 1, activeCardIdx + 1) : 0;
+            focusCard(activeColCards[nextIdx].id);
+          }
+          break;
+        }
+
+        case 'ArrowUp': {
+          e.preventDefault();
+          if (activeColCards.length > 0) {
+            const prevIdx = activeCardIdx >= 0 ? Math.max(0, activeCardIdx - 1) : activeColCards.length - 1;
+            focusCard(activeColCards[prevIdx].id);
+          }
+          break;
+        }
+
+        case 'PageDown': {
+          e.preventDefault();
+          if (activeColCards.length > 0) {
+            const nextIdx = activeCardIdx >= 0 ? Math.min(activeColCards.length - 1, activeCardIdx + 5) : 0;
+            focusCard(activeColCards[nextIdx].id);
+          }
+          break;
+        }
+
+        case 'PageUp': {
+          e.preventDefault();
+          if (activeColCards.length > 0) {
+            const prevIdx = activeCardIdx >= 0 ? Math.max(0, activeCardIdx - 5) : activeColCards.length - 1;
+            focusCard(activeColCards[prevIdx].id);
+          }
+          break;
+        }
+
+        case 'Home': {
+          e.preventDefault();
+          if (activeColCards.length > 0) focusCard(activeColCards[0].id);
+          break;
+        }
+
+        case 'End': {
+          e.preventDefault();
+          if (activeColCards.length > 0) focusCard(activeColCards[activeColCards.length - 1].id);
+          break;
+        }
+
+        case 'Enter': {
+          if (focusedCardId) {
+            e.preventDefault();
+            handleOpenCard(focusedCardId);
+          }
+          break;
+        }
+
+        case 'n':
+        case 'N':
+        case 'c':
+        case 'C': {
+          e.preventDefault();
+          handleOpenNewCardForm(activeCol.id);
+          break;
+        }
+
+        case 'Delete':
+        case 'Backspace': {
+          if (focusedCardId) {
+            e.preventDefault();
+            const focusedCard = cards.find((c) => c.id === focusedCardId);
+            if (focusedCard) {
+              handleDeleteCard(focusedCard.id, focusedCard.title);
+              setFocusedCardId(null);
+            }
+          }
+          break;
+        }
+
+        case 'Escape': {
+          setFocusedCardId(null);
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleBoardKeyDown);
+    return () => window.removeEventListener('keydown', handleBoardKeyDown);
+  }, [columns, cards, focusedCardId, focusedColumnIdx, cardDateSortOrder, doneVisibleLimits, cardDetails, isCreatingCard, showBoardSettingsModal, editingColumn]);
+
   // Handle external new card requests
   useEffect(() => {
     if (newCardRequest && newCardRequest.token > 0) {
