@@ -310,6 +310,13 @@ describe('Domain Services Integration Tests', () => {
     // The document row keeps its last known author rather than going null.
     const current = await documentService.getById(doc.id);
     expect(current?.author_id).toBe(editor.id);
+
+    // Document deletion cleans up versions and document record
+    await documentService.delete(doc.id);
+    const deleted = await documentService.getById(doc.id);
+    expect(deleted).toBeNull();
+    const deletedHistory = await documentService.getHistory(doc.id);
+    expect(deletedHistory).toEqual([]);
   });
 
   it('Feature: agent registration and session re-binding', async () => {

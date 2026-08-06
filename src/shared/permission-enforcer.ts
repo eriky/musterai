@@ -111,6 +111,7 @@ export const TOOL_PERMISSIONS: Record<string, PermissionSpec> = {
   create_document: 'doc.create',
   get_document: 'project.create',
   update_document: 'doc.update',
+  delete_document: 'doc.delete',
   set_document_status: (args) => {
     return args.status === 'approved' ? 'doc.approve' : 'doc.submit_review';
   },
@@ -217,6 +218,7 @@ export const REST_ROUTE_PERMISSIONS: RoutePattern[] = [
   { method: 'GET', pattern: /\/projects\/[^/]+\/documents/, permission: 'project.create', readOnly: true },
   { method: 'POST', pattern: /\/projects\/[^/]+\/documents$/, permission: 'doc.create' },
   { method: 'PUT', pattern: /\/documents\/[^/]+$/, permission: 'doc.update' },
+  { method: 'DELETE', pattern: /\/documents\/[^/]+$/, permission: 'doc.delete' },
   { method: 'PATCH', pattern: /\/documents\/[^/]+\/status$/, permission: 'doc.submit_review' },
 
   // ── Agents ──

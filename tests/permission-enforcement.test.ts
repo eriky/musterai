@@ -138,7 +138,7 @@ describe('MUS-22: Permission enforcement', () => {
       'add_work_link', 'remove_work_link', 'list_work_links',
       'create_label', 'list_labels',
       'list_documents', 'create_document', 'get_document', 'update_document',
-      'set_document_status', 'get_document_history',
+      'delete_document', 'set_document_status', 'get_document_history',
       'register_agent', 'update_agent', 'unregister_agent', 'heartbeat', 'list_agents',
       'get_activity',
       'list_knowledge_bases', 'create_knowledge_base', 'link_knowledge_base',

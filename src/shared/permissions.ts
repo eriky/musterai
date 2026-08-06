@@ -28,6 +28,7 @@ export const ALL_PERMISSIONS = [
   'comment.delete',
   'doc.create',
   'doc.update',
+  'doc.delete',
   'doc.submit_review',
   'doc.approve',
   'kb.read',

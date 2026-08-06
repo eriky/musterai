@@ -55,6 +55,15 @@ export function createDocumentRouter(documentService: DocumentService, auditServ
     }
   });
 
+  router.delete('/documents/:id', async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await documentService.delete(req.params.id, getActorId(req));
+      res.json({ success: true });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.patch('/documents/:id/status', async (req: Request, res: Response, next: NextFunction) => {
     try {
       const doc = await documentService.setStatus(req.params.id, req.body.status, getActorId(req));

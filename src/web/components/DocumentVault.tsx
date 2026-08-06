@@ -1,7 +1,7 @@
 // File: src/web/components/DocumentVault.tsx
 import React, { useState, useEffect } from 'react';
 import { Document, DocumentVersion } from '../types.js';
-import { FileText, Edit3, History, CheckCircle, Clock, Save, Plus, X, ArrowLeft, User } from 'lucide-react';
+import { FileText, Edit3, History, CheckCircle, Clock, Save, Plus, X, ArrowLeft, User, Trash2 } from 'lucide-react';
 import { renderMarkdown } from '../markdown.js';
 import { api } from '../api.js';
 
@@ -94,6 +94,18 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
       setShowHistory(!showHistory);
     } catch (err) {
       console.error('Failed to load version history:', err);
+    }
+  };
+
+  const handleDeleteDocument = async () => {
+    if (!selectedDoc) return;
+    if (!confirm(`Are you sure you want to delete document "${selectedDoc.title}"? This action cannot be undone.`)) return;
+    try {
+      await api.deleteDocument(selectedDoc.id);
+      onRefresh();
+    } catch (err: any) {
+      console.error('Failed to delete document:', err);
+      alert(err.message || 'Failed to delete document');
     }
   };
 
@@ -272,6 +284,14 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                           title="Version History"
                         >
                           <History className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          onClick={handleDeleteDocument}
+                          className="muster-btn muster-btn-icon muster-btn-ghost hover:bg-danger-950/40 hover:border-danger-600/50"
+                          title="Delete Document"
+                        >
+                          <Trash2 className="w-4 h-4 text-danger-400" />
                         </button>
                       </>
                     )}

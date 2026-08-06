@@ -582,6 +582,11 @@ All AI agents and human operators collaborating within Muster must follow this p
     return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
   }));
 
+  server.tool('delete_document', { document_id: z.string() }, withPermission('delete_document', auth, async ({ document_id }) => {
+    await services.documentService.delete(document_id, resolveActor(auth));
+    return { content: [{ type: 'text', text: JSON.stringify({ success: true, message: `Document ${document_id} deleted` }) }] };
+  }));
+
   // --- Agent Management Tools ---
   server.tool('register_agent', {
     agent_id: z.string().optional().describe('Existing Agent ID to re-bind session across runs'),

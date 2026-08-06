@@ -193,4 +193,24 @@ export class DocumentService {
       [id]
     );
   }
+
+  async delete(id: string, actorId?: string): Promise<void> {
+    const existing = await this.getById(id);
+    if (!existing) throw new Error(`Document with ID ${id} not found`);
+
+    await this.db.execute('DELETE FROM card_document WHERE document_id = ?', [id]);
+    await this.db.execute('DELETE FROM document_version WHERE document_id = ?', [id]);
+    await this.db.execute('DELETE FROM document WHERE id = ?', [id]);
+
+    if (this.eventService) {
+      await this.eventService.create({
+        project_id: existing.project_id,
+        entity_type: 'document',
+        entity_id: id,
+        action: 'deleted',
+        actor_id: actorId,
+        payload: { title: existing.title },
+      });
+    }
+  }
 }
