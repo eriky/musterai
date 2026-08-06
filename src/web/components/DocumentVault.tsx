@@ -236,23 +236,49 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    {getStatusBadge(selectedDoc.status)}
+                    {!isEditing && (
+                      <>
+                        {selectedDoc.status === 'approved' && (
+                          <button
+                            onClick={() => handleStatusChange('in_review')}
+                            className="muster-badge muster-badge-success cursor-pointer hover:bg-success-900/60 transition-all flex items-center py-1 px-2.5 text-xs font-semibold"
+                            title="Approved — Click to un-approve and return to In Review"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5 mr-1.5" />
+                            Approved
+                          </button>
+                        )}
 
-                    {selectedDoc.status === 'draft' && !isEditing && (
-                      <button
-                        onClick={() => handleStatusChange('in_review')}
-                        className="muster-btn muster-btn-soft"
-                      >
-                        Submit for Review
-                      </button>
-                    )}
-                    {selectedDoc.status === 'in_review' && !isEditing && (
-                      <button
-                        onClick={() => handleStatusChange('approved')}
-                        className="muster-btn muster-btn-soft"
-                      >
-                        Approve
-                      </button>
+                        {selectedDoc.status === 'in_review' && (
+                          <>
+                            <span className="muster-badge muster-badge-warning flex items-center py-1 px-2.5 text-xs">
+                              <Clock className="w-3.5 h-3.5 mr-1.5 animate-pulse" /> In Review
+                            </span>
+                            <button
+                              onClick={() => handleStatusChange('approved')}
+                              className="muster-btn muster-btn-soft text-xs"
+                              title="Approve this document"
+                            >
+                              Approve
+                            </button>
+                          </>
+                        )}
+
+                        {selectedDoc.status === 'draft' && (
+                          <>
+                            <span className="muster-badge muster-badge-neutral text-xs">
+                              Draft
+                            </span>
+                            <button
+                              onClick={() => handleStatusChange('in_review')}
+                              className="muster-btn muster-btn-soft text-xs"
+                              title="Submit draft for review"
+                            >
+                              Submit for Review
+                            </button>
+                          </>
+                        )}
+                      </>
                     )}
 
                     {/* Edit mode vs Read mode controls */}
