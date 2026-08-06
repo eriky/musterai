@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Board, Column, Card, Agent, CardDetails, Document, CardLinkRelationType, CardWorkLinkKind, CardWorkLinkProvider, User, AuthMe } from '../types.js';
-import { Layout, Plus, Trash2, Edit2, CheckCircle2, ArrowRight, Settings, Layers, X, ChevronDown } from 'lucide-react';
+import { Layout, Plus, Trash2, Edit2, CheckCircle2, ArrowRight, Settings, Layers, X, ChevronDown, ArrowDownWideNarrow, ArrowUpNarrowWide } from 'lucide-react';
 import { api, getLocalProxyToken } from '../api.js';
 import {
   CardDateSortOrder,
@@ -686,32 +686,26 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           )}
         </div>
 
-        <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0">
-          <button onClick={() => handleOpenNewCardForm()} className="muster-btn muster-btn-primary shrink-0 text-xs py-1.5 px-2.5 sm:px-3">
-            <Plus className="w-4 h-4 mr-1 sm:mr-1.5" />
-            <span className="hidden xs:inline">Add Card</span>
-            <span className="xs:hidden">Add</span>
-          </button>
-
+        <div className="flex items-center space-x-2 min-w-0">
           <CardSearch
             cards={cards}
             placeholder="Search card..."
             onSelectCard={(card) => handleOpenCard(card.id)}
-            className="w-28 xs:w-36 sm:w-48 md:w-56 min-w-0"
+            className="w-36 sm:w-60 min-w-0"
           />
 
-          <label className="flex items-center space-x-1.5 shrink-0">
-            <span className="text-xs font-sans font-medium muster-text-muted shrink-0 hidden md:inline">Sort</span>
-            <select
-              value={cardDateSortOrder}
-              onChange={(e) => setCardDateSortOrder(e.target.value as CardDateSortOrder)}
-              className="muster-input w-auto text-xs py-1 px-1.5 sm:px-2 cursor-pointer font-sans"
-              aria-label="Sort cards by last updated date"
-            >
-              <option value="newest">Updated: newest</option>
-              <option value="oldest">Updated: oldest</option>
-            </select>
-          </label>
+          <button
+            onClick={() => setCardDateSortOrder((prev) => (prev === 'newest' ? 'oldest' : 'newest'))}
+            className="muster-btn muster-btn-icon muster-btn-secondary p-1.5 shrink-0"
+            title={`Sort cards: ${cardDateSortOrder === 'newest' ? 'Newest updated first (click for oldest first)' : 'Oldest updated first (click for newest first)'}`}
+            aria-label="Toggle card sort order by date updated"
+          >
+            {cardDateSortOrder === 'newest' ? (
+              <ArrowDownWideNarrow className="w-4 h-4 muster-accent" />
+            ) : (
+              <ArrowUpNarrowWide className="w-4 h-4 muster-accent" />
+            )}
+          </button>
         </div>
       </div>
 
