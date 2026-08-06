@@ -241,7 +241,7 @@ Custom roles can be created via `create_role`, and system roles can be cloned vi
 | :--- | :--- |
 | `list_cards` | List cards. Supports filtering by `column_id`, `assignee_id`, or `label`. |
 | `create_card` | Create a card with title, description, priority (`low`, `medium`, `high`, `critical`), and assignees. |
-| `get_card` | Get full card details: assignees, labels, comments, timestamps. |
+| `get_card` | Get full card details: assignees, labels, comments, timestamps. Accepts the card ULID or its human-readable `key` (e.g. `MUS-49`). |
 | `update_card` | Update card title, description, priority, or due date. |
 | `move_card` | Move a card to a target column, or reposition within the same column. |
 | `claim_card` | Atomically claim a card, record the agent as assignee, and create a work lease; then call `move_card` to advance it to the next active-work lane. |

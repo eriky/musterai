@@ -1894,7 +1894,7 @@ export function createMcpServer(services: Services): McpServer {
 
   server.tool(
     'get_card',
-    { card_id: z.string() },
+    { card_id: z.string().describe('The card ULID or its human-readable key (e.g. "MUS-49")') },
     async ({ card_id }) => {
       try {
         const result = await services.cardService.getCard(card_id);

@@ -216,11 +216,19 @@ export class CardService {
    * and if every pool connection is meanwhile blocked on this same row's
    * lock (as under concurrent claim() calls), that request queues forever —
    * a self-inflicted deadlock. Found via MUS-31's concurrent-claim test.
+   *
+   * `idOrKey` may be either the card ULID or its human-readable key (e.g.
+   * "MUS-49"). Keys are how humans reference cards, and agents are routinely
+   * handed them ("pick up MUS-49") without the ULID. Resolving both here means
+   * every caller — the MCP `get_card` tool, the REST `GET /cards/:id` route,
+   * and the frontend — accepts either form without duplicating the lookup.
    */
-  async getById(id: string, db: DatabaseAdapter = this.db): Promise<CardDetails> {
-    const cardRows = await db.query<Card>('SELECT * FROM card WHERE id = ?', [id]);
+  async getById(idOrKey: string, db: DatabaseAdapter = this.db): Promise<CardDetails> {
+    const cardRows = await db.query<Card>('SELECT * FROM card WHERE id = ? OR key = ?', [idOrKey, idOrKey]);
     const card = cardRows[0];
-    if (!card) throw new Error(`Card with ID ${id} not found`);
+    if (!card) throw new Error(`Card with ID ${idOrKey} not found`);
+
+    const id = card.id;
 
     // LEFT JOINs both concrete principal tables — an assignee may be an agent
     // or a human app_user, and only one of the two joins will match per row.

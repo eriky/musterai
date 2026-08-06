@@ -89,6 +89,21 @@ describe('Atomic card claiming and lease expiry', () => {
     return cardService.create({ column_id: columns[0].id, title });
   }
 
+  it('getById resolves a card by its human-readable key as well as its ULID', async () => {
+    const card = await makeCard();
+    expect(card.key).toBeTruthy();
+
+    const byId = await cardService.getById(card.id);
+    expect(byId.id).toBe(card.id);
+    expect(byId.key).toBe(card.key);
+
+    const byKey = await cardService.getById(card.key!);
+    expect(byKey.id).toBe(card.id);
+    expect(byKey.title).toBe(card.title);
+
+    await expect(cardService.getById('MUS-99999')).rejects.toThrow(/not found/);
+  });
+
   it('two concurrent claim_card calls for the same card: exactly one succeeds, the other names the holder', async () => {
     const card = await makeCard();
     const agentA = await agentService.register({ name: 'Agent A' });

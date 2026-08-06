@@ -47,7 +47,7 @@
     HTTP/WS         MCP (Streamable HTTP or stdio)
          │               │               │               │
 ┌────────▼───────────────▼───────────────▼───────────────▼─────-────┐
-│                     Muster Server                                    │
+│                     Muster Server                                 │
 │                                                                   │
 │  ┌─────────────┐  ┌─────────────┐  ┌──────────────────────────┐   │
 │  │   REST API  │  │  MCP Server │  │   Real-Time (SSE / WS)   │   │
@@ -413,7 +413,7 @@ Tools are grouped by domain. Every tool returns structured JSON results.
 | --------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
 | `list_cards`    | `column_id?`, `board_id?`, `assignee_id?`, `label?`, `status?`             | List/filter cards                        |
 | `create_card`   | `column_id`, `title`, `description?`, `priority?`, `labels?`, `assignees?` | Create a card                            |
-| `get_card`      | `card_id`                                                                  | Get full card details including comments |
+| `get_card`      | `card_id` (ULID or key e.g. `MUS-49`)                                  | Get full card details including comments |
 | `update_card`   | `card_id`, `title?`, `description?`, `priority?`, `due_date?`              | Update card fields                       |
 | `move_card`     | `card_id`, `target_column_id`, `position?`                                 | Move a card to a different column        |
 | `assign_card`   | `card_id`, `agent_id`                                                      | Assign an agent to a card                |
@@ -453,8 +453,8 @@ Tools are grouped by domain. Every tool returns structured JSON results.
 
 Resources expose read-only data that agents can pull into their context.
 
-| Resource URI                  | Description                             |
-| ----------------------------- | --------------------------------------- |
+| Resource URI                     | Description                             |
+| -------------------------------- | --------------------------------------- |
 | `muster://project/{id}/summary`  | Project overview as structured Markdown |
 | `muster://board/{id}`            | Full board state (columns + cards)      |
 | `muster://card/{id}`             | Card detail with comments and history   |
@@ -961,7 +961,7 @@ These are **not in scope for v1** but inform architectural decisions:
 
 | Term          | Definition                                                                                      |
 | ------------- | ----------------------------------------------------------------------------------------------- |
-| **Muster**       | Muster                                                                    |
+| **Muster**    | Muster                                                                                          |
 | **MCP**       | Model Context Protocol — the standard for AI ↔ tool communication                               |
 | **ULID**      | Universally Unique Lexicographically Sortable Identifier                                        |
 | **LexoRank**  | A fractional indexing scheme that enables inserting items between two others without reindexing |

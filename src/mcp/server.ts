@@ -332,7 +332,9 @@ All AI agents and human operators collaborating within Muster must follow this p
     return { content: [{ type: 'text', text: JSON.stringify(card, null, 2) }] };
   }));
 
-  server.tool('get_card', { card_id: z.string() }, withPermission('get_card', auth, async ({ card_id }) => {
+  server.tool('get_card', {
+    card_id: z.string().describe('The card ULID or its human-readable key (e.g. "MUS-49")'),
+  }, withPermission('get_card', auth, async ({ card_id }) => {
     const details = await services.cardService.getById(card_id);
     return { content: [{ type: 'text', text: JSON.stringify(details, null, 2) }] };
   }));
