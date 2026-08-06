@@ -35,6 +35,7 @@ interface KanbanBoardProps {
   onNewCardRequestHandled?: () => void;
   onOpenCardRequestHandled?: () => void;
   onOpenNewColumn: () => void;
+  onOpenNewBoard?: () => void;
   onDeleteBoard: (boardId: string) => void;
   onOpenDocumentInVault?: (docId: string) => void;
   onRefresh: () => void;
@@ -59,6 +60,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onNewCardRequestHandled,
   onOpenCardRequestHandled,
   onOpenNewColumn,
+  onOpenNewBoard,
   onDeleteBoard,
   onOpenDocumentInVault,
   onRefresh,
@@ -675,7 +677,18 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             </select>
           )}
 
-          <button onClick={() => handleOpenNewCardForm()} className="muster-btn muster-btn-primary">
+          {onOpenNewBoard && (
+            <button
+              onClick={onOpenNewBoard}
+              className="muster-btn muster-btn-secondary py-1.5 px-2.5 text-xs flex items-center shrink-0"
+              title="Create a new board"
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              New Board
+            </button>
+          )}
+
+          <button onClick={() => handleOpenNewCardForm()} className="muster-btn muster-btn-primary shrink-0">
             <Plus className="w-4 h-4 mr-1.5" />
             Add Card
           </button>
@@ -684,7 +697,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             cards={cards}
             placeholder="Search card..."
             onSelectCard={(card) => handleOpenCard(card.id)}
-            className="w-36 sm:w-56"
+            className="w-44 sm:w-72 md:w-80"
           />
 
           <label className="flex items-center space-x-1.5">
