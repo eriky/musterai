@@ -645,38 +645,32 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             </form>
           ) : (
             <div className="flex items-center space-x-1 min-w-0">
-              {boards.length > 1 ? (
-                <div className="relative flex items-center min-w-0">
-                  <select
-                    value={selectedBoardId || board.id}
-                    onChange={(e) => {
-                      if (e.target.value === '__NEW_BOARD__') {
-                        onOpenNewBoard?.();
-                      } else {
-                        onSelectBoard(e.target.value);
-                      }
-                    }}
-                    className="muster-input text-base font-bold py-1 pl-2 pr-7 bg-transparent hover:bg-muster-surface-hover border-transparent hover:border-muster-border rounded-lg cursor-pointer font-sans muster-text-primary focus:ring-1 focus:ring-brand-500 appearance-none max-w-[200px] sm:max-w-[320px] truncate"
-                    aria-label="Select board"
-                  >
-                    {boards.map((b) => (
-                      <option key={b.id} value={b.id} className="bg-muster-surface text-xs font-semibold py-1">
-                        {b.name}
-                      </option>
-                    ))}
-                    {onOpenNewBoard && (
-                      <option value="__NEW_BOARD__" className="bg-muster-surface text-xs font-semibold py-1 muster-accent font-bold">
-                        + Create New Board...
-                      </option>
-                    )}
-                  </select>
-                  <ChevronDown className="w-4 h-4 muster-text-muted absolute right-1.5 pointer-events-none" />
-                </div>
-              ) : (
-                <h2 className="text-base font-bold muster-text-primary truncate">
-                  {board.name}
-                </h2>
-              )}
+              <div className="relative flex items-center min-w-0">
+                <select
+                  value={selectedBoardId || board.id}
+                  onChange={(e) => {
+                    if (e.target.value === '__NEW_BOARD__') {
+                      onOpenNewBoard?.();
+                    } else {
+                      onSelectBoard(e.target.value);
+                    }
+                  }}
+                  className="muster-input text-base font-bold py-1 pl-2 pr-7 bg-transparent hover:bg-muster-surface-hover border-transparent hover:border-muster-border rounded-lg cursor-pointer font-sans muster-text-primary focus:ring-1 focus:ring-brand-500 appearance-none max-w-[200px] sm:max-w-[320px] truncate"
+                  aria-label="Select board"
+                >
+                  {boards.map((b) => (
+                    <option key={b.id} value={b.id} className="bg-muster-surface text-xs font-semibold py-1">
+                      {b.name}
+                    </option>
+                  ))}
+                  {onOpenNewBoard && (
+                    <option value="__NEW_BOARD__" className="bg-muster-surface text-xs font-semibold py-1 muster-accent font-bold">
+                      + Create New Board...
+                    </option>
+                  )}
+                </select>
+                <ChevronDown className="w-4 h-4 muster-text-muted absolute right-1.5 pointer-events-none" />
+              </div>
 
               <button
                 onClick={() => {
@@ -688,17 +682,6 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               >
                 <Settings className="w-4 h-4" />
               </button>
-
-              {boards.length <= 1 && onOpenNewBoard && (
-                <button
-                  onClick={onOpenNewBoard}
-                  className="muster-btn muster-btn-secondary py-1 px-2.5 text-xs flex items-center ml-1 shrink-0"
-                  title="Create a new board"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  New Board
-                </button>
-              )}
             </div>
           )}
         </div>
