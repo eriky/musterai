@@ -614,8 +614,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   return (
     <div className="flex-1 flex flex-col h-full min-h-0 font-sans space-y-4">
       {/* Board Header Bar */}
-      <div className="flex-none flex items-center justify-between border-b border-muster-border pb-3 gap-3">
-        <div className="flex items-center space-x-2.5 min-w-0">
+      <div className="flex-none flex items-center justify-between border-b border-muster-border pb-3 gap-2 sm:gap-3">
+        <div className="flex items-center space-x-2 sm:space-x-2.5 shrink-0 min-w-0">
           <Layout className="w-5 h-5 muster-accent shrink-0" />
           {isEditingBoardName ? (
             <form
@@ -644,8 +644,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
               </button>
             </form>
           ) : (
-            <div className="flex items-center space-x-1 min-w-0">
-              <div className="relative flex items-center min-w-0">
+            <div className="flex items-center space-x-1 shrink-0 min-w-0">
+              <div className="relative flex items-center shrink-0 min-w-0">
                 <select
                   value={selectedBoardId || board.id}
                   onChange={(e) => {
@@ -655,7 +655,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                       onSelectBoard(e.target.value);
                     }
                   }}
-                  className="muster-input text-base font-bold py-1 pl-2 pr-7 bg-transparent hover:bg-muster-surface-hover border-transparent hover:border-muster-border rounded-lg cursor-pointer font-sans muster-text-primary focus:ring-1 focus:ring-brand-500 appearance-none max-w-[200px] sm:max-w-[320px] truncate"
+                  className="muster-input text-sm sm:text-base font-bold py-1 pl-2 pr-7 bg-transparent hover:bg-muster-surface-hover border-transparent hover:border-muster-border rounded-lg cursor-pointer font-sans muster-text-primary focus:ring-1 focus:ring-brand-500 appearance-none max-w-[160px] xs:max-w-[220px] sm:max-w-[340px] truncate"
                   aria-label="Select board"
                 >
                   {boards.map((b) => (
@@ -686,29 +686,30 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           )}
         </div>
 
-        <div className="flex items-center space-x-2 shrink-0">
-          <button onClick={() => handleOpenNewCardForm()} className="muster-btn muster-btn-primary shrink-0">
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add Card
+        <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0">
+          <button onClick={() => handleOpenNewCardForm()} className="muster-btn muster-btn-primary shrink-0 text-xs py-1.5 px-2.5 sm:px-3">
+            <Plus className="w-4 h-4 mr-1 sm:mr-1.5" />
+            <span className="hidden xs:inline">Add Card</span>
+            <span className="xs:hidden">Add</span>
           </button>
 
           <CardSearch
             cards={cards}
             placeholder="Search card..."
             onSelectCard={(card) => handleOpenCard(card.id)}
-            className="w-44 sm:w-72 md:w-80 shrink-0"
+            className="w-28 xs:w-36 sm:w-48 md:w-56 min-w-0"
           />
 
           <label className="flex items-center space-x-1.5 shrink-0">
-            <span className="text-xs font-sans font-medium muster-text-muted shrink-0 hidden sm:inline">Sort</span>
+            <span className="text-xs font-sans font-medium muster-text-muted shrink-0 hidden md:inline">Sort</span>
             <select
               value={cardDateSortOrder}
               onChange={(e) => setCardDateSortOrder(e.target.value as CardDateSortOrder)}
-              className="muster-input w-auto text-xs py-1 px-2 cursor-pointer font-sans"
+              className="muster-input w-auto text-xs py-1 px-1.5 sm:px-2 cursor-pointer font-sans"
               aria-label="Sort cards by last updated date"
             >
-              <option value="newest">Updated: newest first</option>
-              <option value="oldest">Updated: oldest first</option>
+              <option value="newest">Updated: newest</option>
+              <option value="oldest">Updated: oldest</option>
             </select>
           </label>
         </div>

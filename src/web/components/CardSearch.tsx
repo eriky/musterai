@@ -160,7 +160,7 @@ export const CardSearch: React.FC<CardSearchProps> = ({
         <div
           id={listboxId}
           role="listbox"
-          className="absolute right-0 top-full z-50 mt-1.5 min-w-[320px] sm:min-w-[440px] max-h-80 overflow-y-auto bg-muster-surface border border-muster-border rounded-lg shadow-2xl py-1 text-xs font-sans"
+          className="absolute right-0 top-full z-50 mt-1.5 min-w-[260px] sm:min-w-[340px] max-w-[90vw] max-h-80 overflow-y-auto bg-muster-surface border border-muster-border rounded-lg shadow-2xl py-1 text-xs font-sans"
         >
           {results.map((card, idx) => {
             const isHighlighted = idx === selectedIndex;
