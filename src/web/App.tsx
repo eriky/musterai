@@ -550,6 +550,7 @@ export const App: React.FC = () => {
             onNewCardRequestHandled={() => setNewCardRequest(null)}
             onOpenCardRequestHandled={() => setOpenCardRequest(null)}
             onOpenNewColumn={() => setShowNewColumnModal(true)}
+            onOpenNewBoard={() => setShowNewBoardModal(true)}
             onDeleteBoard={handleDeleteBoard}
             onOpenDocumentInVault={(docId) => {
               setActiveTab('docs');

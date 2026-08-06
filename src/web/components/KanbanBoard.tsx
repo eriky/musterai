@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Board, Column, Card, Agent, CardDetails, Document, CardLinkRelationType, CardWorkLinkKind, CardWorkLinkProvider, User, AuthMe } from '../types.js';
-import { Layout, Plus, Trash2, Edit2, CheckCircle2, ArrowRight, Settings, Layers, X } from 'lucide-react';
+import { Layout, Plus, Trash2, Edit2, CheckCircle2, ArrowRight, Settings, Layers, X, ChevronDown } from 'lucide-react';
 import { api, getLocalProxyToken } from '../api.js';
 import {
   CardDateSortOrder,
@@ -614,80 +614,96 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   return (
     <div className="flex-1 flex flex-col h-full min-h-0 font-sans space-y-4">
       {/* Board Header Bar */}
-      <div className="flex-none flex items-center justify-between border-b border-muster-border pb-3">
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2">
-            <Layout className="w-5 h-5 muster-accent" />
-            {isEditingBoardName ? (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleRenameBoard();
-                }}
-                className="flex items-center space-x-2"
+      <div className="flex-none flex items-center justify-between border-b border-muster-border pb-3 gap-3">
+        <div className="flex items-center space-x-2.5 min-w-0">
+          <Layout className="w-5 h-5 muster-accent shrink-0" />
+          {isEditingBoardName ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleRenameBoard();
+              }}
+              className="flex items-center space-x-2"
+            >
+              <input
+                type="text"
+                value={boardNameInput}
+                onChange={(e) => setBoardNameInput(e.target.value)}
+                className="muster-input text-sm py-1 font-bold"
+                autoFocus
+              />
+              <button type="submit" className="muster-btn muster-btn-primary py-1 px-2.5 text-xs">
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditingBoardName(false)}
+                className="muster-btn muster-btn-secondary py-1 px-2.5 text-xs"
               >
-                <input
-                  type="text"
-                  value={boardNameInput}
-                  onChange={(e) => setBoardNameInput(e.target.value)}
-                  className="muster-input text-sm py-1 font-bold"
-                  autoFocus
-                />
-                <button type="submit" className="muster-btn muster-btn-primary py-1 px-2.5 text-xs">
-                  Save
-                </button>
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <div className="flex items-center space-x-1 min-w-0">
+              {boards.length > 1 ? (
+                <div className="relative flex items-center min-w-0">
+                  <select
+                    value={selectedBoardId || board.id}
+                    onChange={(e) => {
+                      if (e.target.value === '__NEW_BOARD__') {
+                        onOpenNewBoard?.();
+                      } else {
+                        onSelectBoard(e.target.value);
+                      }
+                    }}
+                    className="muster-input text-base font-bold py-1 pl-2 pr-7 bg-transparent hover:bg-muster-surface-hover border-transparent hover:border-muster-border rounded-lg cursor-pointer font-sans muster-text-primary focus:ring-1 focus:ring-brand-500 appearance-none max-w-[200px] sm:max-w-[320px] truncate"
+                    aria-label="Select board"
+                  >
+                    {boards.map((b) => (
+                      <option key={b.id} value={b.id} className="bg-muster-surface text-xs font-semibold py-1">
+                        {b.name}
+                      </option>
+                    ))}
+                    {onOpenNewBoard && (
+                      <option value="__NEW_BOARD__" className="bg-muster-surface text-xs font-semibold py-1 muster-accent font-bold">
+                        + Create New Board...
+                      </option>
+                    )}
+                  </select>
+                  <ChevronDown className="w-4 h-4 muster-text-muted absolute right-1.5 pointer-events-none" />
+                </div>
+              ) : (
+                <h2 className="text-base font-bold muster-text-primary truncate">
+                  {board.name}
+                </h2>
+              )}
+
+              <button
+                onClick={() => {
+                  setBoardNameInput(board.name);
+                  setShowBoardSettingsModal(true);
+                }}
+                className="p-1 muster-text-muted hover:muster-text-primary rounded transition-colors shrink-0"
+                title="Board Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+
+              {boards.length <= 1 && onOpenNewBoard && (
                 <button
-                  type="button"
-                  onClick={() => setIsEditingBoardName(false)}
-                  className="muster-btn muster-btn-secondary py-1 px-2.5 text-xs"
+                  onClick={onOpenNewBoard}
+                  className="muster-btn muster-btn-secondary py-1 px-2.5 text-xs flex items-center ml-1 shrink-0"
+                  title="Create a new board"
                 >
-                  Cancel
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  New Board
                 </button>
-              </form>
-            ) : (
-              <h2 className="text-base font-bold muster-text-primary flex items-center">
-                {board.name}
-                <button
-                  onClick={() => {
-                    setBoardNameInput(board.name);
-                    setShowBoardSettingsModal(true);
-                  }}
-                  className="ml-2 p-1 muster-text-muted hover:muster-text-primary rounded transition-colors"
-                  title="Board Settings"
-                >
-                  <Settings className="w-4 h-4" />
-                </button>
-              </h2>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center space-x-2">
-          {boards.length > 1 && (
-            <select
-              value={selectedBoardId || ''}
-              onChange={(e) => onSelectBoard(e.target.value)}
-              className="muster-input text-xs py-1"
-            >
-              {boards.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {onOpenNewBoard && (
-            <button
-              onClick={onOpenNewBoard}
-              className="muster-btn muster-btn-secondary py-1.5 px-2.5 text-xs flex items-center shrink-0"
-              title="Create a new board"
-            >
-              <Plus className="w-3.5 h-3.5 mr-1" />
-              New Board
-            </button>
-          )}
-
+        <div className="flex items-center space-x-2 shrink-0">
           <button onClick={() => handleOpenNewCardForm()} className="muster-btn muster-btn-primary shrink-0">
             <Plus className="w-4 h-4 mr-1.5" />
             Add Card
@@ -697,10 +713,10 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
             cards={cards}
             placeholder="Search card..."
             onSelectCard={(card) => handleOpenCard(card.id)}
-            className="w-44 sm:w-72 md:w-80"
+            className="w-44 sm:w-72 md:w-80 shrink-0"
           />
 
-          <label className="flex items-center space-x-1.5">
+          <label className="flex items-center space-x-1.5 shrink-0">
             <span className="text-xs font-sans font-medium muster-text-muted shrink-0 hidden sm:inline">Sort</span>
             <select
               value={cardDateSortOrder}
