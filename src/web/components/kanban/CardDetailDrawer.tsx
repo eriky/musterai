@@ -656,7 +656,11 @@ export const CardDetailDrawer: React.FC<CardDetailDrawerProps> = ({
                       placeholder="Add comment (Markdown supported)..."
                       className="muster-input text-xs p-3 leading-relaxed flex-1 resize-y"
                     />
-                    <button type="submit" disabled={!commentText.trim()} className="muster-btn muster-btn-lg muster-btn-primary">
+                    <button
+                      type="submit"
+                      disabled={!commentText.trim() || (!currentUser && !selectedAuthorId)}
+                      className="muster-btn muster-btn-lg muster-btn-primary"
+                    >
                       Comment
                     </button>
                   </div>
