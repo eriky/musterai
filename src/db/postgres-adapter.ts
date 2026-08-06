@@ -24,8 +24,8 @@ export function convertPlaceholders(sql: string): string {
   let out = '';
   let paramIndex = 0;
   let inString = false;
-  for (let i = 0; i < sql.length; i++) {
-    const ch = sql[i];
+  for (const element of sql) {
+    const ch = element;
     if (ch === "'") {
       inString = !inString;
       out += ch;
@@ -79,7 +79,7 @@ abstract class BasePostgresAdapter implements DatabaseAdapter {
 
 /** Bound to one already-checked-out client for the lifetime of an open transaction — every call inside must run on this same connection to see uncommitted writes and hold the same locks. */
 class PostgresTransactionAdapter extends BasePostgresAdapter {
-  constructor(private client: pg.PoolClient) {
+  constructor(private readonly client: pg.PoolClient) {
     super();
   }
 
@@ -105,7 +105,7 @@ class PostgresTransactionAdapter extends BasePostgresAdapter {
 }
 
 export class PostgresAdapter extends BasePostgresAdapter {
-  private pool: pg.Pool;
+  private readonly pool: pg.Pool;
 
   constructor(connectionString: string) {
     super();

@@ -1,5 +1,3 @@
-# Dockerfile - Muster v2.0-alpha
-
 # Stage 1: Build Frontend & Backend TypeScript
 FROM node:20-alpine AS builder
 

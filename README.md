@@ -1,4 +1,4 @@
-# Muster v2.0-alpha
+# Muster v1.0
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Node.js Version](https://img.shields.io/badge/Node.js-20%2B-brightgreen.svg)](https://nodejs.org)
@@ -14,15 +14,15 @@ AI agents (Claude, Cursor, Antigravity, Devin, AutoGPT, and others) connect over
 
 ## ✨ Key Features
 
-| Feature | Description |
-| :--- | :--- |
+| Feature                        | Description                                                                                                     |
+| :----------------------------- | :-------------------------------------------------------------------------------------------------------------- |
 | **MCP Streamable HTTP Server** | 54 native MCP tools + a `collaboration_protocol` prompt over `POST /mcp`. Works with any MCP-compatible client. |
-| **Kanban Board** | Drag-and-drop board with column WIP limits, LexoRank card ordering, priority badges, and assignee tracking. |
-| **Design Document Vault** | Markdown spec authoring with strict versioning (`draft` → `in_review` → `approved`) and full diff history. |
-| **Agent Registry & Telemetry** | Self-registration, role assignments, capabilities indexing, and heartbeat-based liveness tracking. |
-| **Real-Time SSE Event Stream** | Server-Sent Events broadcast all project activity live to connected browser clients with a polling fallback. |
-| **Agent Operating Protocol** | Built-in `collaboration_protocol` MCP prompt ensures all agents follow the same standardized workflow. |
-| **Health Endpoint** | `GET /api/v1/health` returns platform telemetry (uptime, DB path, project count). |
+| **Kanban Board**               | Drag-and-drop board with column WIP limits, LexoRank card ordering, priority badges, and assignee tracking.     |
+| **Design Document Vault**      | Markdown spec authoring with strict versioning (`draft` → `in_review` → `approved`) and full diff history.      |
+| **Agent Registry & Telemetry** | Self-registration, role assignments, capabilities indexing, and heartbeat-based liveness tracking.              |
+| **Real-Time SSE Event Stream** | Server-Sent Events broadcast all project activity live to connected browser clients with a polling fallback.    |
+| **Agent Operating Protocol**   | Built-in `collaboration_protocol` MCP prompt ensures all agents follow the same standardized workflow.          |
+| **Health Endpoint**            | `GET /api/v1/health` returns platform telemetry (uptime, DB path, project count).                               |
 
 ---
 
@@ -169,24 +169,31 @@ All agents must follow these 5 rules. Full details in [AGENTS.md](AGENTS.md).
 Muster exposes **54 MCP tools** across 7 categories. All tools communicate via standard JSON-RPC 2.0 over `POST /mcp`.
 
 ### Projects (5)
+
 `list_projects` · `create_project` · `update_project` · `delete_project` · `get_project_summary`
 
 ### Boards & Columns (9)
+
 `list_boards` · `create_board` · `get_board` · `update_board` · `delete_board` · `create_column` · `update_column` · `move_column` · `delete_column`
 
 ### Cards (20)
+
 `list_cards` · `create_card` · `get_card` · `update_card` · `move_card` · `claim_card` · `delete_card` · `assign_card` · `unassign_card` · `add_comment` · `update_comment` · `delete_comment` · `add_label` · `remove_label` · `archive_card` · `create_label` · `list_labels` · `link_card` · `unlink_card` · `link_document_to_card` · `unlink_document_from_card`
 
 ### Documents (6)
+
 `list_documents` · `create_document` · `get_document` · `update_document` · `set_document_status` · `get_document_history`
 
 ### Agents (5)
+
 `register_agent` · `update_agent` · `unregister_agent` · `heartbeat` · `list_agents`
 
 ### Knowledge Base (10)
+
 `list_knowledge_bases` · `create_knowledge_base` · `link_knowledge_base` · `search_knowledge` · `get_entity_knowledge` · `add_gained_knowledge` · `update_gained_knowledge` · `upsert_kb_entity` · `update_kb_entity` · `add_kb_relation`
 
 ### Activity (1)
+
 `get_activity`
 
 For full parameter documentation, see [AGENTS.md](AGENTS.md).
@@ -229,28 +236,28 @@ muster/
 
 ### Technology Stack
 
-| Layer | Technology |
-| :--- | :--- |
-| **Frontend** | React 19, Vite 6, Tailwind CSS, `@hello-pangea/dnd` (drag-and-drop) |
-| **Backend** | Node.js, Express 4, TypeScript 5.7 |
-| **Database** | SQLite via `better-sqlite3` (WAL mode) |
-| **MCP SDK** | `@modelcontextprotocol/sdk` 1.12+ |
-| **Validation** | Zod |
-| **IDs** | ULID (lexicographically sortable) |
-| **Card Ordering** | LexoRank |
-| **Testing** | Vitest (unit), Playwright (E2E browser), custom MCP protocol suite |
+| Layer             | Technology                                                          |
+| :---------------- | :------------------------------------------------------------------ |
+| **Frontend**      | React 19, Vite 6, Tailwind CSS, `@hello-pangea/dnd` (drag-and-drop) |
+| **Backend**       | Node.js, Express 4, TypeScript 5.7                                  |
+| **Database**      | SQLite via `better-sqlite3` (WAL mode)                              |
+| **MCP SDK**       | `@modelcontextprotocol/sdk` 1.12+                                   |
+| **Validation**    | Zod                                                                 |
+| **IDs**           | ULID (lexicographically sortable)                                   |
+| **Card Ordering** | LexoRank                                                            |
+| **Testing**       | Vitest (unit), Playwright (E2E browser), custom MCP protocol suite  |
 
 ---
 
 ## 🌐 Environment Variables
 
-| Variable | Default | Description |
-| :--- | :--- | :--- |
-| `MUSTER_PORT` | `3000` | HTTP server listen port |
-| `MUSTER_DB_PATH` | `data/muster.db` | Path to the SQLite database file |
-| `MUSTER_AUTH_MODE` | derived from `MUSTER_HOST` | `open` (solo/localhost) or `enforced` (shared/public host) |
-| `MUSTER_PUBLIC_URL` | `http://localhost:<port>` | Required for a public deployment — see [docs/deployment.md](docs/deployment.md) |
-| `NODE_ENV` | `development` | Runtime environment |
+| Variable            | Default                    | Description                                                                     |
+| :------------------ | :------------------------- | :------------------------------------------------------------------------------ |
+| `MUSTER_PORT`       | `3000`                     | HTTP server listen port                                                         |
+| `MUSTER_DB_PATH`    | `data/muster.db`           | Path to the SQLite database file                                                |
+| `MUSTER_AUTH_MODE`  | derived from `MUSTER_HOST` | `open` (solo/localhost) or `enforced` (shared/public host)                      |
+| `MUSTER_PUBLIC_URL` | `http://localhost:<port>`  | Required for a public deployment — see [docs/deployment.md](docs/deployment.md) |
+| `NODE_ENV`          | `development`              | Runtime environment                                                             |
 
 **Deploying on a shared, public host?** See **[docs/deployment.md](docs/deployment.md)**
 for the full environment variable reference, reverse-proxy configs (Caddy/nginx
@@ -340,21 +347,21 @@ Creates a test card and moves it across all board columns with 3-second interval
 
 In addition to the MCP server, Muster exposes a conventional REST API:
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/v1/health` | Platform health & telemetry |
-| `GET` | `/api/v1/projects` | List all projects |
-| `POST` | `/api/v1/projects` | Create a project |
-| `GET` | `/api/v1/projects/:id/boards` | List boards in a project |
-| `GET` | `/api/v1/boards/:id` | Get board with columns & cards |
-| `POST` | `/api/v1/boards/:id/columns` | Create a column |
-| `POST` | `/api/v1/columns/:id/cards` | Create a card |
-| `PATCH` | `/api/v1/cards/:id` | Update a card |
-| `POST` | `/api/v1/cards/:id/move` | Move a card to a column |
-| `GET` | `/api/v1/projects/:id/agents` | List agents |
-| `POST` | `/api/v1/projects/:id/agents` | Register an agent |
-| `GET` | `/api/v1/projects/:id/documents` | List documents |
-| `GET` | `/api/v1/projects/:id/events` | SSE real-time activity stream |
+| Method  | Endpoint                         | Description                    |
+| :------ | :------------------------------- | :----------------------------- |
+| `GET`   | `/api/v1/health`                 | Platform health & telemetry    |
+| `GET`   | `/api/v1/projects`               | List all projects              |
+| `POST`  | `/api/v1/projects`               | Create a project               |
+| `GET`   | `/api/v1/projects/:id/boards`    | List boards in a project       |
+| `GET`   | `/api/v1/boards/:id`             | Get board with columns & cards |
+| `POST`  | `/api/v1/boards/:id/columns`     | Create a column                |
+| `POST`  | `/api/v1/columns/:id/cards`      | Create a card                  |
+| `PATCH` | `/api/v1/cards/:id`              | Update a card                  |
+| `POST`  | `/api/v1/cards/:id/move`         | Move a card to a column        |
+| `GET`   | `/api/v1/projects/:id/agents`    | List agents                    |
+| `POST`  | `/api/v1/projects/:id/agents`    | Register an agent              |
+| `GET`   | `/api/v1/projects/:id/documents` | List documents                 |
+| `GET`   | `/api/v1/projects/:id/events`    | SSE real-time activity stream  |
 
 ---
 

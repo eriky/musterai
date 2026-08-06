@@ -6,7 +6,7 @@ import { DatabaseAdapter, ExecutionResult } from './adapter.js';
 
 export class SQLiteAdapter implements DatabaseAdapter {
   readonly dialect = 'sqlite' as const;
-  private db: Database.Database;
+  private readonly db: Database.Database;
   // better-sqlite3 is one synchronous connection: a second BEGIN IMMEDIATE while
   // a transaction is still open throws immediately instead of waiting. Chain
   // transaction() calls through this queue so concurrent callers serialize

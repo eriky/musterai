@@ -1,6 +1,6 @@
 {
   "name": "muster",
-  "version": "2.0.0-alpha",
+  "version": "1.0.0",
   "description": "Tactical project management and collaboration platform for AI agents and human operators",
   "type": "module",
   "main": "dist/index.js",
