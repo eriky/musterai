@@ -88,10 +88,14 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
 
   const handleLoadHistory = async () => {
     if (!selectedDoc) return;
+    if (showHistory) {
+      setShowHistory(false);
+      return;
+    }
     try {
       const versions = await api.getDocumentHistory(selectedDoc.id);
       setHistory(versions);
-      setShowHistory(!showHistory);
+      setShowHistory(true);
     } catch (err) {
       console.error('Failed to load version history:', err);
     }
@@ -270,20 +274,28 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                         </button>
                       </>
                     ) : (
-                      <>
-                        <button
-                          onClick={handleStartEdit}
-                          className="muster-btn muster-btn-secondary"
-                        >
-                          <Edit3 className="w-3.5 h-3.5 mr-1.5" /> Edit Document
-                        </button>
-
+                      <div className="flex items-center space-x-1">
                         <button
                           onClick={handleLoadHistory}
-                          className="muster-btn muster-btn-icon muster-btn-ghost"
-                          title="Version History"
+                          className={`muster-btn muster-btn-icon transition-all ${
+                            showHistory
+                              ? 'bg-warning-950/60 text-warning-300 border-warning-500/50 ring-1 ring-warning-500/40'
+                              : 'muster-btn-ghost'
+                          }`}
+                          title={showHistory ? 'Hide Version History' : 'Show Version History'}
+                          aria-pressed={showHistory}
                         >
                           <History className="w-4 h-4" />
+                        </button>
+
+                        <div className="h-4 w-px bg-muster-border mx-1" />
+
+                        <button
+                          onClick={handleStartEdit}
+                          className="muster-btn muster-btn-icon muster-btn-ghost"
+                          title="Edit Document"
+                        >
+                          <Edit3 className="w-4 h-4" />
                         </button>
 
                         <button
@@ -293,10 +305,48 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                         >
                           <Trash2 className="w-4 h-4 text-danger-400" />
                         </button>
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>
+
+                {/* History Drawer (renders directly beneath header toolbar when toggled) */}
+                {showHistory && (
+                  <div className="p-4 bg-muster-surface rounded-lg border border-warning-500/30 space-y-3 shadow-md animate-in fade-in duration-150">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-warning-300 uppercase flex items-center">
+                        <History className="w-3.5 h-3.5 mr-1.5" /> Version History ({history.length})
+                      </h4>
+                      <button
+                        onClick={() => setShowHistory(false)}
+                        className="muster-btn muster-btn-icon muster-btn-ghost p-1 text-xs"
+                        title="Close History"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {history.map((ver) => (
+                        <div key={ver.id} className="p-2.5 bg-neutral-900 rounded border border-neutral-800 text-xs flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div>
+                              <span className="font-bold muster-text-warning">v{ver.version}</span> - {ver.change_summary || 'Updated'}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-1 muster-text-muted text-[10px]">
+                              <User className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
+                              {ver.author_name ? (
+                                <span className="muster-chip">{ver.author_name}</span>
+                              ) : (
+                                <span className="italic">Unknown author</span>
+                              )}
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-neutral-500 flex-shrink-0">{new Date(ver.created_at).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Edit or Render View */}
                 {isEditing ? (
@@ -335,35 +385,6 @@ export const DocumentVault: React.FC<DocumentVaultProps> = ({
                     className="markdown-render max-w-none text-xs leading-relaxed bg-muster-surface p-6 rounded-lg border border-muster-border"
                     dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedDoc.content) }}
                   />
-                )}
-
-                {/* History Drawer */}
-                {showHistory && (
-                  <div className="p-4 bg-muster-surface rounded-lg border border-warning-500/30 space-y-3">
-                    <h4 className="text-xs font-bold text-warning-300 uppercase flex items-center">
-                      <History className="w-3.5 h-3.5 mr-1.5" /> Version History
-                    </h4>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {history.map((ver) => (
-                        <div key={ver.id} className="p-2.5 bg-neutral-900 rounded border border-neutral-800 text-xs flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div>
-                              <span className="font-bold muster-text-warning">v{ver.version}</span> - {ver.change_summary || 'Updated'}
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-1 muster-text-muted text-[10px]">
-                              <User className="w-3 h-3 flex-shrink-0" aria-hidden="true" />
-                              {ver.author_name ? (
-                                <span className="muster-chip">{ver.author_name}</span>
-                              ) : (
-                                <span className="italic">Unknown author</span>
-                              )}
-                            </div>
-                          </div>
-                          <span className="text-[10px] text-neutral-500 flex-shrink-0">{new Date(ver.created_at).toLocaleString()}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 )}
 
               </div>
