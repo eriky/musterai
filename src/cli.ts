@@ -34,6 +34,9 @@ function parseFlags(argv: string[]): Flags {
 
 function fail(message: string): never {
   console.error(`Error: ${message}`);
+  try {
+    process.kill(process.ppid, 'SIGINT');
+  } catch {}
   process.exit(1);
 }
 
@@ -172,21 +175,63 @@ async function runLogout(flags: Flags): Promise<void> {
   console.log(`Logged out of ${server}.`);
 }
 
+const ALLOWED_FLAGS: Record<string, string[]> = {
+  serve: ['db', 'db-name', 'database', 'd', 'help', 'h'],
+  connect: ['server', 'port', 'write-config', 'help', 'h'],
+  login: ['server', 'token', 'paste', 'help', 'h'],
+  logout: ['server', 'help', 'h'],
+};
+
+function validateFlags(subcommand: string, flags: Flags): void {
+  const allowed = ALLOWED_FLAGS[subcommand] || [];
+  for (const key of Object.keys(flags)) {
+    if (!allowed.includes(key)) {
+      const fullFlag = key.length === 1 ? `-${key}` : `--${key}`;
+      const validList = allowed.map((k) => (k.length === 1 ? `-${k}` : `--${k}`)).join(', ');
+      fail(`Unknown option "${fullFlag}" for "muster ${subcommand}". Valid options: ${validList}`);
+    }
+  }
+}
+
 async function main() {
   let [subcommand, ...rest] = process.argv.slice(2);
-  if (subcommand && subcommand.startsWith('-')) {
+  if (!subcommand) {
+    subcommand = 'serve';
+  } else if (subcommand.startsWith('-')) {
     rest = [subcommand, ...rest];
     subcommand = 'serve';
   }
 
+  const knownCommands = ['serve', 'connect', 'login', 'logout'];
+  if (!knownCommands.includes(subcommand)) {
+    fail(`Unknown command "${subcommand}". Expected one of: ${knownCommands.join(', ')}.`);
+  }
+
   const flags = parseFlags(rest);
-  const dbOption = (flags.db || flags['db-name'] || flags.database || flags.d) as string | undefined;
+  validateFlags(subcommand, flags);
+
+  if (flags.help || flags.h) {
+    console.log(`\nUsage: muster <command> [options]\n`);
+    console.log(`Commands:`);
+    console.log(`  serve                      Start the workspace server (default)`);
+    console.log(`  connect --server <url>     Proxy local MCP connection to remote server`);
+    console.log(`  login --server <url>       Authenticate with remote server`);
+    console.log(`  logout --server <url>      Log out of remote server\n`);
+    console.log(`Options for serve:`);
+    console.log(`  --db, -d <name|path>       Database name or file path (e.g. --db dev)\n`);
+    process.exit(0);
+  }
+
+  if (subcommand === 'serve') {
+    if (flags.db === true || flags['db-name'] === true || flags.database === true || flags.d === true) {
+      fail('Database option requires a database name or file path (e.g. --db myproject)');
+    }
+    const dbOption = (flags.db || flags['db-name'] || flags.database || flags.d) as string | undefined;
+    await startServer({ db: dbOption });
+    return;
+  }
 
   switch (subcommand) {
-    case undefined:
-    case 'serve':
-      await startServer({ db: dbOption });
-      break;
     case 'connect':
       await runConnect(flags);
       break;
@@ -196,9 +241,6 @@ async function main() {
     case 'logout':
       await runLogout(flags);
       break;
-    default:
-      console.error(`Unknown command "${subcommand}". Expected one of: serve, connect, login, logout.`);
-      process.exit(1);
   }
 }
 
