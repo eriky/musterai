@@ -28,55 +28,82 @@ AI agents (Claude, Cursor, Antigravity, Devin, AutoGPT, and others) connect over
 
 ## 🚀 Quick Start
 
+Get up and running in **standalone (unauthenticated) mode** in under 2 minutes!
+
 ### Prerequisites
 
 - **Node.js** 20+ (LTS recommended)
 - **npm** 10+
 
-### 1. Install & Run Locally
+---
+
+### ⚡ 1. Install & Run (Standalone / Open Mode)
+
+By default when running locally, Muster operates in **Standalone (Open) Mode** — no accounts, passwords, OIDC setup, or API keys required. It's ready for instant solo use, local workflows, and live demos.
 
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/your-org/muster.git
 cd muster
 
-# Install dependencies
+# 2. Install dependencies & build
 npm install
-
-# Build the SPA and compile TypeScript
 npm run build
 
-# Start the platform
+# 3. Start Muster
 npm start
 ```
 
-Open **`http://localhost:3000`** in your browser. The MCP server is available at **`http://localhost:3000/mcp`**.
+- 🌐 **Web UI**: Open **[`http://localhost:3000`](http://localhost:3000)** in your browser.
+- 🔌 **MCP Endpoint**: Ready at **`http://localhost:3000/mcp`**.
 
-By default Muster runs in **open mode** — no login required — whenever
-`MUSTER_HOST` is unset, `localhost`, or `127.0.0.1`. This is fine for
-solo/local use. Any other value switches the default to **enforced mode**
-(OIDC login required for every request). Docker sets `MUSTER_HOST=0.0.0.0`, so
-containers always start in enforced mode. See
-[docs/deployment.md](docs/deployment.md) for OIDC setup, multi-user roles,
-PostgreSQL, and everything else needed for a shared/public deployment.
+---
 
-### 2. Development Mode (Hot Reload)
+### 🌱 2. Seed Demo Data (Recommended for Demos)
 
-```bash
-# Run the backend with live reload (tsx watch)
-npm run dev
-
-# In a separate terminal, run the Vite SPA dev server
-npm run dev:ui
-```
-
-### 3. Seed Demo Data (Optional)
-
-Populate a sample project with Kanban cards, AI agents, and design specifications:
+To quickly demonstrate Muster in action, populate a rich sample project complete with interactive Kanban cards, AI agents, design specifications, and Knowledge Base entities:
 
 ```bash
 npm run seed
 ```
+
+---
+
+### 🤖 3. Connect an AI Agent Instantly
+
+Add Muster to your agent's MCP configuration (`mcp.json` or `claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "muster": {
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+Once connected, your agent can load the built-in operating protocol prompt:
+```
+mcpServer.prompt('collaboration_protocol')
+```
+
+---
+
+### 🛠️ Development Mode (Hot Reloading)
+
+If you're making frontend or backend modifications:
+
+```bash
+# Backend with live reload (tsx watch)
+npm run dev
+
+# In a separate terminal: Vite SPA dev server
+npm run dev:ui
+```
+
+> 🔒 **Deploying for a team or public server?**  
+> Muster automatically switches to **enforced mode** (OIDC login required) when hosted on non-loopback network addresses. See **[docs/deployment.md](docs/deployment.md)** for OIDC setup, PostgreSQL, reverse-proxy rules, and RBAC roles.
 
 ---
 

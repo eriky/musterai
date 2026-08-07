@@ -1,6 +1,6 @@
-// File: src/config/index.ts
 import path from 'node:path';
 import os from 'node:os';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,29 +17,55 @@ function detectAuthMode(): 'open' | 'enforced' {
   return 'enforced';
 }
 
+function getDefaultDbDir(): string {
+  if (process.env.MUSTER_DB_DIR) {
+    return path.resolve(process.env.MUSTER_DB_DIR);
+  }
+
+  const cwd = process.cwd();
+  const isInsideProject =
+    (cwd === projectRoot || cwd.startsWith(projectRoot + path.sep)) &&
+    !projectRoot.includes('node_modules');
+
+  if (isInsideProject) {
+    return path.join(projectRoot, 'data');
+  }
+
+  return path.join(os.homedir(), '.config', 'muster', 'db');
+}
+
 export function resolveDbPath(dbOption?: string): { path: string; url: string | null } {
   const dbType = (process.env.MUSTER_DB_TYPE || 'sqlite') as 'sqlite' | 'postgres';
   const initialUrl = process.env.MUSTER_DATABASE_URL || null;
 
-  const targetOption = dbOption || process.env.MUSTER_DB_NAME;
+  let targetOption = dbOption || process.env.MUSTER_DB_NAME;
 
   if (!targetOption) {
     if (process.env.MUSTER_DB_PATH) {
-      return { path: process.env.MUSTER_DB_PATH, url: initialUrl };
+      const resolvedEnvPath = process.env.MUSTER_DB_PATH.startsWith('~/')
+        ? path.join(os.homedir(), process.env.MUSTER_DB_PATH.slice(2))
+        : process.env.MUSTER_DB_PATH;
+      return { path: path.resolve(resolvedEnvPath), url: initialUrl };
     }
-    return { path: path.join(projectRoot, 'data/muster.db'), url: initialUrl };
+    return { path: path.join(getDefaultDbDir(), 'muster.db'), url: initialUrl };
   }
+
+  if (targetOption.startsWith('~/')) {
+    targetOption = path.join(os.homedir(), targetOption.slice(2));
+  }
+
+  const defaultDbPath = path.join(getDefaultDbDir(), 'muster.db');
 
   if (dbType === 'postgres') {
     if (!initialUrl) {
-      return { path: path.join(projectRoot, 'data/muster.db'), url: null };
+      return { path: defaultDbPath, url: null };
     }
     try {
       const parsedUrl = new URL(initialUrl);
       parsedUrl.pathname = `/${targetOption.replace(/^\//, '')}`;
-      return { path: path.join(projectRoot, 'data/muster.db'), url: parsedUrl.toString() };
+      return { path: defaultDbPath, url: parsedUrl.toString() };
     } catch {
-      return { path: path.join(projectRoot, 'data/muster.db'), url: initialUrl };
+      return { path: defaultDbPath, url: initialUrl };
     }
   }
 
@@ -56,7 +82,7 @@ export function resolveDbPath(dbOption?: string): { path: string; url: string | 
     fileName = `${fileName}.db`;
   }
 
-  return { path: path.join(projectRoot, 'data', fileName), url: initialUrl };
+  return { path: path.join(getDefaultDbDir(), fileName), url: initialUrl };
 }
 
 const port = parseInt(process.env.MUSTER_PORT || '3000', 10);

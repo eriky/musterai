@@ -55,6 +55,28 @@ describe('Database Configuration & Path Resolution', () => {
     expect(res.url).toBe('postgres://admin:secret@localhost:5432/staging_db');
   });
 
+  it('expands tilde paths (~/...) to user home directory', () => {
+    const res = resolveDbPath('~/.config/muster/db/custom.db');
+    expect(res.path).toBe(path.join(path.resolve(process.env.HOME || ''), '.config', 'muster', 'db', 'custom.db'));
+  });
+
+  it('respects MUSTER_DB_DIR environment variable for simple database names', () => {
+    process.env.MUSTER_DB_DIR = '/tmp/muster_custom_dir';
+    const res = resolveDbPath('my_custom_db');
+    expect(res.path).toBe('/tmp/muster_custom_dir/my_custom_db.db');
+  });
+
+  it('uses ~/.config/muster/db when process.cwd is outside project root', () => {
+    const originalCwd = process.cwd;
+    try {
+      process.cwd = () => '/tmp';
+      const res = resolveDbPath();
+      expect(res.path).toBe(path.join(path.resolve(process.env.HOME || ''), '.config', 'muster', 'db', 'muster.db'));
+    } finally {
+      process.cwd = originalCwd;
+    }
+  });
+
   it('setDatabaseOverride updates global config.db', () => {
     setDatabaseOverride('override_db');
     expect(config.db.path).toContain(path.join('data', 'override_db.db'));
