@@ -44,9 +44,9 @@ Confirm the result rather than trusting it: the startup banner prints
 the port. Muster also logs a loud warning at boot if it finds itself in `open`
 mode with a non-loopback `MUSTER_HOST`.
 
-## Do not publish port 3000 directly
+## Do not publish port 6878 directly
 
-`docker-compose.yml`'s default `ports: ["3000:3000"]` is a getting-started
+`docker-compose.yml`'s default `ports: ["6878:6878"]` is a getting-started
 convenience, not a deployment topology. Muster's own HTTP server has no TLS
 support and no public-facing hardening beyond what's described in this
 document — it is designed to sit behind a reverse proxy that terminates TLS,
@@ -55,7 +55,7 @@ not to be the public-facing edge itself.
 **Correct topology:**
 
 ```
-Internet → reverse proxy (TLS termination, port 443) → Muster (port 3000, reachable only from the proxy)
+Internet → reverse proxy (TLS termination, port 443) → Muster (port 6878, reachable only from the proxy)
 ```
 
 Change `docker-compose.yml` to publish the port on the host's loopback
@@ -63,14 +63,14 @@ interface only:
 
 ```yaml
 ports:
-  - "127.0.0.1:3000:3000"
+  - "127.0.0.1:6878:6878"
 ```
 
 or drop the `ports:` mapping entirely and put the reverse proxy in the same
 Docker network, reaching Muster by its service name.
 
 Either way, **this is a reachability change, not an auth change.** Inside the
-container Muster still binds `0.0.0.0:3000` and `MUSTER_HOST` is still
+container Muster still binds `0.0.0.0:6878` and `MUSTER_HOST` is still
 `0.0.0.0`, so the container stays in `enforced` mode exactly as before. The
 `127.0.0.1` here is an address on the *host*, not a value Muster ever reads.
 
@@ -80,16 +80,16 @@ container Muster still binds `0.0.0.0:3000` and `MUSTER_HOST` is still
 
 ```caddyfile
 muster.example.com {
-    reverse_proxy 127.0.0.1:3000
+    reverse_proxy 127.0.0.1:6878
 }
 ```
 
 That's the whole config. Caddy obtains and renews the certificate itself.
 Restart Caddy after changes; no separate certbot step.
 
-`127.0.0.1:3000` assumes Caddy runs on the host and Muster publishes to
+`127.0.0.1:6878` assumes Caddy runs on the host and Muster publishes to
 loopback. If Caddy is a container on the same Docker network instead, use the
-service name — `reverse_proxy muster-server:3000` — and drop the `ports:`
+service name — `reverse_proxy muster-server:6878` — and drop the `ports:`
 mapping entirely. The same substitution applies to the nginx `proxy_pass`
 below.
 
@@ -104,7 +104,7 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/muster.example.com/privkey.pem;
 
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:6878;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
@@ -131,7 +131,7 @@ existing ACME tooling) before starting nginx with this config.
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `MUSTER_PORT` | `3000` | The port the server listens on, inside the container. Restricting *who can reach* it is the reverse proxy's and Docker's job, not this variable's. |
+| `MUSTER_PORT` | `6878` | The port the server listens on, inside the container. Restricting *who can reach* it is the reverse proxy's and Docker's job, not this variable's. |
 | `MUSTER_HOST` | `localhost` (`0.0.0.0` in Docker) | Advisory only — picks the `open`/`enforced` default and labels the startup banner. The server always binds `0.0.0.0`; use your firewall or Docker's port mapping to actually restrict reachability. |
 | `MUSTER_AUTH_MODE` | derived from `MUSTER_HOST` | `open` or `enforced`; an explicit value always overrides the derived one. Already `enforced` in Docker — see [Three knobs that are easy to confuse](#three-knobs-that-are-easy-to-confuse). Never set this to `open` on a public host. |
 | `MUSTER_DB_PATH` | `data/muster.db` | SQLite database file path. |

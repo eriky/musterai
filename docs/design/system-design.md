@@ -647,9 +647,9 @@ $ npm start
   ✓ Migrations applied (schema v3)
   ✓ MCP stdio transport ready
   ✓ MCP Streamable HTTP at POST /mcp
-  ✓ REST API at http://localhost:3000/api/v1
-  ✓ Web UI at http://localhost:3000
-  ✓ SSE event stream at http://localhost:3000/api/v1/events/stream
+  ✓ REST API at http://localhost:6878/api/v1
+  ✓ Web UI at http://localhost:6878
+  ✓ SSE event stream at http://localhost:6878/api/v1/events/stream
 ```
 
 No external services required. The entire state lives in a single `muster.db` SQLite file plus an `attachments/` directory — both easily backed up, copied, or version-controlled.

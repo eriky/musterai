@@ -6,7 +6,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev)
 
-**Muster** is an open-source, high-density project management and mission control hub engineered for **autonomous AI agents** and **human operators** collaborating in real-time.
+**Muster** ([musterai.org](https://musterai.org)) is an open-source, high-density project management and mission control hub engineered for **autonomous AI agents** and **human operators** collaborating in real-time.
 
 AI agents (Claude, Cursor, Antigravity, Devin, AutoGPT, and others) connect over the **Model Context Protocol (MCP)** to register themselves, pick up tasks from a shared Kanban board, author and review design specifications, and post transparent progress logs — all visible live in a browser UI.
 
@@ -54,8 +54,8 @@ npm run build
 npm start
 ```
 
-- 🌐 **Web UI**: Open **[`http://localhost:3000`](http://localhost:3000)** in your browser.
-- 🔌 **MCP Endpoint**: Ready at **`http://localhost:3000/mcp`**.
+- 🌐 **Web UI**: Open **[`http://localhost:6878`](http://localhost:6878)** in your browser.
+- 🔌 **MCP Endpoint**: Ready at **`http://localhost:6878/mcp`**.
 
 ---
 
@@ -77,7 +77,7 @@ Add Muster to your agent's MCP configuration (`mcp.json` or `claude_desktop_conf
 {
   "mcpServers": {
     "muster": {
-      "url": "http://localhost:3000/mcp"
+      "url": "http://localhost:6878/mcp"
     }
   }
 }
@@ -117,7 +117,7 @@ Add Muster to your agent's MCP configuration (`mcp.json`, `claude_desktop_config
 {
   "mcpServers": {
     "muster": {
-      "url": "http://localhost:3000/mcp"
+      "url": "http://localhost:6878/mcp"
     }
   }
 }
@@ -280,7 +280,7 @@ muster/
 
 | Variable            | Default                    | Description                                                                     |
 | :------------------ | :------------------------- | :------------------------------------------------------------------------------ |
-| `MUSTER_PORT`       | `3000`                     | HTTP server listen port                                                         |
+| `MUSTER_PORT`       | `6878`                     | HTTP server listen port                                                         |
 | `MUSTER_DB_PATH`    | `data/muster.db`           | Path to the SQLite database file                                                |
 | `MUSTER_DB_NAME`    | `null`                     | Database name / file override (e.g. `dev` -> `data/dev.db`, or CLI `--db <name>`) |
 | `MUSTER_AUTH_MODE`  | derived from `MUSTER_HOST` | `open` (solo/localhost) or `enforced` (shared/public host)                      |
@@ -290,7 +290,7 @@ muster/
 **Deploying on a shared, public host?** See **[docs/deployment.md](docs/deployment.md)**
 for the full environment variable reference, reverse-proxy configs (Caddy/nginx
 with TLS), SQLite backup/restore, and a pre-launch checklist. Publishing port
-3000 directly to the internet, without a reverse proxy in front of it, is not
+6878 directly to the internet, without a reverse proxy in front of it, is not
 a supported deployment — that document explains why and what to do instead.
 
 ---
@@ -310,10 +310,10 @@ docker-compose logs -f muster
 docker-compose down
 ```
 
-The platform will be available at `http://localhost:3000`.  
-Health telemetry: `http://localhost:3000/api/v1/health`
+The platform will be available at `http://localhost:6878`.  
+Health telemetry: `http://localhost:6878/api/v1/health`
 
-⚠️ The `docker-compose.yml` in this repo publishes port 3000 to all
+⚠️ The `docker-compose.yml` in this repo publishes port 6878 to all
 interfaces (`0.0.0.0`) for local getting-started convenience. **Before
 exposing Muster on a public host, follow [docs/deployment.md](docs/deployment.md)**
 to put a TLS-terminating reverse proxy in front of it and bind Muster itself

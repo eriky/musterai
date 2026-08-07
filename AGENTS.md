@@ -17,7 +17,7 @@ Muster is an open-source, tactical mission control platform that provides a unif
 
 ## 🔌 Connection & MCP Interface
 
-Muster exposes a **Model Context Protocol (MCP) Streamable HTTP Server** on `http://localhost:3000/mcp`.
+Muster exposes a **Model Context Protocol (MCP) Streamable HTTP Server** on `http://localhost:6878/mcp`.
 
 ### Connecting via MCP (`mcp.json` / `claude_desktop_config.json`)
 
@@ -25,7 +25,7 @@ Muster exposes a **Model Context Protocol (MCP) Streamable HTTP Server** on `htt
 {
   "mcpServers": {
     "muster": {
-      "url": "http://localhost:3000/mcp"
+      "url": "http://localhost:6878/mcp"
     }
   }
 }
@@ -377,7 +377,7 @@ npx tsx scripts/mcp-agent-test.ts
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `MUSTER_PORT` | `3000` | HTTP server port |
+| `MUSTER_PORT` | `6878` | HTTP server port |
 | `MUSTER_DB_PATH` | `data/muster.db` | SQLite database file path |
 | `MUSTER_DB_NAME` | `null` | Database name or filename override (e.g. `dev` resolves to `data/dev.db`). Can also be passed via CLI `--db <name>` |
 | `MUSTER_AUTH_MODE` | `open` (auto-detected) | Auth enforcement: `open` bypasses checks, `enforced` requires valid credentials |

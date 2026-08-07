@@ -87,7 +87,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '../../');
 
 export const config = {
-  port: parseInt(process.env.MUSTER_PORT || '3000', 10),
+  port: parseInt(process.env.MUSTER_PORT || '6878', 10),
   host: process.env.MUSTER_HOST || 'localhost',
   db: {
     type: process.env.MUSTER_DB_TYPE || 'sqlite',
@@ -2795,7 +2795,7 @@ async function main() {
     console.error('MCP Server running on stdio');
   }
 
-  const port = process.env.PORT || 3000;
+  const port = process.env.PORT || 6878;
   const server = app.listen(port, () => {
     console.log(`Server listening on port ${port}`);
   });
@@ -4466,7 +4466,7 @@ To build and run the Muster locally:
    ```
 
 3. **Start in dev mode:**
-   Runs the server using `ts-node` or `tsx` for rapid development (make sure your `package.json` scripts are set up for this, e.g., `"dev": "tsx src/index.ts --port 3000"`).
+   Runs the server using `ts-node` or `tsx` for rapid development (make sure your `package.json` scripts are set up for this, e.g., `"dev": "tsx src/index.ts --port 6878"`).
    ```bash
    npm run dev
    ```
@@ -4488,8 +4488,8 @@ To build and run the Muster locally:
 Follow these steps to verify the implementation works correctly:
 
 1. [ ] `npm run build` succeeds without any TypeScript compilation errors.
-2. [ ] `npm run dev` starts the Express server successfully (usually on port 3000).
-3. [ ] Opening `http://localhost:3000` in a browser shows the dashboard with the dark theme styling.
+2. [ ] `npm run dev` starts the Express server successfully (usually on port 6878).
+3. [ ] Opening `http://localhost:6878` in a browser shows the dashboard with the dark theme styling.
 4. [ ] Creating a project via `POST /api/v1/projects` (using curl or Postman) updates the project selector in the UI.
 5. [ ] Creating a board within that project creates the default columns ("To Do", "In Progress", "Review", "Done").
 6. [ ] Navigating to the Boards page shows the created board; cards can be moved between columns using drag-and-drop.
