@@ -1,11 +1,21 @@
 {
-  "name": "muster",
+  "name": "musterai",
   "version": "1.0.0",
   "description": "Tactical project management and collaboration platform for AI agents and human operators",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
     "muster": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "public",
+    "README.md",
+    "LICENSE",
+    "AGENTS.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
   },
   "scripts": {
     "start": "node dist/index.js",
@@ -16,8 +26,25 @@
     "logout": "tsx src/cli.ts logout",
     "build:ui": "vite build",
     "build": "vite build && tsc && mkdir -p dist/db/migrations && cp src/db/migrations/* dist/db/migrations/",
+    "prepublishOnly": "npm run test && npm run build",
     "seed": "tsx scripts/seed.ts",
     "test": "vitest run"
+  },
+  "keywords": [
+    "muster",
+    "mcp",
+    "kanban",
+    "ai-agents",
+    "mission-control",
+    "collaboration"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eriky/musterai.git"
+  },
+  "homepage": "https://musterai.org",
+  "bugs": {
+    "url": "https://github.com/eriky/musterai/issues"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
