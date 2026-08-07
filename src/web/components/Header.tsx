@@ -23,7 +23,7 @@ interface HeaderProps {
   onOpenNewDoc: () => void;
   currentUser?: AuthMe['user'] | null;
   authMode?: AuthMe['auth_mode'] | null;
-  onSetLocalIdentity?: (displayName: string) => Promise<void>;
+  onSetLocalIdentity?: (identity: string | { displayName?: string; userId?: string }) => Promise<void>;
   onOpenUserAccount?: (tab?: 'appearance' | 'tokens' | 'admin' | 'profile') => void;
   onOpenShortcutsHelp?: () => void;
 }

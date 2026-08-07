@@ -347,8 +347,8 @@ export const App: React.FC = () => {
   // Open-mode-only: let the browser claim a human identity with no OIDC
   // involved. Every request already carries full trust in open mode, so this
   // just gives that trust a name (see POST /auth/local).
-  const handleSetLocalIdentity = useCallback(async (displayName: string) => {
-    const { user } = await api.setLocalIdentity(displayName);
+  const handleSetLocalIdentity = useCallback(async (identity: string | { displayName?: string; userId?: string }) => {
+    const { user } = await api.setLocalIdentity(identity);
     setCurrentUser(user);
   }, []);
 

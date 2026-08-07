@@ -129,8 +129,16 @@ export const api = {
 
   // Auth
   getMe: () => fetchJSON<AuthMe>('/auth/me'),
-  setLocalIdentity: (displayName: string) =>
-    fetchJSON<{ user: AuthMe['user'] }>('/auth/local', { method: 'POST', body: JSON.stringify({ display_name: displayName }) }),
+  setLocalIdentity: (identity: string | { displayName?: string; userId?: string }) => {
+    const body: Record<string, string> = {};
+    if (typeof identity === 'string') {
+      body.display_name = identity;
+    } else {
+      if (identity.displayName) body.display_name = identity.displayName;
+      if (identity.userId) body.user_id = identity.userId;
+    }
+    return fetchJSON<{ user: AuthMe['user'] }>('/auth/local', { method: 'POST', body: JSON.stringify(body) });
+  },
 
   // Users (workspace members — humans only)
   getUsers: () => fetchJSON<User[]>(`/users`),

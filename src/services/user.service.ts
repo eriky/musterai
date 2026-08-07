@@ -77,6 +77,22 @@ export class UserService {
     };
   }
 
+  async findById(id: string): Promise<AppUser | null> {
+    const rows = await this.db.query<AppUser>(
+      'SELECT id, email, display_name, avatar_url, status, created_at FROM app_user WHERE id = ?',
+      [id],
+    );
+    return rows[0] || null;
+  }
+
+  async findByDisplayName(displayName: string): Promise<AppUser | null> {
+    const rows = await this.db.query<AppUser>(
+      'SELECT id, email, display_name, avatar_url, status, created_at FROM app_user WHERE LOWER(display_name) = LOWER(?) LIMIT 1',
+      [displayName.trim()],
+    );
+    return rows[0] || null;
+  }
+
   /**
    * Create a human principal directly, with no OIDC identity behind it —
    * the open-mode "who are you" self-service flow. Only ever called when
@@ -190,13 +206,23 @@ export class UserService {
       'SELECT role_id FROM workspace_member WHERE workspace_id = ? AND user_id = ?',
       [workspaceId, userId],
     );
-    if (memberRows.length === 0) throw new ValidationError('User is not a member of this workspace');
 
-    if (await this.isSoleAdmin(workspaceId, userId, memberRows[0].role_id)) {
+    const userRows = await this.db.query<{ id: string }>('SELECT id FROM app_user WHERE id = ?', [userId]);
+
+    if (memberRows.length === 0 && userRows.length === 0) {
+      throw new ValidationError('User is not a member of this workspace');
+    }
+
+    if (memberRows.length > 0 && await this.isSoleAdmin(workspaceId, userId, memberRows[0].role_id)) {
       throw new ValidationError('Cannot remove the last owner — promote another member first');
     }
 
     await this.db.execute('UPDATE agent SET operator_user_id = NULL WHERE operator_user_id = ?', [userId]);
     await this.db.execute('DELETE FROM workspace_member WHERE workspace_id = ? AND user_id = ?', [workspaceId, userId]);
+    await this.db.execute('DELETE FROM session WHERE user_id = ?', [userId]);
+    await this.db.execute('DELETE FROM identity WHERE user_id = ?', [userId]);
+    await this.db.execute('DELETE FROM device_grant WHERE principal_id = ?', [userId]);
+    await this.db.execute('DELETE FROM app_user WHERE id = ?', [userId]);
+    await this.db.execute('DELETE FROM principal WHERE id = ?', [userId]);
   }
 }

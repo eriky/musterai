@@ -194,25 +194,39 @@ export function createAuthRouter(
         return;
       }
 
-      const displayName = typeof req.body?.display_name === 'string' ? req.body.display_name.trim() : '';
-      if (!displayName) {
-        res.status(400).json({ error: 'bad_request', message: 'display_name is required' });
-        return;
-      }
-      if (displayName.length > 80) {
-        res.status(400).json({ error: 'bad_request', message: 'display_name must be 80 characters or fewer' });
-        return;
+      const userIdParam = typeof req.body?.user_id === 'string' ? req.body.user_id.trim() : null;
+      const displayNameParam = typeof req.body?.display_name === 'string' ? req.body.display_name.trim() : null;
+
+      let user: any = null;
+
+      if (userIdParam) {
+        user = await userService.findById(userIdParam);
+      } else if (displayNameParam) {
+        user = await userService.findByDisplayName(displayNameParam);
+        if (!user) {
+          if (displayNameParam.length > 80) {
+            res.status(400).json({ error: 'bad_request', message: 'display_name must be 80 characters or fewer' });
+            return;
+          }
+          user = await userService.createLocalUser(displayNameParam);
+        }
       }
 
-      const user = await userService.createLocalUser(displayName);
+      if (!user) {
+        res.status(400).json({ error: 'bad_request', message: 'user_id or display_name is required' });
+        return;
+      }
 
       const wsRows = await db.query<{ id: string }>('SELECT id FROM workspace LIMIT 1');
       const workspaceId = wsRows[0]?.id || null;
 
       if (workspaceId) {
-        const ownerRole = await roleService.getByKey(workspaceId, 'owner');
-        if (ownerRole) {
-          await userService.addWorkspaceMember(workspaceId, user.id, ownerRole.id, null);
+        const isMember = await userService.isWorkspaceMember(workspaceId, user.id);
+        if (!isMember) {
+          const ownerRole = await roleService.getByKey(workspaceId, 'owner');
+          if (ownerRole) {
+            await userService.addWorkspaceMember(workspaceId, user.id, ownerRole.id, null);
+          }
         }
       }
 
@@ -235,7 +249,7 @@ export function createAuthRouter(
         action: 'user.local_identity_create',
         target_type: 'user',
         target_id: user.id,
-        payload: { display_name: displayName },
+        payload: { display_name: user.display_name },
         ip: req.ip || null,
       });
 
