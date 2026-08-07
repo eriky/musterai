@@ -29,7 +29,7 @@ import { createRouter } from './api/router.js';
 import { errorHandler } from './api/middleware/error-handler.js';
 import { createMcpServer, Services } from './mcp/server.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { config } from './config/index.js';
+import { config, setDatabaseOverride } from './config/index.js';
 import { OPEN_AUTH_CONTEXT } from './shared/auth-context.js';
 import { ulid } from 'ulid';
 import { TokenService } from './services/token.service.js';
@@ -48,7 +48,11 @@ import { createRateLimiter } from './api/middleware/generic-rate-limiter.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export async function startServer(): Promise<void> {
+export async function startServer(options?: { db?: string }): Promise<void> {
+  if (options?.db) {
+    setDatabaseOverride(options.db);
+  }
+
   const db = createDatabaseAdapter();
 
   const migrator = new Migrator(db, path.join(__dirname, 'db/migrations'));
@@ -225,6 +229,7 @@ export async function startServer(): Promise<void> {
 
   const listenOnPort = (port: number) => {
     const server = app.listen(port, '0.0.0.0', () => {
+      const activeDb = config.db.type === 'sqlite' ? config.db.path : (config.db.url || 'n/a');
       console.log(`\n======================================================`);
       console.log(`  Muster v2.0 - ONLINE`);
       console.log(`======================================================`);
@@ -232,6 +237,7 @@ export async function startServer(): Promise<void> {
       console.log(`  • REST API: http://${config.host}:${port}/api/v1`);
       console.log(`  • MCP Tool: POST http://${config.host}:${port}/mcp`);
       console.log(`  • Auth:     ${config.auth.mode}`);
+      console.log(`  • Database: ${activeDb}`);
       console.log(`======================================================\n`);
     });
 

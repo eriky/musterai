@@ -255,6 +255,7 @@ muster/
 | :------------------ | :------------------------- | :------------------------------------------------------------------------------ |
 | `MUSTER_PORT`       | `3000`                     | HTTP server listen port                                                         |
 | `MUSTER_DB_PATH`    | `data/muster.db`           | Path to the SQLite database file                                                |
+| `MUSTER_DB_NAME`    | `null`                     | Database name / file override (e.g. `dev` -> `data/dev.db`, or CLI `--db <name>`) |
 | `MUSTER_AUTH_MODE`  | derived from `MUSTER_HOST` | `open` (solo/localhost) or `enforced` (shared/public host)                      |
 | `MUSTER_PUBLIC_URL` | `http://localhost:<port>`  | Required for a public deployment — see [docs/deployment.md](docs/deployment.md) |
 | `NODE_ENV`          | `development`              | Runtime environment                                                             |

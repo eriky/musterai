@@ -17,7 +17,50 @@ function detectAuthMode(): 'open' | 'enforced' {
   return 'enforced';
 }
 
+export function resolveDbPath(dbOption?: string): { path: string; url: string | null } {
+  const dbType = (process.env.MUSTER_DB_TYPE || 'sqlite') as 'sqlite' | 'postgres';
+  const initialUrl = process.env.MUSTER_DATABASE_URL || null;
+
+  const targetOption = dbOption || process.env.MUSTER_DB_NAME;
+
+  if (!targetOption) {
+    if (process.env.MUSTER_DB_PATH) {
+      return { path: process.env.MUSTER_DB_PATH, url: initialUrl };
+    }
+    return { path: path.join(projectRoot, 'data/muster.db'), url: initialUrl };
+  }
+
+  if (dbType === 'postgres') {
+    if (!initialUrl) {
+      return { path: path.join(projectRoot, 'data/muster.db'), url: null };
+    }
+    try {
+      const parsedUrl = new URL(initialUrl);
+      parsedUrl.pathname = `/${targetOption.replace(/^\//, '')}`;
+      return { path: path.join(projectRoot, 'data/muster.db'), url: parsedUrl.toString() };
+    } catch {
+      return { path: path.join(projectRoot, 'data/muster.db'), url: initialUrl };
+    }
+  }
+
+  if (path.isAbsolute(targetOption)) {
+    return { path: path.resolve(targetOption), url: initialUrl };
+  }
+
+  if (targetOption.includes('/') || targetOption.includes('\\')) {
+    return { path: path.resolve(process.cwd(), targetOption), url: initialUrl };
+  }
+
+  let fileName = targetOption;
+  if (!/\.(db|sqlite|sqlite3)$/i.test(fileName)) {
+    fileName = `${fileName}.db`;
+  }
+
+  return { path: path.join(projectRoot, 'data', fileName), url: initialUrl };
+}
+
 const port = parseInt(process.env.MUSTER_PORT || '3000', 10);
+const initialDb = resolveDbPath();
 
 export const config = {
   port,
@@ -28,9 +71,9 @@ export const config = {
   db: {
     /** 'sqlite' (default, zero-config) or 'postgres' — see docs/deployment.md. */
     type: (process.env.MUSTER_DB_TYPE || 'sqlite') as 'sqlite' | 'postgres',
-    path: process.env.MUSTER_DB_PATH || path.join(projectRoot, 'data/muster.db'),
+    path: initialDb.path,
     /** e.g. postgres://user:pass@host:5432/muster — required when type is 'postgres'. */
-    url: process.env.MUSTER_DATABASE_URL || null,
+    url: initialDb.url,
   },
   attachmentsDir: process.env.MUSTER_ATTACHMENTS_DIR || path.join(projectRoot, 'data/attachments'),
   publicDir: path.join(projectRoot, 'public'),
@@ -43,6 +86,12 @@ export const config = {
     bootstrapOwnerSubject: process.env.MUSTER_BOOTSTRAP_OWNER_SUBJECT || null,
   },
 };
+
+export function setDatabaseOverride(dbOption?: string): void {
+  const resolved = resolveDbPath(dbOption);
+  config.db.path = resolved.path;
+  config.db.url = resolved.url;
+}
 
 /** True when enough OIDC configuration is present to enable the auth routes. */
 export function isOidcConfigured(): boolean {

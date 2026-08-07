@@ -7,4 +7,18 @@
 
 import { startServer } from './server.js';
 
-startServer().catch(console.error);
+function parseDbOption(): string | undefined {
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === '--db' || arg === '--db-name' || arg === '--database' || arg === '-d') {
+      return argv[i + 1];
+    }
+    if (arg.startsWith('--db=') || arg.startsWith('--db-name=') || arg.startsWith('--database=')) {
+      return arg.split('=')[1];
+    }
+  }
+  return undefined;
+}
+
+startServer({ db: parseDbOption() }).catch(console.error);

@@ -379,6 +379,7 @@ npx tsx scripts/mcp-agent-test.ts
 | :--- | :--- | :--- |
 | `MUSTER_PORT` | `3000` | HTTP server port |
 | `MUSTER_DB_PATH` | `data/muster.db` | SQLite database file path |
+| `MUSTER_DB_NAME` | `null` | Database name or filename override (e.g. `dev` resolves to `data/dev.db`). Can also be passed via CLI `--db <name>` |
 | `MUSTER_AUTH_MODE` | `open` (auto-detected) | Auth enforcement: `open` bypasses checks, `enforced` requires valid credentials |
 | `MUSTER_HOST` | `localhost` | Bind address; setting to `0.0.0.0` auto-enables `enforced` mode |
 | `NODE_ENV` | `development` | Environment (`development` \| `production`) |

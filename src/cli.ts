@@ -19,10 +19,10 @@ function parseFlags(argv: string[]): Flags {
   const flags: Flags = {};
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (!arg.startsWith('--')) continue;
-    const key = arg.slice(2);
+    if (!arg.startsWith('-')) continue;
+    const key = arg.replace(/^-+/, '');
     const next = argv[i + 1];
-    if (next !== undefined && !next.startsWith('--')) {
+    if (next !== undefined && !next.startsWith('-')) {
       flags[key] = next;
       i++;
     } else {
@@ -173,13 +173,19 @@ async function runLogout(flags: Flags): Promise<void> {
 }
 
 async function main() {
-  const [subcommand, ...rest] = process.argv.slice(2);
+  let [subcommand, ...rest] = process.argv.slice(2);
+  if (subcommand && subcommand.startsWith('-')) {
+    rest = [subcommand, ...rest];
+    subcommand = 'serve';
+  }
+
   const flags = parseFlags(rest);
+  const dbOption = (flags.db || flags['db-name'] || flags.database || flags.d) as string | undefined;
 
   switch (subcommand) {
     case undefined:
     case 'serve':
-      await startServer();
+      await startServer({ db: dbOption });
       break;
     case 'connect':
       await runConnect(flags);
