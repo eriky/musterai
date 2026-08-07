@@ -17,7 +17,7 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production
-ENV MUSTER_PORT=3000
+ENV MUSTER_PORT=6878
 ENV MUSTER_HOST=0.0.0.0
 
 RUN apk add --no-cache curl
@@ -33,9 +33,9 @@ COPY --from=builder /app/src/db/migrations ./dist/db/migrations
 RUN mkdir -p /app/data
 VOLUME ["/app/data"]
 
-EXPOSE 3000
+EXPOSE 6878
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:3000/api/v1/health || exit 1
+  CMD curl -f http://localhost:6878/api/v1/health || exit 1
 
 CMD ["node", "dist/index.js"]

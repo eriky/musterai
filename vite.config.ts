@@ -16,7 +16,7 @@ export default defineConfig({
       // Anchored regexes: a bare '/api' prefix match also swallows the
       // `/api.ts` source module and leaves the dev UI blank.
       '^/api/': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:6878',
         changeOrigin: true,
       },
       // Exact match only — the real endpoint is POST /mcp with no
@@ -24,7 +24,7 @@ export default defineConfig({
       // /mcp/authorize consent screen (MUS-29) and proxy it to the backend
       // instead of letting vite serve the dev-mode index.html.
       '^/mcp$': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:6878',
         changeOrigin: true,
       },
     },

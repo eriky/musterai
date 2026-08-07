@@ -22,7 +22,7 @@ import { config } from '../src/config/index.js';
 import { FakeOidcProvider } from './helpers/fake-oidc-provider.js';
 
 const TEST_DB = path.join(process.cwd(), 'data', 'test-oidc.db');
-const REDIRECT_URI = 'http://localhost:3000/api/v1/auth/callback';
+const REDIRECT_URI = 'http://localhost:6878/api/v1/auth/callback';
 
 describe('MUS-25: OIDC relying-party flow', () => {
   let provider: FakeOidcProvider;

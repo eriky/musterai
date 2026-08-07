@@ -1,8 +1,8 @@
 # docker-compose.yml - Muster
 #
-# This is a local/solo getting-started config: it publishes port 3000 to
+# This is a local/solo getting-started config: it publishes port 6878 to
 # all interfaces with no TLS. Before running this on a public host, read
-# docs/deployment.md — change the ports mapping below to "127.0.0.1:3000:3000"
+# docs/deployment.md — change the ports mapping below to "127.0.0.1:6878:6878"
 # and put a TLS-terminating reverse proxy (Caddy/nginx) in front of it.
 
 services:
@@ -13,9 +13,9 @@ services:
     container_name: muster-platform
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "6878:6878"
     environment:
-      - MUSTER_PORT=3000
+      - MUSTER_PORT=6878
       - MUSTER_HOST=0.0.0.0
       - MUSTER_DB_PATH=/app/data/muster.db
     volumes:

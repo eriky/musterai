@@ -85,7 +85,7 @@ export function resolveDbPath(dbOption?: string): { path: string; url: string | 
   return { path: path.join(getDefaultDbDir(), fileName), url: initialUrl };
 }
 
-const port = parseInt(process.env.MUSTER_PORT || '3000', 10);
+const port = parseInt(process.env.MUSTER_PORT || '6878', 10);
 const initialDb = resolveDbPath();
 
 export const config = {
