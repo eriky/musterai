@@ -15,7 +15,7 @@ export function createHealthRouter(db: DatabaseAdapter): Router {
 
       res.json({
         status: 'ok',
-        version: '2.0.0-alpha',
+        version: '1.0.0',
         uptime_seconds: Math.floor((Date.now() - startTime) / 1000),
         timestamp: new Date().toISOString(),
         database: {

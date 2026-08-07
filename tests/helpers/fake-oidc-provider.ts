@@ -51,7 +51,10 @@ export class FakeOidcProvider {
     provider.foreignPrivateKey = foreign.privateKey;
 
     provider.server = http.createServer((req, res) => provider.handle(req, res));
-    await new Promise<void>((resolve) => provider.server.listen(0, '127.0.0.1', resolve));
+    await new Promise<void>((resolve, reject) => {
+      provider.server.listen(0, '127.0.0.1', resolve);
+      provider.server.once('error', reject);
+    });
     const port = (provider.server.address() as AddressInfo).port;
     provider.issuer = `http://127.0.0.1:${port}`;
     return provider;

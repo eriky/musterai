@@ -79,6 +79,10 @@ describe('MUS-17: card routes thread the authenticated actor through to events',
     app.use('/api/v1', createCardRouter(cardService, commentService));
 
     server = app.listen(0);
+    await new Promise<void>((resolve, reject) => {
+      server.once('listening', resolve);
+      server.once('error', reject);
+    });
     const { port } = server.address() as AddressInfo;
     baseUrl = `http://localhost:${port}/api/v1`;
   });

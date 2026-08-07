@@ -139,7 +139,7 @@ async function requireCommentOwnershipOrAdmin(
 export function createMcpServer(services: Services, req?: Request, auth: AuthContext = OPEN_AUTH_CONTEXT): McpServer {
   const server = new McpServer({
     name: 'muster',
-    version: '2.0.0',
+    version: '1.0.0',
   });
 
   // Open mode has no authenticated request principal, so attributed calls

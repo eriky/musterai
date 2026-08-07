@@ -90,7 +90,10 @@ describe('MUS-25: auth routes (end-to-end over HTTP)', () => {
     app.use('/api/v1', v1);
 
     server = app.listen(0, '127.0.0.1');
-    await new Promise<void>((resolve) => server.once('listening', resolve));
+    await new Promise<void>((resolve, reject) => {
+      server.once('listening', resolve);
+      server.once('error', reject);
+    });
     const port = (server.address() as AddressInfo).port;
     baseUrl = `http://127.0.0.1:${port}`;
 

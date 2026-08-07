@@ -231,7 +231,7 @@ export async function startServer(options?: { db?: string }): Promise<void> {
     const server = app.listen(port, '0.0.0.0', () => {
       const activeDb = config.db.type === 'sqlite' ? config.db.path : (config.db.url || 'n/a');
       console.log(`\n======================================================`);
-      console.log(`  Muster v2.0 - ONLINE`);
+      console.log(`  Muster v1.0.0 - ONLINE`);
       console.log(`======================================================`);
       console.log(`  • Web UI:   http://${config.host}:${port}`);
       console.log(`  • REST API: http://${config.host}:${port}/api/v1`);
@@ -247,6 +247,7 @@ export async function startServer(options?: { db?: string }): Promise<void> {
         listenOnPort(port + 1);
       } else {
         console.error('[Muster] Server error:', err);
+        process.exit(1);
       }
     });
 
